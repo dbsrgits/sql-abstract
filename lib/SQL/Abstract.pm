@@ -648,6 +648,7 @@ sub _recurse_where {
         for my $k (sort keys %$where) {
             my $v = $where->{$k};
             my $label = $self->_quote($k);
+
             if ($k =~ /^-(\D+)/) {
                 # special nesting, like -and, -or, -nest, so shift over
                 my $subjoin = $self->_modlogic($1);
@@ -683,6 +684,10 @@ sub _recurse_where {
                 # modified operator { '!=', 'completed' }
                 for my $f (sort keys %$v) {
                     my $x = $v->{$f};
+
+                    # do the right thing for single -in values
+                    $x = [$x] if ($f =~ /^-?\s*(not[\s_]+)?in\s*$/i  &&  ref $x ne 'ARRAY');
+
                     $self->_debug("HASH($k) means modified operator: { $f }");
 
                     # check for the operator being "IN" or "BETWEEN" or whatever
@@ -692,12 +697,19 @@ sub _recurse_where {
                               $self->_debug("HASH($f => $x) uses special operator: [ $u ]");
                               if ($u =~ /between/i) {
                                   # SQL sucks
+                                  # Throw an exception if you try to use between with
+                                  # anything other than 2 values
+                                  $self->puke("You need two values to use between") unless @$x == 2;
                                   push @sqlf, join ' ', $self->_convert($label), $u, $self->_convert('?'),
                                                         $self->_sqlcase('and'), $self->_convert('?');
-                              } else {
+                              } elsif (@$x) {
+                                  # DWIM for empty arrayrefs
                                   push @sqlf, join ' ', $self->_convert($label), $u, '(',
                                                   join(', ', map { $self->_convert('?') } @$x),
                                               ')';
+                              } elsif(@$x == 0){
+                                  # Empty IN defaults to 0=1 and empty NOT IN to 1=1
+                                  push(@sqlf, ($u =~ /not/i ? "1=1" : "0=1"));
                               }
                               push @sqlv, $self->_bindtype($k, @$x);
                           } else {
