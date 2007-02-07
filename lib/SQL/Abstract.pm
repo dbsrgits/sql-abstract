@@ -184,20 +184,99 @@ sub puke (@) {
 # Utility functions
 sub _table  {
     my $self = shift;
-    my $tab  = shift;
-    if (ref $tab eq 'ARRAY') {
-        return join ', ', map { $self->_quote($_) } @$tab;
+    my $from = shift;
+    if (ref $from eq 'ARRAY') {
+        return $self->_recurse_from(@$from);
+    } elsif (ref $from eq 'HASH') {
+        return $self->_make_as($from);
     } else {
-        return $self->_quote($tab);
+        return $self->_quote($from);
     }
 }
+
+sub _recurse_from {
+    my ($self, $from, @join) = @_;
+    my @sqlf;
+    push(@sqlf, $self->_make_as($from));
+    foreach my $j (@join) {
+        push @sqlf, ', ' . $self->_quote($j) and next unless ref $j;
+        push @sqlf, ', ' . $$j and next if ref $j eq 'SCALAR';
+        my ($to, $on) = @$j;
+
+        # check whether a join type exists
+        my $join_clause = '';
+        my $to_jt = ref($to) eq 'ARRAY' ? $to->[0] : $to;
+        if (ref($to_jt) eq 'HASH' and exists($to_jt->{-join_type})) {
+            $join_clause = $self->_sqlcase(' '.($to_jt->{-join_type}).' JOIN ');
+        } else {
+            $join_clause = $self->_sqlcase(' JOIN ');
+        }
+        push(@sqlf, $join_clause);
+
+        if (ref $to eq 'ARRAY') {
+            push(@sqlf, '(', $self->_recurse_from(@$to), ')');
+        } else {
+            push(@sqlf, $self->_make_as($to));
+        }
+        push(@sqlf, $self->_sqlcase(' ON '), $self->_join_condition($on));
+    }
+    return join('', @sqlf);
+}
+
+sub _make_as {
+    my ($self, $from) = @_;
+    return $self->_quote($from) unless ref $from;
+    return $$from if ref $from eq 'SCALAR';
+    return join(' ', map { (ref $_ eq 'SCALAR' ? $$_ : $self->_quote($_)) }
+                         reverse each %{$self->_skip_options($from)});
+}
+
+sub _skip_options {
+    my ($self, $hash) = @_;
+    my $clean_hash = {};
+    $clean_hash->{$_} = $hash->{$_}
+        for grep {!/^-/} keys %$hash;
+    return $clean_hash;
+}
+
+sub _join_condition {
+    my ($self, $cond) = @_;
+    if (ref $cond eq 'HASH') {
+        my %j;
+        for (keys %$cond) {
+            my $x = '= '.$self->_quote($cond->{$_}); $j{$_} = \$x;
+        };
+        return $self->_recurse_where(\%j);
+    } elsif (ref $cond eq 'ARRAY') {
+        return join(' OR ', map { $self->_join_condition($_) } @$cond);
+    } else {
+        die "Can't handle this yet!";
+    }
+}
+
 
 sub _quote {
     my $self  = shift;
     my $label = shift;
 
+    return '' unless defined $label;
+
     return $label
       if $label eq '*';
+
+    return $label unless $self->{quote_char};
+
+    if (ref $self->{quote_char} eq "ARRAY") {
+
+        return $self->{quote_char}->[0] . $label . $self->{quote_char}->[1]
+            if !defined $self->{name_sep};
+
+        my $sep = $self->{name_sep};
+        return join($self->{name_sep},
+            map { $self->{quote_char}->[0] . $_ . $self->{quote_char}->[1] }
+              split( /\Q$sep\E/, $label ) );
+    }
+
 
     return $self->{quote_char} . $label . $self->{quote_char}
       if !defined $self->{name_sep};
