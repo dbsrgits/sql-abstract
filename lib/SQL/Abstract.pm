@@ -1245,7 +1245,7 @@ L<DBIx::Abstract>, L<DBI|DBI>, L<CGI::FormBuilder>, L<HTML::QuickTable>
 
 =head1 AUTHOR
 
-Copyright (c) 2001-2006 Nathan Wiger <nate@wiger.org>. All Rights Reserved.
+Copyright (c) 2001-2006 Nathan Wiger <nwiger@cpan.org>. All Rights Reserved.
 
 For support, your best bet is to try the C<DBIx::Class> users mailing list.
 While not an official support venue, C<DBIx::Class> makes heavy use of
