@@ -144,7 +144,8 @@ clause) to try and simplify things.
 use Carp;
 use strict;
 
-our $VERSION = '1.22';
+our $VERSION  = '1.22';
+our $REVISION = '$Id$';
 our $AUTOLOAD;
 
 # Fix SQL case, if so requested
@@ -1244,7 +1245,7 @@ L<DBIx::Abstract>, L<DBI|DBI>, L<CGI::FormBuilder>, L<HTML::QuickTable>
 
 =head1 VERSION
 
-$Id$
+1.22
 
 =head1 AUTHOR
 
