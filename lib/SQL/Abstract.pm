@@ -144,7 +144,7 @@ clause) to try and simplify things.
 use Carp;
 use strict;
 
-our $VERSION = do { my @r=(q$Revision: 1.21 $=~/\d+/g); sprintf "%d."."%02d"x$#r,@r };
+our $VERSION = '1.22';
 our $AUTOLOAD;
 
 # Fix SQL case, if so requested
@@ -1244,7 +1244,7 @@ L<DBIx::Abstract>, L<DBI|DBI>, L<CGI::FormBuilder>, L<HTML::QuickTable>
 
 =head1 VERSION
 
-$Id: Abstract.pm,v 1.21 2006/03/08 01:27:56 nwiger Exp $
+$Id$
 
 =head1 AUTHOR
 
