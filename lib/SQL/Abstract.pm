@@ -1,4 +1,3 @@
-
 package SQL::Abstract;
 
 =head1 NAME
@@ -555,7 +554,7 @@ sub insert {
 =head2 update($table, \%fieldvals, \%where)
 
 This takes a table, hashref of field/value pairs, and an optional
-hashref WHERE clause. It returns an SQL UPDATE function and a list
+hashref L<WHERE clause|/WHERE CLAUSES>. It returns an SQL UPDATE function and a list
 of bind values.
 
 =cut
@@ -605,7 +604,7 @@ sub update {
 =head2 select($table, \@fields, \%where, \@order)
 
 This takes a table, arrayref of fields (or '*'), optional hashref
-WHERE clause, and optional arrayref order by, and returns the
+L<WHERE clause|/WHERE CLAUSES>, and optional array or hash ref L<ORDER BY clause|/ORDER BY CLAUSES>, and returns the
 corresponding SQL SELECT statement and list of bind values.
 
 =cut
@@ -630,7 +629,7 @@ sub select {
 
 =head2 delete($table, \%where)
 
-This takes a table name and optional hashref WHERE clause.
+This takes a table name and optional hashref L<WHERE clause|/WHERE CLAUSES>.
 It returns an SQL DELETE statement and list of bind values.
 
 =cut
@@ -848,14 +847,43 @@ sub _recurse_where {
 
 sub _order_by {
     my $self = shift;
-    my $ref = ref $_[0];
+    my $ref = ref $_[0] || '';
+    
+    my $_order_hash = sub {
+      local *__ANON__ = '_order_by_hash';
+      my ($col, $order);
+      if ( $col = $_->{-desc} ) {
+        $order = 'DESC'
+      } elsif ( $col = $_->{-asc} ) {
+        $order = 'ASC';
+      } else {
+        puke "Hash must have a key of '-desc' or '-asc' for ORDER BY";
+      }
+      return $self->_quote($col) . " $order";
+      
+    };
+    
+    my @vals;
+    if ($ref eq 'ARRAY') {
+      foreach (@{ $_[0] }) {
+        my $ref = ref $_;
+        if (!$ref || $ref eq 'SCALAR') {
+          push @vals, $self->_quote($_);
+        } elsif ($ref eq 'HASH') {
+          push @vals, $_order_hash->($_);
+        } else {
+          puke "Unsupported nested data struct $ref for ORDER BY";
+        }
+      }
+    } elsif ($ref eq 'HASH') {
+      push @vals, $_order_hash->($_[0]);
+    } elsif (!$ref || $ref eq 'SCALAR') {
+      push @vals, $self->_quote($_[0]);
+    } else {
+      puke "Unsupported data struct $ref for ORDER BY";
+    }
 
-    my @vals = $ref eq 'ARRAY'  ? @{$_[0]} :
-               $ref eq 'SCALAR' ? $_[0]    :
-               $ref eq ''       ? $_[0]    :
-               puke "Unsupported data struct $ref for ORDER BY";
-
-    my $val = join ', ', map { $self->_quote($_) } @vals;
+    my $val = join ', ', @vals;
     return $val ? $self->_sqlcase(' order by')." $val" : '';
 }
 
@@ -1120,7 +1148,7 @@ In addition to C<-and> and C<-or>, there is also a special C<-nest>
 operator which adds an additional set of parens, to create a subquery.
 For example, to get something like this:
 
-    $stmt = WHERE user = ? AND ( workhrs > ? OR geo = ? )
+    $stmt = "WHERE user = ? AND ( workhrs > ? OR geo = ? )";
     @bind = ('nwiger', '20', 'ASIA');
 
 You would do:
@@ -1237,6 +1265,12 @@ knew everything ahead of time, you wouldn't have to worry about
 dynamically-generating SQL and could just hardwire it into your
 script.
 
+=head1 ORDER BY CLAUSES
+
+Some functions take an order by clause. This can either be a scalar (just a 
+column name,) a hash of C<< { -desc => 'col' } >> or C<< { -asc => 'col' } >>,
+or an array of either of the two previous forms.
+
 =head1 PERFORMANCE
 
 Thanks to some benchmarking by Mark Stosberg, it turns out that
@@ -1318,6 +1352,7 @@ There are a number of individuals that have really helped out with
 this module. Unfortunately, most of them submitted bugs via CPAN
 so I have no idea who they are! But the people I do know are:
 
+    Ash Berlin (order_by hash term support) 
     Matt Trout (DBIx::Class support)
     Mark Stosberg (benchmarking)
     Chas Owens (initial "IN" operator support)
@@ -1331,7 +1366,7 @@ Thanks!
 
 =head1 SEE ALSO
 
-L<DBIx::Class>, L<DBIx::Abstract>, L<CGI::FormBuilder>, L<HTML::QuickTable>
+L<DBIx::Class>, L<DBIx::Abstract>, L<CGI::FormBuilder>, L<HTML::QuickTable>.
 
 =head1 AUTHOR
 

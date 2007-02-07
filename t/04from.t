@@ -9,12 +9,6 @@ plan tests => 4;
 
 use SQL::Abstract;
 
-sub is {
-    my ($got, $expect, $msg) = @_;
-    ok($got eq $expect) or
-        warn "got [${got}]\ninstead of [${expect}]\nfor test ${msg}\n\n";
-}
-
 my $sa = new SQL::Abstract;
 
 my @j = (

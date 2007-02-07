@@ -49,35 +49,33 @@ is($sql,
    q/SELECT COUNT( * ) FROM `cd` `me`  JOIN `artist` `artist` ON ( `artist`.`artistid` = `me`.`artist` ) WHERE ( `artist`.`name` = ? AND `me`.`year` = ? )/, 
    'got correct SQL for count query with quoting');
 
+
 ($sql,) = $sql_maker->select(
-          [
-            {
-              'me' => 'cd'
-            }
-          ],
-          [
-            'me.cdid',
-            'me.artist',
-            'me.title',
-            'me.year'
-          ],
-          undef,
-          [
-            'year DESC'
-          ],
-          undef,
-          undef
+      [
+        {
+          'me' => 'cd'
+        }
+      ],
+      [
+        'me.cdid',
+        'me.artist',
+        'me.title',
+        'me.year'
+      ],
+      undef,
+      [
+        { -desc => 'year' }
+      ],
+      undef,
+      undef
 );
 
 
 
-TODO: {
-    local $TODO = "order_by with quoting needs fixing (ash/castaway)";
 
-    is($sql, 
-       q/SELECT `me`.`cdid`, `me`.`artist`, `me`.`title`, `me`.`year` FROM `cd` `me` ORDER BY `year` DESC/, 
-       'quoted ORDER BY with DESC okay');
-}
+is($sql, 
+   q/SELECT `me`.`cdid`, `me`.`artist`, `me`.`title`, `me`.`year` FROM `cd` `me` ORDER BY `year` DESC/, 
+   'quoted ORDER BY with DESC okay');
 
 
 ($sql,) = $sql_maker->select(

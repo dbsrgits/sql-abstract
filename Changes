@@ -1,5 +1,7 @@
 Revision history for SQL::Abstract
 
+    - Added { -desc => 'column' } order by support (Ash)
+
 ----------------------------
 revision 1.20
 date: 2005/08/18 18:41:58;  author: nwiger;  state: Exp;  lines: +104 -50
