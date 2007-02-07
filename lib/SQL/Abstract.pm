@@ -264,6 +264,8 @@ sub _quote {
     return $label
       if $label eq '*';
 
+    return $$label if ref($label) eq 'SCALAR';
+
     return $label unless $self->{quote_char};
 
     if (ref $self->{quote_char} eq "ARRAY") {
@@ -273,7 +275,9 @@ sub _quote {
 
         my $sep = $self->{name_sep};
         return join($self->{name_sep},
-            map { $self->{quote_char}->[0] . $_ . $self->{quote_char}->[1] }
+            map { $_ eq '*'
+                    ? $_
+                    : $self->{quote_char}->[0] . $_ . $self->{quote_char}->[1] }
               split( /\Q$sep\E/, $label ) );
     }
 
@@ -282,7 +286,7 @@ sub _quote {
       if !defined $self->{name_sep};
 
     return join $self->{name_sep},
-        map { $self->{quote_char} . $_ . $self->{quote_char}  }
+        map { $_ eq '*' ? $_ : $self->{quote_char} . $_ . $self->{quote_char} }
         split /\Q$self->{name_sep}\E/, $label;
 }
 
@@ -847,7 +851,7 @@ sub _order_by {
     my $ref = ref $_[0];
 
     my @vals = $ref eq 'ARRAY'  ? @{$_[0]} :
-               $ref eq 'SCALAR' ? ${$_[0]} :
+               $ref eq 'SCALAR' ? $_[0]    :
                $ref eq ''       ? $_[0]    :
                puke "Unsupported data struct $ref for ORDER BY";
 
