@@ -1318,29 +1318,26 @@ There are a number of individuals that have really helped out with
 this module. Unfortunately, most of them submitted bugs via CPAN
 so I have no idea who they are! But the people I do know are:
 
+    Matt Trout (DBIx::Class support)
     Mark Stosberg (benchmarking)
     Chas Owens (initial "IN" operator support)
     Philip Collins (per-field SQL functions)
     Eric Kolve (hashref "AND" support)
     Mike Fragassi (enhancements to "BETWEEN" and "LIKE")
     Dan Kubb (support for "quote_char" and "name_sep")
-    Matt Trout (DBIx::Class support)
+    Guillermo Roditi (patch to cleanup "IN" and "BETWEEN")
 
 Thanks!
 
-=head1 BUGS
-
-If found, please DO NOT submit anything via C<rt.cpan.org> - that
-just causes me a ton of work. Email me a patch (or script demonstrating
-the problem) to the below address, and include the VERSION you're using.
-
 =head1 SEE ALSO
 
-L<DBIx::Abstract>, L<DBI|DBI>, L<CGI::FormBuilder>, L<HTML::QuickTable>
+L<DBIx::Class>, L<DBIx::Abstract>, L<CGI::FormBuilder>, L<HTML::QuickTable>
 
 =head1 AUTHOR
 
-Copyright (c) 2001-2006 Nathan Wiger <nwiger@cpan.org>. All Rights Reserved.
+Copyright (c) 2001-2007 Nathan Wiger <nwiger@cpan.org>. All Rights Reserved.
+
+This module is actively maintained by Matt Trout <mst@shadowcatsystems.co.uk>
 
 For support, your best bet is to try the C<DBIx::Class> users mailing list.
 While not an official support venue, C<DBIx::Class> makes heavy use of
