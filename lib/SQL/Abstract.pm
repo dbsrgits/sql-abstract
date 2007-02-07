@@ -24,7 +24,7 @@ SQL::Abstract - Generate SQL from Perl data structures
     $sth->execute(@bind);
 
     # Just generate the WHERE clause
-    my($stmt, @bind)  = $sql->where(\%where, \@order);
+    my($stmt, @bind) = $sql->where(\%where, \@order);
 
     # Return values in the same order, for hashed queries
     # See PERFORMANCE section for more details
@@ -1229,6 +1229,7 @@ so I have no idea who they are! But the people I do know are:
     Eric Kolve (hashref "AND" support)
     Mike Fragassi (enhancements to "BETWEEN" and "LIKE")
     Dan Kubb (support for "quote_char" and "name_sep")
+    Matt Trout (DBIx::Class support)
 
 Thanks!
 
@@ -1236,20 +1237,20 @@ Thanks!
 
 If found, please DO NOT submit anything via C<rt.cpan.org> - that
 just causes me a ton of work. Email me a patch (or script demonstrating
-the problem) to the below address, and include the VERSION string you'll
-be seeing shortly.
+the problem) to the below address, and include the VERSION you're using.
 
 =head1 SEE ALSO
 
 L<DBIx::Abstract>, L<DBI|DBI>, L<CGI::FormBuilder>, L<HTML::QuickTable>
 
-=head1 VERSION
-
-1.22
-
 =head1 AUTHOR
 
 Copyright (c) 2001-2006 Nathan Wiger <nate@wiger.org>. All Rights Reserved.
+
+For support, your best bet is to try the C<DBIx::Class> users mailing list.
+While not an official support venue, C<DBIx::Class> makes heavy use of
+C<SQL::Abstract>, and as such list members there are very familiar with
+how to create queries.
 
 This module is free software; you may copy this under the terms of
 the GNU General Public License, or the Artistic License, copies of
