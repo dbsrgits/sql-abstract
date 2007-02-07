@@ -1,12 +1,11 @@
-#!/usr/bin/perl -I. -w
+#!/usr/bin/perl
 
 use strict;
-use vars qw($TESTING);
-$TESTING = 1;
-use Test;
+use warnings;
+use Test::More;
 
-# use a BEGIN block so we print our plan before SQL::Abstract is loaded
-BEGIN { plan tests => 5 }
+
+plan tests => 5;
 
 use SQL::Abstract;
 

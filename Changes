@@ -1,15 +1,5 @@
+Revision history for SQL::Abstract
 
-RCS file: /home/nwiger/perlmod/lib/SQL/RCS/Abstract.pm,v
-Working file: /home/nwiger/perlmod/lib/SQL/Abstract.pm
-head: 1.20
-branch:
-locks: strict
-access list:
-symbolic names:
-keyword substitution: kv
-total revisions: 20;	selected revisions: 20
-description:
-SQL::Abstract - Generate SQL from Perl data structures
 ----------------------------
 revision 1.20
 date: 2005/08/18 18:41:58;  author: nwiger;  state: Exp;  lines: +104 -50
@@ -97,4 +87,3 @@ added scalar ref for SQL verbatim in where, fixed bugs, array ref, docs
 revision 1.1
 date: 2001/10/24 00:26:43;  author: nwiger;  state: Exp;
 Initial revision
-=============================================================================

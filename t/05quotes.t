@@ -3,18 +3,12 @@ use warnings;
 
 use vars qw($TESTING);
 $TESTING = 1;
-use Test;
+use Test::More;
 
 # use a BEGIN block so we print our plan before SQL::Abstract is loaded
-BEGIN { plan tests => 4 }
+BEGIN { plan tests => 7 }
 
 use SQL::Abstract;
-
-sub is {
-    my ($got, $expect, $msg) = @_;
-    ok($got eq $expect) or
-        warn "got [${got}]\ninstead of [${expect}]\nfor test ${msg}\n\n";
-}
 
 my $sql_maker = SQL::Abstract->new;
 
@@ -75,13 +69,16 @@ is($sql,
           undef
 );
 
-#TODO: {
-#    local $TODO = "order_by with quoting needs fixing (ash/castaway)";
-#
-#    is($sql, 
-#       q/SELECT `me`.`cdid`, `me`.`artist`, `me`.`title`, `me`.`year` FROM `cd` `me` ORDER BY `year` DESC/, 
-#       'quoted ORDER BY with DESC okay');
-#}
+
+
+TODO: {
+    local $TODO = "order_by with quoting needs fixing (ash/castaway)";
+
+    is($sql, 
+       q/SELECT `me`.`cdid`, `me`.`artist`, `me`.`title`, `me`.`year` FROM `cd` `me` ORDER BY `year` DESC/, 
+       'quoted ORDER BY with DESC okay');
+}
+
 
 ($sql,) = $sql_maker->select(
       [

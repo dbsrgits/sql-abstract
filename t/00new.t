@@ -1,14 +1,13 @@
-#!/usr/bin/perl -I. -w
+#!/usr/bin/perl
 
 use strict;
-use vars qw($TESTING);
-$TESTING = 1;
-use Test;
+use warnings;
+use Test::More;
 
-# use a BEGIN block so we print our plan before SQL::Abstract is loaded
-BEGIN { plan tests => 14 }
 
-use SQL::Abstract;
+plan tests => 15;
+
+use_ok('SQL::Abstract');
 
 my @handle_tests = (
       #1
@@ -93,11 +92,7 @@ for (@handle_tests) {
       my $sql  = SQL::Abstract->new($_->{args});
       my $bind = $_->{bind} || { a => 4, b => 0};
       my($stmt, @bind) = $sql->select('test', '*', $bind);
-      ok($stmt eq $_->{stmt} && @bind) or 
-              warn "got\n",
-                    "[$stmt], [@bind]\n",
-                    "instead of\n",
-                    "[$_->{stmt}] [4, 0]\n\n";
+      ok($stmt eq $_->{stmt} && @bind);
 }
 
 
