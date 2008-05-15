@@ -1271,7 +1271,21 @@ script.
 
 Some functions take an order by clause. This can either be a scalar (just a 
 column name,) a hash of C<< { -desc => 'col' } >> or C<< { -asc => 'col' } >>,
-or an array of either of the two previous forms.
+or an array of either of the two previous forms. Examples:
+
+             Given             |    Will Generate
+    ----------------------------------------------------------
+    \'colA DESC'               | ORDER BY colA DESC
+    'colA'                     | ORDER BY colA
+    [qw/colA colB/]            | ORDER BY colA, colB
+    {-asc  => 'colA'}          | ORDER BY colA ASC
+    {-desc => 'colB'}          | ORDER BY colB DESC
+    [                          |
+      {-asc  => 'colA'},       | ORDER BY colA ASC, colB DESC
+      {-desc => 'colB'}        |
+    ]                          |
+    [colA => {-asc => 'colB'}] | ORDER BY colA, colB ASC
+    ==========================================================
 
 =head1 PERFORMANCE
 

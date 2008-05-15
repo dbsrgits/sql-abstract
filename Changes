@@ -1,7 +1,8 @@
 Revision history for SQL::Abstract
 
     - Added { -desc => 'column' } order by support (Ash)
-    - Tiny fix for { -desc => 'columns'} order by support + tests (groditi)
+    - Tiny "$_"-related fix for { -desc => 'columns'} order by support 
+      - tests + docs (groditi)
 
 ----------------------------
 revision 1.20
