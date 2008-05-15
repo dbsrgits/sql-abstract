@@ -143,7 +143,8 @@ clause) to try and simplify things.
 use Carp;
 use strict;
 
-our $VERSION  = '1.22';
+our $VERSION  = '1.23';
+#XXX don't understand this below, leaving it for someone else. did bump the $VERSION --groditi
 our $REVISION = '$Id$';
 our $AUTOLOAD;
 
@@ -852,9 +853,10 @@ sub _order_by {
     my $_order_hash = sub {
       local *__ANON__ = '_order_by_hash';
       my ($col, $order);
-      if ( $col = $_->{-desc} ) {
+      my $hash = shift; # $_ was failing in some cases for me --groditi
+      if ( $col = $hash->{'-desc'} ) {
         $order = 'DESC'
-      } elsif ( $col = $_->{-asc} ) {
+      } elsif ( $col = $hash->{'-asc'} ) {
         $order = 'ASC';
       } else {
         puke "Hash must have a key of '-desc' or '-asc' for ORDER BY";
@@ -1360,7 +1362,7 @@ so I have no idea who they are! But the people I do know are:
     Eric Kolve (hashref "AND" support)
     Mike Fragassi (enhancements to "BETWEEN" and "LIKE")
     Dan Kubb (support for "quote_char" and "name_sep")
-    Guillermo Roditi (patch to cleanup "IN" and "BETWEEN")
+    Guillermo Roditi (patch to cleanup "IN" and "BETWEEN", fix and tests for _order_by)
 
 Thanks!
 
