@@ -3,8 +3,9 @@
 use strict;
 use warnings;
 use Test::More;
+use Test::Exception;
 
-plan tests => 24;
+plan tests => 27;
 
 use SQL::Abstract;
 
@@ -146,26 +147,25 @@ my @handle_tests = (
         bind => [7,8,9,'a','b',100,200,150,160,'zz','yy','30','40'],
     },
 
+    {
+        where => {
+            id  => [],
+            bar => {'!=' => []},
+        },
+        stmt => " WHERE ( 1=1 AND 0=1 )",
+        bind => [],
+    },
+
 );
 
-for (@handle_tests) {
-    local $" = ', ';
-    #print "creating a handle with args ($_->{args}): ";
+for my $case (@handle_tests) {
     my $sql = SQL::Abstract->new;
-
-    # run twice
-    for (my $i=0; $i < 2; $i++) {
-        my($stmt, @bind) = $sql->where($_->{where}, $_->{order});
-        my $bad = 0;
-        for(my $i=0; $i < @{$_->{bind}}; $i++) {
-            $bad++ unless $_->{bind}[$i] eq $bind[$i];
-        }
-
-        ok($stmt eq $_->{stmt} && @bind == @{$_->{bind}} && ! $bad) or 
-                print "got\n",
-                      "[$stmt] [@bind]\n",
-                      "instead of\n",
-                      "[$_->{stmt}] [@{$_->{bind}}]\n\n";
-    }
+    my($stmt, @bind) = $sql->where($case->{where}, $case->{order});
+    is($stmt, $case->{stmt});
+    is_deeply(\@bind, $case->{bind});
 }
 
+dies_ok {
+    my $sql = SQL::Abstract->new;
+    $sql->where({ foo => { '>=' => [] }},);
+}

@@ -1,5 +1,7 @@
 Revision history for SQL::Abstract
 
+    - Make col => [] and col => {$op => [] } DTRT or die instead of generating
+      broken SQL. Added tests for this. 
     - Added { -desc => 'column' } order by support (Ash)
     - Tiny "$_"-related fix for { -desc => 'columns'} order by support 
       - tests + docs (groditi)

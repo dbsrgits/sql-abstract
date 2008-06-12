@@ -744,25 +744,29 @@ sub _recurse_where {
                 $self->_debug("UNDEF($k) means IS NULL");
                 push @sqlf, $label . $self->_sqlcase(' is null');
             } elsif (ref $v eq 'ARRAY') {
-                my @v = @$v;
-                
-                # multiple elements: multiple options
-                $self->_debug("ARRAY($k) means multiple elements: [ @v ]");
+                if( @$v ) {
+                    my @v = @$v;
+                    # multiple elements: multiple options
+                    $self->_debug("ARRAY($k) means multiple elements: [ @v ]");
 
-                # special nesting, like -and, -or, -nest, so shift over
-                my $subjoin = $self->_sqlcase('or');
-                if ($v[0] =~ /^-(\D+)/) {
-                    $subjoin = $self->_modlogic($1);    # override subjoin
-                    $self->_debug("OP(-$1) means special logic ($subjoin), shifting...");
-                    shift @v;
+                    # special nesting, like -and, -or, -nest, so shift over
+                    my $subjoin = $self->_sqlcase('or');
+                    if ($v[0] =~ /^-(\D+)/) {
+                        $subjoin = $self->_modlogic($1);    # override subjoin
+                        $self->_debug("OP(-$1) means special logic ($subjoin), shifting...");
+                        shift @v;
+                    }
+
+                    # map into an array of hashrefs and recurse
+                    my @ret = $self->_recurse_where([map { {$k =>  $_} } @v], $subjoin);
+
+                    # push results into our structure
+                    push @sqlf, shift @ret;
+                    push @sqlv, @ret;
+                } else {
+                    $self->_debug("empty ARRAY($k) means 0=1");
+                    push @sqlf, '0=1';
                 }
-
-                # map into an array of hashrefs and recurse
-                my @ret = $self->_recurse_where([map { {$k => $_} } @v], $subjoin);
-
-                # push results into our structure
-                push @sqlf, shift @ret;
-                push @sqlv, @ret;
             } elsif (ref $v eq 'HASH') {
                 # modified operator { '!=', 'completed' }
                 for my $f (sort keys %$v) {
@@ -795,16 +799,25 @@ sub _recurse_where {
                                   push(@sqlf, ($u =~ /not/i ? "1=1" : "0=1"));
                               }
                               push @sqlv, $self->_bindtype($k, @$x);
+                          } elsif(@$x) {
+                                # multiple elements: multiple options
+                                $self->_debug("ARRAY($x) means multiple elements: [ @$x ]");
+                                # map into an array of hashrefs and recurse
+                                my @ret = $self->_recurse_where([map { {$k => {$f, $_}} } @$x]);
+
+                                # push results into our structure
+                                push @sqlf, shift @ret;
+                                push @sqlv, @ret;
                           } else {
-                              # multiple elements: multiple options
-                              $self->_debug("ARRAY($x) means multiple elements: [ @$x ]");
-                              
-                              # map into an array of hashrefs and recurse
-                              my @ret = $self->_recurse_where([map { {$k => {$f, $_}} } @$x]);
-                              
-                              # push results into our structure
-                              push @sqlf, shift @ret;
-                              push @sqlv, @ret;
+                              #DTRT for $op => []
+                              # I feel like <= and >= should resolve to 0=1 but I am not sure.
+                              if($f eq '='){
+                                  push @sqlf, '0=1';
+                              } elsif( $f eq '!='){
+                                  push @sqlf, '1=1';
+                              } else {
+                                  $self->puke("Can not generate SQL for '${f}' comparison of '${k}' using empty array");
+                              }
                           }
                     } elsif (! defined($x)) {
                         # undef = NOT null
@@ -1061,6 +1074,9 @@ This simple code will create the following:
     $stmt = "WHERE user = ? AND ( status = ? OR status = ? OR status = ? )";
     @bind = ('nwiger', 'assigned', 'in-progress', 'pending');
 
+Please note that an empty arrayref will be considered a logical false and
+will generate 0=1.
+
 If you want to specify a different type of operator for your comparison,
 you can use a hashref for a given column:
 
@@ -1077,6 +1093,9 @@ Which would generate:
 To test against multiple values, just enclose the values in an arrayref:
 
     status => { '!=', ['assigned', 'in-progress', 'pending'] };
+
+An empty arrayref will try to Do The Right Thing for the operators '=', '!=',
+'-in' '-not_in', but will throw an exception for everything else.
 
 Which would give you:
 
