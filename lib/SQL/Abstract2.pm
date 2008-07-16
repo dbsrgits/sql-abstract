@@ -105,7 +105,7 @@ sub _build_known_ops {
      'where' => {
                  args_min => 1,
                  args_max => 1,
-                 handler => 'handle_op_sql_word_and_args'
+                 handler => 'handle_op_sql_word_and_args',
                 },
     );
 
