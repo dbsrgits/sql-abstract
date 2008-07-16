@@ -92,3 +92,35 @@ warn dump(
             }
         ]
 );
+
+warn dump(
+  ORDER_BY { $_->aggregates->total }
+    SELECT { $_->users->name, $_->aggregates->total }
+      JOIN { $_->users->id == $_->aggregates->recipient_id }
+        [ users => expr { $_->users  } ],
+        [ aggregates =>
+            expr {
+                SELECT { $_->recipient_id, [ total => sum($_->commission) ] }
+                 WHERE { sum($_->commission) > 500 }
+              GROUP_BY { $_->recipient_id }
+                 WHERE { $_->entry_date > '2007-01-01' }
+                  expr { $_->commissions }
+            }
+        ]
+);
+
+warn dump(
+  ORDER_BY { $_->aggregates->total }
+    SELECT { $_->users->name, $_->aggregates->total }
+     WHERE { $_->aggregates->total > 500 }
+      JOIN { $_->users->id == $_->aggregates->recipient_id }
+        [ users => expr { $_->users  } ],
+        [ aggregates =>
+            expr {
+                SELECT { $_->recipient_id, [ total => sum($_->commission) ] }
+              GROUP_BY { $_->recipient_id }
+                 WHERE { $_->entry_date > '2007-01-01' }
+                  expr { $_->commissions }
+            }
+        ]
+);
