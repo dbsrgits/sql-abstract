@@ -60,6 +60,10 @@ sub _run_e {
   map { _une($_) } $_[0]->();
 }
 
+sub _aliasify {
+  map { ref($_) eq 'ARRAY' ? [ -alias, $_->[1], $_->[0] ] : $_ } @_
+}
+
 sub expr (&) { _run_e(@_) }
 sub _do {
   my ($name, $code, @in) = @_;
@@ -67,11 +71,16 @@ sub _do {
 }
 sub _dolist {
   my ($name, $code, @in) = @_;
-  _do($name, sub { [ -list, map { _une($_) } $code->() ] }, @in);
+  _do($name,
+    sub { [ -list,
+      map { _une($_) }
+      _aliasify $code->()
+    ] },
+  @in);
 }
 sub ORDER_BY (&;@) { _do(-order_by, @_) }
 sub SELECT (&;@) { _dolist('-select', @_); }
-sub JOIN (&;@) { _do('-join', @_) }
+sub JOIN (&;@) { _do('-join', _aliasify @_) }
 sub WHERE (&;@) { _do(-where, @_) }
 sub GROUP_BY (&;@) { _dolist(-group_by, @_); }
 sub sum { E->new([ -sum, _une(shift) ]); }
