@@ -78,15 +78,15 @@ sub _build_known_ops {
                  args_max => 1
                 },
      'asc' => {
-                 handler => 'handle_op_asc_desc',
-                 args_min => 1,
-                 args_max => 1
-                },
+               handler => 'handle_op_asc_desc',
+               args_min => 1,
+               args_max => 1
+              },
      'desc' => {
-                 handler => 'handle_op_asc_desc',
-                 args_min => 1,
-                 args_max => 1
-                },
+                handler => 'handle_op_asc_desc',
+                args_min => 1,
+                args_max => 1
+               },
      '=' => {
              args_min => 2,
              args_max => 2,
@@ -103,10 +103,27 @@ sub _build_known_ops {
               handler => 'handle_op_is',
              },
      'where' => {
-                 args_min => 1,
-                 args_max => 1,
-                 handler => 'handle_op_sql_word_and_args',
+                 args_min => 2,
+                 args_max => 2,
+                 handler => 'handle_op_restriction',
                 },
+     'having' => {
+                  args_min => 2,
+                  args_max => 2,
+                  handler => 'handle_op_restriction',
+                 },
+     'order_by' => {
+                    args_min => 2,
+                    args_max => 2,
+                    handler => 'handle_op_order_group',
+                   },
+     'group_by' => {
+                    args_min => 2,
+                    args_max => 2,
+                    handler => 'handle_op_order_group',
+                   },
+     'list' => { handler => 'handle_op_sql_list' },
+     'alias' => { handler => 'handle_op_alias' },
     );
 
   foreach my $bin_op (qw^ > < >= <= + - * / % <> <=> ^) {
@@ -116,30 +133,25 @@ sub _build_known_ops {
                        handler => 'simple_binary_op',
                       };
   }
-  for my $word ('fields', 'from', 'order by', 'group by'){
-    $known{$word} = { handler => 'handle_op_sql_word_and_list' };
-  }
-  for my $word (qw/insert update select delete having/, 'replace into'){
+
+  for my $word (qw/insert update select delete having from limit/,
+                'replace into' ) {
     $known{$word} = { handler => 'handle_op_sql_word_and_args' };
   }
   for my $join ('join','left join','right join','inner join', 'cross join',
                 'straight_join','left outer join','right outer join',
                 'natural join', 'natural left join', 'natural left outer join',
                 'straight join', 'natural right join', 'natural right outer join',
-               ){
+               ) {
     $known{$join} = { handler => 'handle_op_join' };
   }
   return \%known;
 }
 
+
 sub handle_op_asc_desc {
   my($self, $op, $args, $bind_vars) = @_;
   return join(' ', $self->handle_op($args->[0], $bind_vars), uc($op));
-}
-
-sub handle_op_limit {
-  my($self, $op, $args, $bind_vars) = @_;
-  return $self->handle_op_sql_word_and_list('LIMIT', $args, $bind_vars)
 }
 
 sub handle_op_join {
@@ -147,22 +159,31 @@ sub handle_op_join {
   my @args = @$args;
   my $join_type = uc $op;
   my $table = $self->handle_op( shift(@args), $bind_vars);
-  if(@args){
-    return join(" ", $join_type, $table, $self->handle_op(shift(@args), $bind_vars))
+  if (@args) {
+    return join(" ", $join_type, $table, $self->handle_op(shift(@args), $bind_vars));
   } else {
     join(" ", $join_type, $table);
   }
 }
 
-sub handle_op_sql_list {
+sub handle_op_alias {
+  my($self, $op, $args, $bind_vars) = @_;
+  my ($name, $original) = @$args;
+  my $word = 'AS';
+  my $unaliased;
+  if ( $original->[0] !~ /(?:value|name)/ ) {
+    $unaliased = $self->handle_op_grouping('', [$original], $bind_vars);
+  } else {
+    $unaliased = $self->handle_op($original, $bind_vars);
+  }
+  my $alias = $self->maybe_quote_name($name);
+  return join ' ', $unaliased, $word, $alias;
+}
+
+sub handle_op_list {
   my($self, $op, $args, $bind_vars) = @_;
   my @quoted_args = map{ $self->handle_op($_, $bind_vars) } @$args;
   return join ', ', @quoted_args;
-}
-
-sub handle_op_sql_word_and_list {
-  my($self, $op, $args, $bind_vars) = @_;
-  return join ' ', uc($op), $self->handle_op_sql_list($op, $args, $bind_vars); 
 }
 
 sub handle_op_sql_word_and_args {
@@ -174,7 +195,7 @@ sub handle_op_grouping {
   my($self, $op, $args, $bind_vars) = @_;
   my $sep = uc $op;
   my @pieces = map { $self->handle_op($_, $bind_vars) } @$args;
-  if(@pieces > 1){
+  if (@pieces > 1) {
     return join("",
                 $self->logical_group_open_char,
                 (join " ${sep} ", @pieces),
@@ -182,6 +203,32 @@ sub handle_op_grouping {
                );
   }
   return shift @pieces;
+}
+
+sub handle_op_order_group {
+  my($self, $op, $args, $bind_vars) = @_;
+  my $word;
+  if ($op eq 'order_by') {
+    $word = 'ORDER BY';
+  } elsif ($op eq 'group_by') {
+    $word = 'GROUP BY';
+  } else {
+    die "don't know ${op}";
+  }
+  my ($expr, $source) = @$args;
+  return join(' ', ( $self->handle_op($source, $bind_vars),
+                     $word,
+                     $self->handle_op($expr, $bind_vars) )
+             );
+}
+
+sub handlle_op_restriction {
+  my($self, $op, $args, $bind_vars) = @_;
+  my ($restriction, $source) = @$args;
+  my $word = $source->[0] =~ 'group' ? 'HAVING' : 'WHERE';
+  my $from = $self->handle_op($source, $bind_vars);
+  my $condition = $self->handle_op($restriction, $bind_vars);
+  return join ' ', $from, $word, $condition;
 }
 
 sub handle_op_null_aware_equality {
@@ -201,7 +248,7 @@ sub handle_op_null_aware_equality {
 }
 
 sub handle_op_date_add_sub {
- my($self, $op, $args, $bind_vars) = @_;
+  my($self, $op, $args, $bind_vars) = @_;
   if ($op =~ /add/i) {
     $op = 'DATE_ADD';
   } elsif ($op =~ /sub/i) {
@@ -274,7 +321,7 @@ sub handle_op {
   my $op_info;
   if ( exists $self->known_ops->{$op} ) {
     $op_info = $self->known_ops->{$op};
-  } elsif(defined $needle) {
+  } elsif (defined $needle) {
     if ( exists $self->known_ops->{$needle} ) {
       $op_info = $self->known_ops->{$needle};
     } elsif ( ($needle =~ /^\w+$/) && (my $coderef = $self->can("handle_op_${needle}"))) {
@@ -297,7 +344,7 @@ sub handle_op {
   if (exists $op_info->{args_max}) {
     my $max = $op_info->{args_max};
     die("Operator ${op} can only have up to ${max} arguments")
-     unless $max >= @$args;
+      unless $max >= @$args;
   }
 
   my $handler = $op_info->{handler};
@@ -313,7 +360,7 @@ sub handle_op {
 sub maybe_quote_value{
   my($self, $value, $bind_vars) = @_;
   return $$value if ref($value) eq 'SCALAR';
-  if ( $self->use_value_placeholders ){
+  if ( $self->use_value_placeholders ) {
     push @$bind_vars, $value;
     return $self->value_placeholder_char;
   }
@@ -326,14 +373,8 @@ sub maybe_quote_value{
 sub maybe_quote_name{
   my($self, @parts) = @_;
   my $q = $self->name_quote_char;
-  my $as;
-  if(ref($parts[-1]) eq 'ARRAY' && $parts[-1]->[0] eq '-as'){
-    $as = pop(@parts)->[1];
-    $as = ref($as) eq 'SCALAR' ? $$as : join("", $q, $as, $q);
-  }
   @parts = map { ref($_) eq 'SCALAR' ? $$_ : join("", $q, $_, $q) } @parts;
-  my $name = join($self->name_separator, @parts);
-  return join ' AS ', grep { defined } ($name, $as); #XXX make 'AS' an attribute
+  return join($self->name_separator, @parts);
 }
 
 __PACKAGE__->meta->make_immutable;
