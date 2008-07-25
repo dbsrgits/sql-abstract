@@ -66,9 +66,12 @@ sub _aliasify {
 
 sub expr (&) { _run_e(@_) }
 sub _do {
-  my ($name, $code, @in) = @_;
-  warn "eek: ${\dump @in}" if @in > 1;
-  [ $name, _run_e($code), @in ];
+  return [ @_ ] unless @_ > 2; # FOO { ... }<nothing or ,>
+  my $name = shift;
+  my $code = shift;
+  my $ret = [ $name, _run_e($code), shift ];
+  return $ret unless @_;
+  die "WHUT";
 }
 sub _dolist {
   my ($name, $code, @in) = @_;
