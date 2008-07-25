@@ -67,6 +67,7 @@ sub _aliasify {
 sub expr (&) { _run_e(@_) }
 sub _do {
   my ($name, $code, @in) = @_;
+  warn "eek: ${\dump @in}" if @in > 1;
   [ $name, _run_e($code), @in ];
 }
 sub _dolist {
@@ -80,7 +81,7 @@ sub _dolist {
 }
 sub ORDER_BY (&;@) { _do(-order_by, @_) }
 sub SELECT (&;@) { _dolist('-select', @_); }
-sub JOIN (&;@) { _do('-join', _aliasify @_) }
+sub JOIN (&;@) { _do('-join', shift, [ -list => _aliasify @{+shift} ], @_) }
 sub WHERE (&;@) { _do(-where, @_) }
 sub GROUP_BY (&;@) { _dolist(-group_by, @_); }
 sub sum { E->new([ -sum, _une(shift) ]); }
@@ -90,15 +91,17 @@ warn dump(
   ORDER_BY { $_->aggregates->total }
     SELECT { $_->users->name, $_->aggregates->total }
       JOIN { $_->users->id == $_->aggregates->recipient_id }
-        [ users => expr { $_->users } ],
-        [ aggregates =>
-            expr {
-                SELECT { $_->recipient_id, [ total => sum($_->commission) ] }
-                 WHERE { sum($_->commission) > 500 }
-              GROUP_BY { $_->recipient_id }
-                 WHERE { $_->entry_date > '2007-01-01' }
-                  expr { $_->commissions }
+        [
+          [ users => expr { $_->users } ],
+          [ aggregates =>
+              expr {
+                  SELECT { $_->recipient_id, [ total => sum($_->commission) ] }
+                   WHERE { sum($_->commission) > 500 }
+                GROUP_BY { $_->recipient_id }
+                   WHERE { $_->entry_date > '2007-01-01' }
+                    expr { $_->commissions }
             }
+          ]
         ]
 );
 
@@ -106,15 +109,17 @@ warn dump(
   ORDER_BY { $_->aggregates->total }
     SELECT { $_->users->name, $_->aggregates->total }
       JOIN { $_->users->id == $_->aggregates->recipient_id }
-        [ users => expr { $_->users  } ],
-        [ aggregates =>
-            expr {
-                SELECT { $_->recipient_id, [ total => sum($_->commission) ] }
-                 WHERE { sum($_->commission) > 500 }
-              GROUP_BY { $_->recipient_id }
-                 WHERE { $_->entry_date > '2007-01-01' }
-                  expr { $_->commissions }
-            }
+        [
+          [ users => expr { $_->users  } ],
+          [ aggregates =>
+              expr {
+                  SELECT { $_->recipient_id, [ total => sum($_->commission) ] }
+                   WHERE { sum($_->commission) > 500 }
+                GROUP_BY { $_->recipient_id }
+                   WHERE { $_->entry_date > '2007-01-01' }
+                    expr { $_->commissions }
+              }
+          ]
         ]
 );
 
@@ -123,13 +128,15 @@ warn dump(
     SELECT { $_->users->name, $_->aggregates->total }
      WHERE { $_->aggregates->total > 500 }
       JOIN { $_->users->id == $_->aggregates->recipient_id }
-        [ users => expr { $_->users  } ],
-        [ aggregates =>
-            expr {
-                SELECT { $_->recipient_id, [ total => sum($_->commission) ] }
-              GROUP_BY { $_->recipient_id }
-                 WHERE { $_->entry_date > '2007-01-01' }
-                  expr { $_->commissions }
-            }
+        [
+          [ users => expr { $_->users  } ],
+          [ aggregates =>
+              expr {
+                  SELECT { $_->recipient_id, [ total => sum($_->commission) ] }
+                GROUP_BY { $_->recipient_id }
+                   WHERE { $_->entry_date > '2007-01-01' }
+                    expr { $_->commissions }
+              }
+          ]
         ]
 );
