@@ -6,6 +6,10 @@ use Test::More;
 
 use SQL::Abstract;
 
+use FindBin;
+use lib "$FindBin::Bin";
+use TestSqlAbstract;
+
 my @cases = 
   (
    {

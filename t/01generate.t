@@ -4,8 +4,11 @@ use strict;
 use warnings;
 use Test::More;
 
+use FindBin;
+use lib "$FindBin::Bin";
+use TestSqlAbstract;
 
-plan tests => 60;
+plan tests => 64;
 
 use SQL::Abstract;
 
@@ -176,7 +179,7 @@ my @tests = (
       #21            
       {              
               func   => 'update',
-              args   => ['test', {a => 1, b => ["to_date(?, 'MM/DD/YY')", '02/02/02']}, {a => {'between', [1,2]}}],
+              args   => ['test', {a => 1, b => \["to_date(?, 'MM/DD/YY')", '02/02/02']}, {a => {'between', [1,2]}}],
               stmt   => 'UPDATE test SET a = ?, b = to_date(?, \'MM/DD/YY\') WHERE ( a BETWEEN ? AND ? )',
               stmt_q => 'UPDATE `test` SET `a` = ?, `b` = to_date(?, \'MM/DD/YY\') WHERE ( `a` BETWEEN ? AND ? )',
               bind   => [qw(1 02/02/02 1 2)],
@@ -245,10 +248,13 @@ my @tests = (
                                            tasty => { '!=', [qw(yes YES)] },
                                            -nest => [ face => [ -or => {'=', 'mr.happy'}, {'=', undef} ] ] },
                         ],
+# LDNOTE : modified the test below, same reasons as #14 in 00where.t
               stmt   => 'UPDATE taco_punches SET one = ?, three = ? WHERE ( ( ( ( ( face = ? ) OR ( face IS NULL ) ) ) )'
-                      . ' AND ( ( bland != ? ) AND ( bland != ? ) ) AND ( ( tasty != ? ) OR ( tasty != ? ) ) )',
+#                      . ' AND ( ( bland != ? ) AND ( bland != ? ) ) AND ( ( tasty != ? ) OR ( tasty != ? ) ) )',
+                      . ' AND ( ( bland != ? ) AND ( bland != ? ) ) AND ( ( tasty != ? ) AND ( tasty != ? ) ) )',
               stmt_q => 'UPDATE `taco_punches` SET `one` = ?, `three` = ? WHERE ( ( ( ( ( `face` = ? ) OR ( `face` IS NULL ) ) ) )'
-                      . ' AND ( ( `bland` != ? ) AND ( `bland` != ? ) ) AND ( ( `tasty` != ? ) OR ( `tasty` != ? ) ) )',
+#                      . ' AND ( ( `bland` != ? ) AND ( `bland` != ? ) ) AND ( ( `tasty` != ? ) OR ( `tasty` != ? ) ) )',
+                      . ' AND ( ( `bland` != ? ) AND ( `bland` != ? ) ) AND ( ( `tasty` != ? ) AND ( `tasty` != ? ) ) )',
               bind   => [qw(2 4 mr.happy yes YES yes YES)],
       },             
       #29            
@@ -256,18 +262,29 @@ my @tests = (
               func   => 'select',
               args   => ['jeff', '*', { name => {'like', '%smith%', -not_in => ['Nate','Jim','Bob','Sally']},
                                        -nest => [ -or => [ -and => [age => { -between => [20,30] }, age => {'!=', 25} ],
-                                                           yob => {'<', 1976} ] ] } ],
-              stmt   => 'SELECT * FROM jeff WHERE ( ( ( ( ( ( ( age BETWEEN ? AND ? ) AND ( age != ? ) ) ) OR ( yob < ? ) ) ) )'
-                      . ' AND name NOT IN ( ?, ?, ?, ? ) AND name LIKE ? )',
-              stmt_q => 'SELECT * FROM `jeff` WHERE ( ( ( ( ( ( ( `age` BETWEEN ? AND ? ) AND ( `age` != ? ) ) ) OR ( `yob` < ? ) ) ) )'
-                      . ' AND `name` NOT IN ( ?, ?, ?, ? ) AND `name` LIKE ? )',
+                                                                   yob => {'<', 1976} ] ] } ],
+# LDNOTE : original test below was WRONG with respect to the doc.
+# [-and, [cond1, cond2], cond3] should mean (cond1 OR cond2) AND cond3
+# instead of (cond1 AND cond2) OR cond3. 
+# Probably a misconception because of '=>' notation 
+# in [-and => [cond1, cond2], cond3].
+# Also some differences in parentheses, but without impact on semantics.
+#               stmt   => 'SELECT * FROM jeff WHERE ( ( ( ( ( ( ( age BETWEEN ? AND ? ) AND ( age != ? ) ) ) OR ( yob < ? ) ) ) )'
+#                       . ' AND name NOT IN ( ?, ?, ?, ? ) AND name LIKE ? )',
+#               stmt_q => 'SELECT * FROM `jeff` WHERE ( ( ( ( ( ( ( `age` BETWEEN ? AND ? ) AND ( `age` != ? ) ) ) OR ( `yob` < ? ) ) ) )'
+#                       . ' AND `name` NOT IN ( ?, ?, ?, ? ) AND `name` LIKE ? )',
+              stmt   => 'SELECT * FROM jeff WHERE ( ( ( ( ( age BETWEEN ? AND ? ) OR ( age != ? ) ) AND ( yob < ? ) ) )'
+                      . ' AND ( name NOT IN ( ?, ?, ?, ? ) AND name LIKE ? ) )',
+              stmt_q => 'SELECT * FROM `jeff` WHERE ( ( ( ( ( `age` BETWEEN ? AND ? ) OR ( `age` != ? ) ) AND ( `yob` < ? ) ) )'
+                      . ' AND ( `name` NOT IN ( ?, ?, ?, ? ) AND `name` LIKE ? ) )',
               bind   => [qw(20 30 25 1976 Nate Jim Bob Sally %smith%)]
       },             
       #30            
       {              
-              # The "-maybe" should be ignored, as it sits at the top level (bug?)
               func   => 'update',
-              args   => ['fhole', {fpoles => 4}, [-maybe => {race => [-and => [qw(black white asian)]]},
+# LDNOTE : removed the "-maybe", because we no longer admit unknown ops
+#              args   => ['fhole', {fpoles => 4}, [-maybe => {race => [-and => [qw(black white asian)]]},
+              args   => ['fhole', {fpoles => 4}, [          {race => [-and => [qw(black white asian)]]},
                                                             {-nest => {firsttime => [-or => {'=','yes'}, undef]}},
                                                             [ -and => {firstname => {-not_like => 'candace'}}, {lastname => {-in => [qw(jugs canyon towers)]}} ] ] ],
               stmt   => 'UPDATE fhole SET fpoles = ? WHERE ( ( ( ( ( ( ( race = ? ) OR ( race = ? ) OR ( race = ? ) ) ) ) ) )'
@@ -276,51 +293,48 @@ my @tests = (
                       . ' OR ( ( ( ( `firsttime` = ? ) OR ( `firsttime` IS NULL ) ) ) ) OR ( ( ( `firstname` NOT LIKE ? ) ) AND ( `lastname` IN ( ?, ?, ? ) ) ) )',
               bind   => [qw(4 black white asian yes candace jugs canyon towers)]
       },
+      #31
+      {
+              func   => 'insert',
+              args   => ['test', {a => 1, b => \["to_date(?, 'MM/DD/YY')", '02/02/02']}],
+              stmt   => 'INSERT INTO test (a, b) VALUES (?, to_date(?, \'MM/DD/YY\'))',
+              stmt_q => 'INSERT INTO `test` (`a`, `b`) VALUES (?, to_date(?, \'MM/DD/YY\'))',
+              bind   => [qw(1 02/02/02)],
+      },
+      #32
+      {
+              func   => 'select',
+# LDNOTE: modified test below because we agreed with MST that literal SQL
+#         should not automatically insert a '='; the user has to do it
+#              args   => ['test', '*', { a => \["to_date(?, 'MM/DD/YY')", '02/02/02']}],
+              args   => ['test', '*', { a => \["= to_date(?, 'MM/DD/YY')", '02/02/02']}],
+              stmt   => q{SELECT * FROM test WHERE ( a = to_date(?, 'MM/DD/YY') )},
+              stmt_q => q{SELECT * FROM `test` WHERE ( `a` = to_date(?, 'MM/DD/YY') )},
+              bind   => ['02/02/02'],
+      }
 );
 
 use Data::Dumper;
 
 for (@tests) {
-      local $"=', ';
+  local $"=', ';
 
-      my $new = $_->{new} || {};
-      $new->{debug} = $ENV{DEBUG} || 0;
-      my $sql = SQL::Abstract->new(%$new);
+  my $new = $_->{new} || {};
+  $new->{debug} = $ENV{DEBUG} || 0;
+  my $sql = SQL::Abstract->new(%$new);
 
-      #print "testing with args (@{$_->{args}}): ";
-      my $func = $_->{func};
-      my($stmt, @bind) = $sql->$func(@{$_->{args}});
-      ok($stmt eq $_->{stmt} && equal(\@bind, $_->{bind})) or
-              print "got\n",
-                    "[$stmt] [",Dumper(\@bind),"]\n",
-                    "instead of\n",
-                    "[$_->{stmt}] [",Dumper($_->{bind}),"]\n\n";
+  #print "testing with args (@{$_->{args}}): ";
+  my $func = $_->{func};
+  my($stmt, @bind) = $sql->$func(@{$_->{args}});
+  is_same_sql_bind($stmt, \@bind, $_->{stmt}, $_->{bind});
 
-      # test with quoted labels
-      my $sql_q = SQL::Abstract->new(%$new, quote_char => '`', name_sep => '.');
+  # test with quoted labels
+  my $sql_q = SQL::Abstract->new(%$new, quote_char => '`', name_sep => '.');
 
-      my $func_q = $_->{func};
-      my($stmt_q, @bind_q) = $sql_q->$func_q(@{$_->{args}});
-      ok($stmt_q eq $_->{stmt_q} && equal(\@bind_q, $_->{bind})) or
-              print "got\n",
-                    "[$stmt_q] [",Dumper(\@bind_q),"]\n",
-                    "instead of\n",
-                    "[$_->{stmt_q}] [",Dumper($_->{bind}),"]\n\n";
-}
+  my $func_q = $_->{func};
+  my($stmt_q, @bind_q) = $sql_q->$func_q(@{$_->{args}});
 
-sub equal {
-      my ($a, $b) = @_;
-      return 0 if @$a != @$b;
-      for (my $i = 0; $i < $#{$a}; $i++) {
-              next if (! defined($a->[$i])) && (! defined($b->[$i]));
-              if (ref $a->[$i] && ref $b->[$i]) {
-                  return 0 if $a->[$i][0] ne $b->[$i][0]
-                           || $a->[$i][1] ne $b->[$i][1];
-              } else {
-                  return 0 if $a->[$i] ne $b->[$i];
-              }
-      }
-      return 1;
+  is_same_sql_bind($stmt_q, \@bind_q, $_->{stmt_q}, $_->{bind});
 }
 
 

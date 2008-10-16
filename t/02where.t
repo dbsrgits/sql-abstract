@@ -5,7 +5,11 @@ use warnings;
 use Test::More;
 use Test::Exception;
 
-plan tests => 27;
+use FindBin;
+use lib "$FindBin::Bin";
+use TestSqlAbstract;
+
+plan tests => 15;
 
 use SQL::Abstract;
 
@@ -71,7 +75,9 @@ my @handle_tests = (
             completion_date => { 'between', ['2002-10-01', '2003-02-06'] },
         },
         order => \'ticket, requestor',
-        stmt => " WHERE ( completion_date BETWEEN ? AND ? AND status = ? ) ORDER BY ticket, requestor",
+#LDNOTE: modified parentheses
+#        stmt => " WHERE ( completion_date BETWEEN ? AND ? AND status = ? ) ORDER BY ticket, requestor",
+        stmt => " WHERE ( ( completion_date BETWEEN ? AND ? ) AND status = ? ) ORDER BY ticket, requestor",
         bind => [qw/2002-10-01 2003-02-06 completed/],
     },
 
@@ -118,7 +124,9 @@ my @handle_tests = (
             requestor => { 'like', undef }, 
         },
         order => \'requestor, ticket',
-        stmt => " WHERE ( priority BETWEEN ? AND ? AND requestor IS NULL ) ORDER BY requestor, ticket",
+#LDNOTE: modified parentheses
+#        stmt => " WHERE ( priority BETWEEN ? AND ? AND requestor IS NULL ) ORDER BY requestor, ticket",
+        stmt => " WHERE ( ( priority BETWEEN ? AND ? ) AND requestor IS NULL ) ORDER BY requestor, ticket",
         bind => [qw/1 3/],
     },
 
@@ -131,7 +139,9 @@ my @handle_tests = (
 	     '>'  => 10,
 	    },
         },
-        stmt => " WHERE ( id = ? AND num <= ? AND num > ? )",
+# LDNOTE : modified test below, just parentheses differ
+#        stmt => " WHERE ( id = ? AND num <= ? AND num > ? )",
+        stmt => " WHERE ( id = ? AND ( num <= ? AND num > ? ) )",
         bind => [qw/1 20 10/],
     },
 
@@ -143,7 +153,10 @@ my @handle_tests = (
                    wix => {'in' => [qw/zz yy/]},
                    wux => {'not_in'  => [qw/30 40/]}
                  },
-        stmt => " WHERE ( ( ( foo NOT LIKE ? ) OR ( foo NOT LIKE ? ) OR ( foo NOT LIKE ? ) ) AND ( ( fum LIKE ? ) OR ( fum LIKE ? ) ) AND nix BETWEEN ? AND ? AND nox NOT BETWEEN ? AND ? AND wix IN ( ?, ? ) AND wux NOT IN ( ?, ? ) )",
+# LDNOTE: modified parentheses for BETWEEN (trivial).
+# Also modified the logic of "not_like" (severe, same reasons as #14 in 00where.t)
+#        stmt => " WHERE ( ( ( foo NOT LIKE ? ) OR ( foo NOT LIKE ? ) OR ( foo NOT LIKE ? ) ) AND ( ( fum LIKE ? ) OR ( fum LIKE ? ) ) AND nix BETWEEN ? AND ? AND nox NOT BETWEEN ? AND ? AND wix IN ( ?, ? ) AND wux NOT IN ( ?, ? ) )",
+        stmt => " WHERE ( ( foo NOT LIKE ? AND foo NOT LIKE ? AND foo NOT LIKE ? ) AND ( ( fum LIKE ? ) OR ( fum LIKE ? ) ) AND ( nix BETWEEN ? AND ? ) AND ( nox NOT BETWEEN ? AND ? ) AND wix IN ( ?, ? ) AND wux NOT IN ( ?, ? ) )",
         bind => [7,8,9,'a','b',100,200,150,160,'zz','yy','30','40'],
     },
 
@@ -156,13 +169,22 @@ my @handle_tests = (
         bind => [],
     },
 
+
+    {
+        where => {
+            foo => \["IN (?, ?)", 22, 33],
+            bar => [-and =>  \["> ?", 44], \["< ?", 55] ],
+        },
+        stmt => " WHERE ( (bar > ? AND bar < ?) AND foo IN (?, ?) )",
+        bind => [44, 55, 22, 33],
+    },
+
 );
 
 for my $case (@handle_tests) {
     my $sql = SQL::Abstract->new;
     my($stmt, @bind) = $sql->where($case->{where}, $case->{order});
-    is($stmt, $case->{stmt});
-    is_deeply(\@bind, $case->{bind});
+    is_same_sql_bind($stmt, \@bind, $case->{stmt}, $case->{bind})
 }
 
 dies_ok {
