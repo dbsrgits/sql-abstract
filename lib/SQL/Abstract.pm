@@ -1283,7 +1283,7 @@ specify C<columns>, you will get an array that looks like this:
     );
 
 You can then iterate through this manually, using DBI's C<bind_param()>.
-    
+
     $sth->prepare($stmt);
     my $i = 1;
     for (@bind) {
@@ -1395,7 +1395,7 @@ The argument can be either an arrayref (interpreted as a list
 of field names, will be joined by commas and quoted), or a 
 plain scalar (literal SQL, not quoted).
 Please observe that this API is not as flexible as for
-the first argument <$table>, for backwards compatibility reasons.
+the first argument C<$table>, for backwards compatibility reasons.
 
 =item $where
 
@@ -1636,6 +1636,17 @@ You would do:
          user => 'nwiger',
         -nest => [ workhrs => {'>', 20}, geo => 'ASIA' ],
     );
+
+If you need several nested subexpressions, you can number
+the C<-nest> branches :
+
+    my %where = (
+         user => 'nwiger',
+        -nest1 => ...,
+        -nest2 => ...,
+        ...
+    );
+
 
 =head2 Special operators : IN, BETWEEN, etc.
 
@@ -1898,12 +1909,67 @@ or an array of either of the two previous forms. Examples:
 
 =head1 SPECIAL OPERATORS
 
-[to be written]
+  my $sqlmaker = SQL::Abstract->new(special_ops => [
+     {regex => qr/.../,
+      handler => sub {
+        my ($self, $field, $op, $arg) = @_;
+        ...
+        },
+     },
+   ]);
 
+A "special operator" is a SQL syntactic clause that can be 
+applied to a field, instead of a usual binary operator.
+For example : 
 
-=head1 TABLES AND JOINS
+   WHERE field IN (?, ?, ?)
+   WHERE field BETWEEN ? AND ?
+   WHERE MATCH(field) AGAINST (?, ?)
 
-[to be written]
+Special operators IN and BETWEEN are fairly standard and therefore
+are builtin within C<SQL::Abstract>. For other operators,
+like the MATCH .. AGAINST example above which is 
+specific to MySQL, you can write your own operator handlers :
+supply a C<special_ops> argument to the C<new> method. 
+That argument takes an arrayref of operator definitions;
+each operator definition is a hashref with two entries
+
+=over
+
+=item regex
+
+the regular expression to match the operator
+
+=item handler
+
+coderef that will be called when meeting that operator
+in the input tree. The coderef will be called with 
+arguments  C<< ($self, $field, $op, $arg) >>, and 
+should return a C<< ($sql, @bind) >> structure.
+
+=back
+
+For example, here is an implementation 
+of the MATCH .. AGAINST syntax for MySQL
+
+  my $sqlmaker = SQL::Abstract->new(special_ops => [
+  
+    # special op for MySql MATCH (field) AGAINST(word1, word2, ...)
+    {regex => qr/^match$/i, 
+     handler => sub {
+       my ($self, $field, $op, $arg) = @_;
+       $arg = [$arg] if not ref $arg;
+       my $label         = $self->_quote($field);
+       my ($placeholder) = $self->_convert('?');
+       my $placeholders  = join ", ", (($placeholder) x @$arg);
+       my $sql           = $self->_sqlcase('match') . " ($label) "
+                         . $self->_sqlcase('against') . " ($placeholders) ";
+       my @bind = $self->_bindtype($field, @$arg);
+       return ($sql, @bind);
+       }
+     },
+  
+  ]);
 
 
 =head1 PERFORMANCE
@@ -1972,8 +2038,6 @@ differently from the documentation, had to be changed in order
 to clarify the semantics. Hence, client code that was relying
 on some dark areas of C<SQL::Abstract> v1.* 
 B<might behave differently> in v1.50.
-
-=head1 Public changes
 
 =over
 
