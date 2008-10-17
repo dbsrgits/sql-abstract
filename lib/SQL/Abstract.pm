@@ -1713,8 +1713,8 @@ SQL statements:
          -and => [
             user => 'nwiger',
             -nest => [
-                -and => [workhrs => {'>', 20}, geo => 'ASIA' ],
-                -and => [workhrs => {'<', 50}, geo => 'EURO' ]
+                ["-and", workhrs => {'>', 20}, geo => 'ASIA' ],
+                ["-and", workhrs => {'<', 50}, geo => 'EURO' ]
             ],
         ],
     );
@@ -1782,7 +1782,7 @@ in Postgres you can use something like this:
 
 This would create:
 
-    $stmt = "WHERE ( date_column = date \'2008-09-30\' - ?::integer )"
+    $stmt = "WHERE ( date_column = date '2008-09-30' - ?::integer )"
     @bind = ('10');
 
 
@@ -2038,6 +2038,8 @@ differently from the documentation, had to be changed in order
 to clarify the semantics. Hence, client code that was relying
 on some dark areas of C<SQL::Abstract> v1.* 
 B<might behave differently> in v1.50.
+
+The main changes are :
 
 =over
 
