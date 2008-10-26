@@ -6,10 +6,7 @@ use Test::More;
 
 use SQL::Abstract;
 
-use FindBin;
-use lib "$FindBin::Bin";
-use TestSqlAbstract;
-
+use SQL::Abstract::Test qw/is_same_sql_bind/;
 my @cases = 
   (
    {

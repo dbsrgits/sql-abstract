@@ -4,10 +4,7 @@ use strict;
 use warnings;
 use Test::More;
 
-use FindBin;
-use lib "$FindBin::Bin";
-use TestSqlAbstract;
-
+use SQL::Abstract::Test qw/is_same_sql_bind/;
 
 plan tests => 15;
 
