@@ -376,8 +376,10 @@ sub _where_ARRAYREF {
       UNDEF     => sub {puke "not supported : UNDEF in arrayref" },
     });
 
-    push @sql_clauses, $sql;
-    push @all_bind, @bind;
+    if ($sql) {
+      push @sql_clauses, $sql;
+      push @all_bind, @bind;
+    }
   }
 
   return $self->_join_sql_clauses($logic, \@sql_clauses, \@all_bind);

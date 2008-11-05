@@ -6,7 +6,7 @@ use Test::More;
 use Test::Exception;
 
 use SQL::Abstract::Test qw/is_same_sql_bind/;
-plan tests => 15;
+plan tests => 16;
 
 use SQL::Abstract;
 
@@ -175,6 +175,13 @@ my @handle_tests = (
         stmt => " WHERE ( (bar > ? AND bar < ?) AND foo IN (?, ?) )",
         bind => [44, 55, 22, 33],
     },
+
+   {
+       where => { -and => [{}, { 'me.id' => '1'}] },
+       stmt => " WHERE ( ( me.id = ? ) )",
+       bind => [ 1 ],
+   },
+
 
 );
 
