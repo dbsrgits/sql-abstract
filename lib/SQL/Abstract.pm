@@ -711,6 +711,7 @@ sub _order_by {
     },
 
     SCALAR    => sub {$self->_quote($arg)},
+    UNDEF     => sub {},
     SCALARREF => sub {$$arg}, # literal SQL, no quoting
     HASHREF   => sub {$self->_order_by_hash($arg)},
 

@@ -44,6 +44,11 @@ my @cases =
     expects => ' ORDER BY colA, colB DESC',
     expects_quoted => ' ORDER BY `colA`, `colB` DESC',
    },
+   {
+    given => undef,
+    expects => '',
+    expects_quoted => '',
+   },
   );
 
 my $sql  = SQL::Abstract->new;
