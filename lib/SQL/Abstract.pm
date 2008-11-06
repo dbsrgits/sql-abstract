@@ -326,7 +326,13 @@ sub _recurse_where {
 
   # dispatch on appropriate method according to refkind of $where
   my $method = $self->_METHOD_FOR_refkind("_where", $where);
-  $self->$method($where, $logic); 
+
+
+  my ($sql, @bind) =  $self->$method($where, $logic); 
+
+  # DBIx::Class directly calls _recurse_where in scalar context, so 
+  # we must implement it, even if not in the official API
+  return wantarray ? ($sql, @bind) : $sql; 
 }
 
 
