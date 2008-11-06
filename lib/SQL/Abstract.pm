@@ -15,6 +15,8 @@ use List::Util qw/first/;
 #======================================================================
 
 our $VERSION  = '1.49_01';
+$VERSION      = eval $VERSION; # numify for warning-free dev releases
+
 
 our $AUTOLOAD;
 
