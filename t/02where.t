@@ -4,9 +4,9 @@ use strict;
 use warnings;
 use Test::More;
 use Test::Exception;
-
 use SQL::Abstract::Test qw/is_same_sql_bind/;
-plan tests => 16;
+
+plan tests => 17;
 
 use SQL::Abstract;
 
@@ -182,6 +182,12 @@ my @handle_tests = (
        bind => [ 1 ],
    },
 
+   {
+       where => { foo => SQLA::FourtyTwo->new(), },
+       stmt => " WHERE ( foo = ? )",
+       bind => [ 'The Life, the Universe and Everything.' ],
+   },
+
 
 );
 
@@ -194,4 +200,28 @@ for my $case (@handle_tests) {
 dies_ok {
     my $sql = SQL::Abstract->new;
     $sql->where({ foo => { '>=' => [] }},);
+};
+
+
+
+#======================================================================
+package SQLA::FourtyTwo; # testing stringification of arguments
+#======================================================================
+
+use strict;
+use warnings;
+
+use overload
+  '""' => \&to_str;
+
+sub new
+{
+  bless {}, shift;
 }
+
+sub to_str
+{
+  return "The Life, the Universe and Everything.";
+}
+
+1;

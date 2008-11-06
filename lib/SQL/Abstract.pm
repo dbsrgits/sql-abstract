@@ -8,7 +8,8 @@ package SQL::Abstract; # see doc at end of file
 use Carp;
 use strict;
 use warnings;
-use List::Util qw/first/;
+use List::Util   qw/first/;
+use Scalar::Util qw/blessed/;
 
 #======================================================================
 # GLOBALS
@@ -707,6 +708,7 @@ sub _order_by {
     ARRAYREF => sub {
       map {$self->_SWITCH_refkind($_, {
               SCALAR    => sub {$self->_quote($_)},
+              UNDEF     => sub {},
               SCALARREF => sub {$$_}, # literal SQL, no quoting
               HASHREF   => sub {$self->_order_by_hash($_)}
              }) } @$arg;
@@ -867,7 +869,10 @@ sub _refkind {
   # $suffix = 'REF' x (length of ref chain, i. e. \\[] is REFREFREF)
   while (1) {
     $suffix .= 'REF';
-    $ref     = ref $data;
+
+    # blessed references that can stringify are considered like scalars
+    $ref = (blessed $data && overload::Method($data, '""')) ? ''
+                                                            : ref $data;
     last if $ref ne 'REF';
     $data = $$data;
   }
