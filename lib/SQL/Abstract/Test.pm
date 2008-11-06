@@ -2,8 +2,7 @@ package SQL::Abstract::Test; # see doc at end of file
 
 use strict;
 use warnings;
-use Test::More;
-use base 'Exporter';
+use base qw/Test::Builder::Module Exporter/;
 use Data::Dumper;
 use Carp;
 
@@ -12,6 +11,7 @@ our @EXPORT_OK = qw/&is_same_sql_bind &eq_sql &eq_bind
 
 our $case_sensitive = 0;
 our $sql_differ; # keeps track of differing portion between SQLs
+our $tb = __PACKAGE__->builder;
 
 sub is_same_sql_bind {
   my ($sql1, $bind_ref1, $sql2, $bind_ref2, $msg) = @_;
@@ -23,21 +23,21 @@ sub is_same_sql_bind {
   my $same_bind = eq_bind($bind_ref1, $bind_ref2);
 
   # call Test::More::ok
-  ok($same_sql && $same_bind, $msg);
+  $tb->ok($same_sql && $same_bind, $msg);
 
   # add debugging info
   if (!$same_sql) {
-    diag "SQL expressions differ\n"
+    $tb->diag("SQL expressions differ\n"
         ."     got: $sql1\n"
         ."expected: $sql2\n"
-        ."differing in :\n$sql_differ\n";
-        ;
+        ."differing in :\n$sql_differ\n"
+        );
   }
   if (!$same_bind) {
-    diag "BIND values differ\n"
+    $tb->diag("BIND values differ\n"
         ."     got: " . Dumper($bind_ref1)
         ."expected: " . Dumper($bind_ref2)
-        ;
+        );
   }
 }
 
@@ -160,7 +160,7 @@ SQL::Abstract::Test - Helper function for testing SQL::Abstract
 
   use SQL::Abstract;
   use Test::More;
-  use SQL::Abstract::Test qw/is_same_sql_bind/;
+  use SQL::Abstract::Test import => ['is_same_sql_bind'];
   
   my ($sql, @bind) = SQL::Abstract->new->select(%args);
   is_same_sql_bind($given_sql,    \@given_bind, 

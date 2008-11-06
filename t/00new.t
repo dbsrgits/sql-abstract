@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use Test::More;
 
-use SQL::Abstract::Test qw/is_same_sql_bind/;
+use SQL::Abstract::Test import => ['is_same_sql_bind'];
 
 plan tests => 15;
 
