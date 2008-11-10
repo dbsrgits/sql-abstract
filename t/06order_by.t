@@ -19,10 +19,20 @@ my @cases =
     expects => ' ORDER BY colA',
     expects_quoted => ' ORDER BY `colA`',
    },
+   {  # it may look odd, but this is the desired behaviour (mst)
+    given => 'colA DESC',
+    expects => ' ORDER BY colA DESC',
+    expects_quoted => ' ORDER BY `colA DESC`',
+   },
    {
     given => [qw/colA colB/],
     expects => ' ORDER BY colA, colB',
     expects_quoted => ' ORDER BY `colA`, `colB`',
+   },
+   {  # it may look odd, but this is the desired behaviour (mst)
+    given => ['colA ASC', 'colB DESC'],
+    expects => ' ORDER BY colA ASC, colB DESC',
+    expects_quoted => ' ORDER BY `colA ASC`, `colB DESC`',
    },
    {
     given => {-asc => 'colA'},
