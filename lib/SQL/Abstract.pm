@@ -874,11 +874,11 @@ sub _refkind {
 
   # $suffix = 'REF' x (length of ref chain, i. e. \\[] is REFREFREF)
   while (1) {
+    # blessed references are considered like scalars
+    last if blessed $data;
     $suffix .= 'REF';
+    $ref     = ref $data;
 
-    # blessed references that can stringify are considered like scalars
-    $ref = (blessed $data && overload::Method($data, '""')) ? ''
-                                                            : ref $data;
     last if $ref ne 'REF';
     $data = $$data;
   }

@@ -6,12 +6,14 @@ use Test::More;
 use Test::Exception;
 use SQL::Abstract::Test import => ['is_same_sql_bind'];
 
-plan tests => 17;
+plan tests => 18;
 
 use SQL::Abstract;
 
 # Make sure to test the examples, since having them break is somewhat
 # embarrassing. :-(
+
+my $not_stringifiable = SQLA::NotStringifiable->new();
 
 my @handle_tests = (
     {
@@ -188,6 +190,12 @@ my @handle_tests = (
        bind => [ 'The Life, the Universe and Everything.' ],
    },
 
+   {
+       where => { foo => $not_stringifiable, },
+       stmt => " WHERE ( foo = ? )",
+       bind => [ $not_stringifiable ],
+   },
+
 
 );
 
@@ -222,6 +230,21 @@ sub new
 sub to_str
 {
   return "The Life, the Universe and Everything.";
+}
+
+1;
+
+
+#======================================================================
+package SQLA::NotStringifiable; # testing stringification of arguments
+#======================================================================
+
+use strict;
+use warnings;
+
+sub new
+{
+  bless {}, shift;
 }
 
 1;
