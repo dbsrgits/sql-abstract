@@ -871,22 +871,22 @@ sub _refkind {
   my ($self, $data) = @_;
   my $suffix = '';
   my $ref;
+  my $n_steps = 0;
 
-  # $suffix = 'REF' x (length of ref chain, i. e. \\[] is REFREFREF)
   while (1) {
-    # blessed references are considered like scalars
-    last if blessed $data;
-    $suffix .= 'REF';
-    $ref     = ref $data;
-
-    last if $ref ne 'REF';
+    # blessed objects are treated like scalars
+    $ref = (blessed $data) ? '' : ref $data;
+    $n_steps += 1 if $ref;
+    last          if $ref ne 'REF';
     $data = $$data;
   }
 
-  return $ref          ? $ref.$suffix   :
-         defined $data ? 'SCALAR'       :
-                         'UNDEF';
+  my $base = $ref || (defined $data ? 'SCALAR' : 'UNDEF');
+
+  return $base . ('REF' x $n_steps);
 }
+
+
 
 sub _try_refkind {
   my ($self, $data) = @_;
