@@ -52,8 +52,17 @@ sub stringify_bind {
 
   # some bind values can be arrayrefs (see L<SQL::Abstract/bindtype>),
   # so stringify them.
-  my @strings = map {ref $_ eq 'ARRAY' ? join('=>', @$_) : ($_ || '')} 
-                    @$bind_ref;
+  # furthermore, if L<SQL::Abstract/array_datatypes> is set to true, elements
+  # of those arrayrefs can be arrayrefs, too.
+  my @strings = map {
+    ref $_ eq 'ARRAY'
+      ? join('=>', map {
+          ref $_ eq 'ARRAY'
+            ? ('[' . join('=>', @$_) . ']')
+            : (defined $_ ? $_ : '')
+        } @$_)
+      : (defined $_ ? $_ : '')
+  } @$bind_ref;
 
   # join all values into a single string
   return join "///", @strings;
