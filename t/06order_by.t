@@ -61,10 +61,11 @@ my @cases =
    },
   );
 
-my $sql  = SQL::Abstract->new;
-my $sqlq = SQL::Abstract->new({quote_char => '`'});
 
 plan tests => (scalar(@cases) * 2);
+
+my $sql  = SQL::Abstract->new;
+my $sqlq = SQL::Abstract->new({quote_char => '`'});
 
 for my $case( @cases){
   is($sql->_order_by($case->{given}), $case->{expects});

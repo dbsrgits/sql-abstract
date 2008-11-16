@@ -6,12 +6,7 @@ use Test::More;
 
 use SQL::Abstract::Test import => ['is_same_sql_bind'];
 
-plan tests => 15;
-
-use_ok('SQL::Abstract');
-
 #LDNOTE: renamed all "bind" into "where" because that's what they are
-
 
 my @handle_tests = (
       #1
@@ -109,6 +104,11 @@ my @handle_tests = (
                           q => { 'not in', [14..20] } } ],
       },
 );
+
+
+plan tests => (1 + scalar(@handle_tests));
+
+use_ok('SQL::Abstract');
 
 for (@handle_tests) {
   local $" = ', ';

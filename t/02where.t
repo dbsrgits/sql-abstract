@@ -6,8 +6,6 @@ use Test::More;
 use Test::Exception;
 use SQL::Abstract::Test import => ['is_same_sql_bind'];
 
-plan tests => 18;
-
 use SQL::Abstract;
 
 # Make sure to test the examples, since having them break is somewhat
@@ -196,8 +194,10 @@ my @handle_tests = (
        bind => [ $not_stringifiable ],
    },
 
-
 );
+
+
+plan tests => scalar(@handle_tests) + 1;
 
 for my $case (@handle_tests) {
     my $sql = SQL::Abstract->new;

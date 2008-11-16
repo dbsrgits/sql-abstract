@@ -5,7 +5,6 @@ use warnings;
 use Test::More;
 
 use SQL::Abstract::Test import => ['is_same_sql_bind'];
-plan tests => 5;
 
 use SQL::Abstract;
 
@@ -79,6 +78,7 @@ push @tests, {
 };
 
 
+plan tests => scalar(@tests);
 
 for (@tests) {
 

@@ -5,7 +5,6 @@ use warnings;
 use Test::More;
 
 use SQL::Abstract::Test import => ['is_same_sql_bind'];
-plan tests => 72;
 
 use SQL::Abstract;
 
@@ -347,7 +346,8 @@ my @tests = (
       },
 );
 
-use Data::Dumper;
+
+plan tests => scalar(@tests) * 2;
 
 for (@tests) {
   local $"=', ';
