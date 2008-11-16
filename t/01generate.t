@@ -5,7 +5,7 @@ use warnings;
 use Test::More;
 
 use SQL::Abstract::Test import => ['is_same_sql_bind'];
-plan tests => 64;
+plan tests => 72;
 
 use SQL::Abstract;
 
@@ -308,7 +308,43 @@ my @tests = (
               stmt   => q{SELECT * FROM test WHERE ( a = to_date(?, 'MM/DD/YY') )},
               stmt_q => q{SELECT * FROM `test` WHERE ( `a` = to_date(?, 'MM/DD/YY') )},
               bind   => ['02/02/02'],
-      }
+      },
+      #33
+      {
+              func   => 'insert',
+              new    => {array_datatypes => 1},
+              args   => ['test', {a => 1, b => [1, 1, 2, 3, 5, 8]}],
+              stmt   => 'INSERT INTO test (a, b) VALUES (?, ?)',
+              stmt_q => 'INSERT INTO `test` (`a`, `b`) VALUES (?, ?)',
+              bind   => [1, [1, 1, 2, 3, 5, 8]],
+      },
+      #34
+      {
+              func   => 'insert',
+              new    => {bindtype => 'columns', array_datatypes => 1},
+              args   => ['test', {a => 1, b => [1, 1, 2, 3, 5, 8]}],
+              stmt   => 'INSERT INTO test (a, b) VALUES (?, ?)',
+              stmt_q => 'INSERT INTO `test` (`a`, `b`) VALUES (?, ?)',
+              bind   => [[a => 1], [b => [1, 1, 2, 3, 5, 8]]],
+      },
+      #35
+      {
+              func   => 'update',
+              new    => {array_datatypes => 1},
+              args   => ['test', {a => 1, b => [1, 1, 2, 3, 5, 8]}],
+              stmt   => 'UPDATE test SET a = ?, b = ?',
+              stmt_q => 'UPDATE `test` SET `a` = ?, `b` = ?',
+              bind   => [1, [1, 1, 2, 3, 5, 8]],
+      },
+      #36
+      {
+              func   => 'update',
+              new    => {bindtype => 'columns', array_datatypes => 1},
+              args   => ['test', {a => 1, b => [1, 1, 2, 3, 5, 8]}],
+              stmt   => 'UPDATE test SET a = ?, b = ?',
+              stmt_q => 'UPDATE `test` SET `a` = ?, `b` = ?',
+              bind   => [[a => 1], [b => [1, 1, 2, 3, 5, 8]]],
+      },
 );
 
 use Data::Dumper;
@@ -333,5 +369,3 @@ for (@tests) {
 
   is_same_sql_bind($stmt_q, \@bind_q, $_->{stmt_q}, $_->{bind});
 }
-
-

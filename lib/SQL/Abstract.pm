@@ -145,6 +145,7 @@ sub _insert_ARRAYREF { # just generate values(?,?) part (no list of fields)
       ARRAYREF => sub { 
         if ($self->{array_datatypes}) { # if array datatype are activated
           push @values, '?';
+          push @all_bind, $v;
         }
         else {                          # else literal SQL with bind
           my ($sql, @bind) = @$v;
