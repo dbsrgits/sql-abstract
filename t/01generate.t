@@ -344,6 +344,14 @@ my @tests = (
               stmt_q => 'UPDATE `test` SET `a` = ?, `b` = ?',
               bind   => [[a => 1], [b => [1, 1, 2, 3, 5, 8]]],
       },
+      #37
+      {
+              func   => 'select',
+              args   => ['test', '*', { a => {'>', \'1 + 1'}, b => 8 }],
+              stmt   => 'SELECT * FROM test WHERE ( a > 1 + 1 AND b = ? )',
+              stmt_q => 'SELECT * FROM `test` WHERE ( `a` > 1 + 1 AND `b` = ? )',
+              bind   => [8],
+      },             
 );
 
 

@@ -529,6 +529,13 @@ sub _where_hashpair_HASHREF {
       ($sql, @bind) = $self->_where_field_op_ARRAYREF($k, $op, $val);
     } 
 
+    # CASE: col => {op => \$scalar}
+    elsif (ref $val eq 'SCALAR') {
+      $sql  = join ' ', $self->_convert($self->_quote($k)),
+                        $self->_sqlcase($op),
+                        $$val;
+    }
+
     # CASE: col => {op => undef} : sql "IS (NOT)? NULL"
     elsif (! defined($val)) {
       my $is = ($op =~ $self->{equality_op})   ? 'is'     :
@@ -2063,6 +2070,10 @@ The main changes are :
 =item * 
 
 support for literal SQL through the C<< \ [$sql, bind] >> syntax.
+
+=item *
+
+support for the { operator => \"..." } construct (to embed literal SQL)
 
 =item *
 
