@@ -523,33 +523,33 @@ sub _where_hashpair_HASHREF {
     if ($special_op) {
       ($sql, @bind) = $special_op->{handler}->($self, $k, $op, $val);
     }
-
-    # CASE: col => {op => \@vals}
-    elsif (ref $val eq 'ARRAY') {
-      ($sql, @bind) = $self->_where_field_op_ARRAYREF($k, $op, $val);
-    } 
-
-    # CASE: col => {op => \$scalar}
-    elsif (ref $val eq 'SCALAR') {
-      $sql  = join ' ', $self->_convert($self->_quote($k)),
-                        $self->_sqlcase($op),
-                        $$val;
-    }
-
-    # CASE: col => {op => undef} : sql "IS (NOT)? NULL"
-    elsif (! defined($val)) {
-      my $is = ($op =~ $self->{equality_op})   ? 'is'     :
-               ($op =~ $self->{inequality_op}) ? 'is not' :
-           puke "unexpected operator '$op' with undef operand";
-      $sql = $self->_quote($k) . $self->_sqlcase(" $is null");
-    }
-
-    # CASE: col => {op => $scalar}
     else {
-      $sql  = join ' ', $self->_convert($self->_quote($k)),
-                        $self->_sqlcase($op),
-                        $self->_convert('?');
-      @bind = $self->_bindtype($k, $val);
+      $self->_SWITCH_refkind($val, {
+
+        ARRAYREF => sub {       # CASE: col => {op => \@vals}
+          ($sql, @bind) = $self->_where_field_op_ARRAYREF($k, $op, $val);
+        },
+
+        SCALARREF => sub {      # CASE: col => {op => \$scalar}
+          $sql  = join ' ', $self->_convert($self->_quote($k)),
+                            $self->_sqlcase($op),
+                            $$val;
+        },
+
+        UNDEF => sub {          # CASE: col => {op => undef} : sql "IS (NOT)? NULL"
+          my $is = ($op =~ $self->{equality_op})   ? 'is'     :
+                   ($op =~ $self->{inequality_op}) ? 'is not' :
+               puke "unexpected operator '$op' with undef operand";
+          $sql = $self->_quote($k) . $self->_sqlcase(" $is null");
+        },
+        
+        FALLBACK => sub {       # CASE: col => {op => $scalar}
+          $sql  = join ' ', $self->_convert($self->_quote($k)),
+                            $self->_sqlcase($op),
+                            $self->_convert('?');
+          @bind = $self->_bindtype($k, $val);
+        },
+      });
     }
 
     push @all_sql, $sql;
