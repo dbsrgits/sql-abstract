@@ -22,7 +22,7 @@ sub is_same_sql_bind {
   my $same_sql  = eq_sql($tree1, $tree2);
   my $same_bind = eq_bind($bind_ref1, $bind_ref2);
 
-  # call Test::More::ok
+  # call Test::Builder::ok
   $tb->ok($same_sql && $same_bind, $msg);
 
   # add debugging info
@@ -200,9 +200,9 @@ laws, etc.
                    $expected_sql, \@expected_bind, $test_msg);
 
 Compares given and expected pairs of C<($sql, \@bind)>, and calls
-L<Test::More/ok> on the result, with C<$test_msg> as message. If the
+L<Test::Builder/ok> on the result, with C<$test_msg> as message. If the
 test fails, a detailed diagnostic is printed. For clients which use
-L<Test::More|Test::More>, this is the only function that needs to be
+L<Test::Build>, this is the only function that needs to be
 imported.
 
 =head2 eq_sql
@@ -236,7 +236,7 @@ where a difference was encountered.
 
 =head1 SEE ALSO
 
-L<SQL::Abstract>, L<Test::More>.
+L<SQL::Abstract>, L<Test::More>, L<Test::Builder>.
 
 =head1 AUTHOR
 
