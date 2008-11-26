@@ -6,8 +6,8 @@ WriteMakefile(
     NAME           => 'SQL::Abstract',
     VERSION_FROM   => 'lib/SQL/Abstract.pm', # finds $VERSION
     PREREQ_PM      => {
-      "List::Util" => 0
-      "Scalar::Util" => 0
+      "List::Util" => 0,
+      "Scalar::Util" => 0,
       "Test::Builder" => 0,
       "Test::More" => 0,
       "Test::Exception" => 0,
