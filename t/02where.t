@@ -11,7 +11,7 @@ use SQL::Abstract;
 # Make sure to test the examples, since having them break is somewhat
 # embarrassing. :-(
 
-my $not_stringifiable = SQLA::NotStringifiable->new();
+my $not_stringifiable = bless {}, 'SQLA::NotStringifiable';
 
 my @handle_tests = (
     {
@@ -183,12 +183,6 @@ my @handle_tests = (
    },
 
    {
-       where => { foo => SQLA::FourtyTwo->new(), },
-       stmt => " WHERE ( foo = ? )",
-       bind => [ 'The Life, the Universe and Everything.' ],
-   },
-
-   {
        where => { foo => $not_stringifiable, },
        stmt => " WHERE ( foo = ? )",
        bind => [ $not_stringifiable ],
@@ -209,42 +203,3 @@ dies_ok {
     my $sql = SQL::Abstract->new;
     $sql->where({ foo => { '>=' => [] }},);
 };
-
-
-
-#======================================================================
-package SQLA::FourtyTwo; # testing stringification of arguments
-#======================================================================
-
-use strict;
-use warnings;
-
-use overload
-  '""' => \&to_str;
-
-sub new
-{
-  bless {}, shift;
-}
-
-sub to_str
-{
-  return "The Life, the Universe and Everything.";
-}
-
-1;
-
-
-#======================================================================
-package SQLA::NotStringifiable; # testing stringification of arguments
-#======================================================================
-
-use strict;
-use warnings;
-
-sub new
-{
-  bless {}, shift;
-}
-
-1;
