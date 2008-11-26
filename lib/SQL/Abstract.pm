@@ -536,6 +536,14 @@ sub _where_hashpair_HASHREF {
                             $$val;
         },
 
+        ARRAYREFREF => sub {    # CASE: col => {op => \[$sql, @bind]}
+          my ($sub_sql, @sub_bind) = @$$val;
+          $sql  = join ' ', $self->_convert($self->_quote($k)),
+                            $self->_sqlcase($op),
+                            $sub_sql;
+          @bind = @sub_bind;
+        },
+
         UNDEF => sub {          # CASE: col => {op => undef} : sql "IS (NOT)? NULL"
           my $is = ($op =~ $self->{equality_op})   ? 'is'     :
                    ($op =~ $self->{inequality_op}) ? 'is not' :
