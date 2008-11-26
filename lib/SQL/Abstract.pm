@@ -2098,6 +2098,10 @@ support for the { operator => \"..." } construct (to embed literal SQL)
 
 =item *
 
+support for the { operator => \["...", @bind] } construct (to embed literal SQL with bind values)
+
+=item *
+
 added -nest1, -nest2 or -nest_1, -nest_2, ...
 
 =item *
