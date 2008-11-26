@@ -12,5 +12,4 @@ t/06order_by.t
 t/07subqueries.t
 t/08special_ops.t
 t/09refkind.t
-
-
+t/10test.t
