@@ -1615,6 +1615,19 @@ Which would generate:
     $stmt = "WHERE user = ? AND priority = ? OR priority != ?";
     @bind = ('nwiger', '2', '1');
 
+If you want to include literal SQL (with or without bind values), just use a
+scalar reference or array reference as the value:
+
+    my %where  = (
+        date_entered => { '>' => \["to_date(?, 'MM/DD/YYYY')", "11/26/2008"] },
+        date_expires => { '<' => \"now()" }
+    );
+
+Which would generate:
+
+    $stmt = "WHERE date_entered > "to_date(?, 'MM/DD/YYYY') AND date_expires < now()";
+    @bind = ('11/26/2008');
+
 
 =head2 Logic and nesting operators
 
