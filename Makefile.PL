@@ -11,6 +11,7 @@ WriteMakefile(
       "Test::Builder" => 0,
       "Test::More" => 0,
       "Test::Exception" => 0,
+      "Test::Deep" => 0,
       "Data::Dumper" => 0,
      }, # e.g., Module::Name => 1.1
     ABSTRACT_FROM  => 'lib/SQL/Abstract.pm', # retrieve abstract from module
