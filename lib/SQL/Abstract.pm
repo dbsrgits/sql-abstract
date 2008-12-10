@@ -2164,6 +2164,7 @@ so I have no idea who they are! But the people I do know are:
     Dan Kubb (support for "quote_char" and "name_sep")
     Guillermo Roditi (patch to cleanup "IN" and "BETWEEN", fix and tests for _order_by)
     Laurent Dami (internal refactoring, multiple -nest, extensible list of special operators, literal SQL)
+    Norbert Buchmuller (support for literal SQL in hashpair, misc. fixes & tests)
 
 Thanks!
 
