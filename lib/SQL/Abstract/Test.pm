@@ -3,7 +3,6 @@ package SQL::Abstract::Test; # see doc at end of file
 use strict;
 use warnings;
 use base qw/Test::Builder::Module Exporter/;
-use Scalar::Util qw(looks_like_number blessed reftype);
 use Data::Dumper;
 use Carp;
 use Test::Builder;
