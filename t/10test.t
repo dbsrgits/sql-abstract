@@ -3,10 +3,454 @@
 use strict;
 use warnings;
 use List::Util qw(sum);
-use Data::Dumper;
 
 use Test::More;
 
+
+my @sql_tests = (
+      # WHERE condition - equal
+      {
+        equal => 1,
+        statements => [
+          q/SELECT foo FROM bar WHERE a = 1/,
+          q/SELECT foo FROM bar WHERE a=1/,
+          q/SELECT foo FROM bar WHERE (a = 1)/,
+          q/SELECT foo FROM bar WHERE (a=1)/,
+          q/SELECT foo FROM bar WHERE ( a = 1 )/,
+          q/
+            SELECT
+              foo
+            FROM
+              bar
+            WHERE
+              a = 1
+          /,
+          q/
+            SELECT
+              foo
+            FROM
+              bar
+            WHERE
+              (a = 1)
+          /,
+          q/
+            SELECT
+              foo
+            FROM
+              bar
+            WHERE
+              ( a = 1 )
+          /,
+          q/SELECT foo FROM bar WHERE ((a = 1))/,
+          q/SELECT foo FROM bar WHERE ( (a = 1) )/,
+          q/SELECT foo FROM bar WHERE ( ( a = 1 ) )/,
+        ]
+      },
+      {
+        equal => 1,
+        statements => [
+          q/SELECT foo FROM bar WHERE a = 1 AND b = 1/,
+          q/SELECT foo FROM bar WHERE (a = 1) AND (b = 1)/,
+          q/SELECT foo FROM bar WHERE ((a = 1) AND (b = 1))/,
+          q/SELECT foo FROM bar WHERE (a = 1 AND b = 1)/,
+          q/SELECT foo FROM bar WHERE ((a = 1 AND b = 1))/,
+          q/SELECT foo FROM bar WHERE (((a = 1) AND (b = 1)))/,
+          q/
+            SELECT
+              foo
+            FROM
+              bar
+            WHERE
+              a = 1
+              AND
+              b = 1
+          /,
+          q/
+            SELECT
+              foo
+            FROM
+              bar
+            WHERE
+              (a = 1
+              AND
+              b = 1)
+          /,
+          q/
+            SELECT
+              foo
+            FROM
+              bar
+            WHERE
+              (a = 1)
+              AND
+              (b = 1)
+          /,
+          q/
+            SELECT
+              foo
+            FROM
+              bar
+            WHERE
+              ((a = 1)
+              AND
+              (b = 1))
+          /,
+        ]
+      },
+
+      # WHERE condition - different
+      {
+        equal => 0,
+        statements => [
+          q/SELECT foo FROM bar WHERE a = 1/,
+          q/SELECT quux FROM bar WHERE a = 1/,
+          q/SELECT foo FROM quux WHERE a = 1/,
+          q/FOOBAR foo FROM bar WHERE a = 1/,
+
+          q/SELECT foo FROM bar WHERE a = 2/,
+          q/SELECT foo FROM bar WHERE a < 1/,
+          q/SELECT foo FROM bar WHERE b = 1/,
+          q/SELECT foo FROM bar WHERE (c = 1)/,
+          q/SELECT foo FROM bar WHERE (d = 1)/,
+
+          q/SELECT foo FROM bar WHERE a = 1 AND quux/,
+          q/SELECT foo FROM bar WHERE a = 1 GROUP BY foo/,
+          q/SELECT foo FROM bar WHERE a = 1 ORDER BY foo/,
+          q/SELECT foo FROM bar WHERE a = 1 LIMIT 1/,
+          q/SELECT foo FROM bar WHERE a = 1 OFFSET 1/,
+          q/SELECT foo FROM bar JOIN quux WHERE a = 1/,
+          q/SELECT foo FROM bar JOIN quux ON a = 1 WHERE a = 1/,
+        ]
+      },
+      {
+        equal => 0,
+        statements => [
+          q/SELECT foo FROM bar WHERE a = 1 AND b = 1/,
+          q/SELECT quux FROM bar WHERE a = 1 AND b = 1/,
+          q/SELECT foo FROM quux WHERE a = 1 AND b = 1/,
+          q/FOOBAR foo FROM bar WHERE a = 1 AND b = 1/,
+
+          q/SELECT foo FROM bar WHERE a = 2 AND b = 1/,
+          q/SELECT foo FROM bar WHERE a = 3 AND (b = 1)/,
+          q/SELECT foo FROM bar WHERE (a = 4) AND b = 1/,
+          q/SELECT foo FROM bar WHERE (a = 5) AND (b = 1)/,
+          q/SELECT foo FROM bar WHERE ((a = 6) AND (b = 1))/,
+          q/SELECT foo FROM bar WHERE ((a = 7) AND (b = 1))/,
+
+          q/SELECT foo FROM bar WHERE a = 1 AND b = 2/,
+          q/SELECT foo FROM bar WHERE a = 1 AND (b = 3)/,
+          q/SELECT foo FROM bar WHERE (a = 1) AND b = 4/,
+          q/SELECT foo FROM bar WHERE (a = 1) AND (b = 5)/,
+          q/SELECT foo FROM bar WHERE ((a = 1) AND (b = 6))/,
+          q/SELECT foo FROM bar WHERE ((a = 1) AND (b = 7))/,
+
+          q/SELECT foo FROM bar WHERE a < 1 AND b = 1/,
+          q/SELECT foo FROM bar WHERE b = 1 AND b = 1/,
+          q/SELECT foo FROM bar WHERE (c = 1) AND b = 1/,
+          q/SELECT foo FROM bar WHERE (d = 1) AND b = 1/,
+
+          q/SELECT foo FROM bar WHERE a = 1 AND b = 1 AND quux/,
+          q/SELECT foo FROM bar WHERE a = 1 AND b = 1 GROUP BY foo/,
+          q/SELECT foo FROM bar WHERE a = 1 AND b = 1 ORDER BY foo/,
+          q/SELECT foo FROM bar WHERE a = 1 AND b = 1 LIMIT 1/,
+          q/SELECT foo FROM bar WHERE a = 1 AND b = 1 OFFSET 1/,
+          q/SELECT foo FROM bar JOIN quux WHERE a = 1 AND b = 1/,
+          q/SELECT foo FROM bar JOIN quux ON a = 1 WHERE a = 1 AND b = 1/,
+        ]
+      },
+
+      # JOIN condition - equal
+      {
+        equal => 1,
+        statements => [
+          q/SELECT foo FROM bar JOIN baz ON a = 1 WHERE x = 1/,
+          q/SELECT foo FROM bar JOIN baz ON a=1 WHERE x = 1/,
+          q/SELECT foo FROM bar JOIN baz ON (a = 1) WHERE x = 1/,
+          q/SELECT foo FROM bar JOIN baz ON (a=1) WHERE x = 1/,
+          q/SELECT foo FROM bar JOIN baz ON ( a = 1 ) WHERE x = 1/,
+          q/
+            SELECT
+              foo
+            FROM
+              bar
+            JOIN
+              baz
+            ON
+              a = 1
+            WHERE
+              x = 1
+          /,
+          q/
+            SELECT
+              foo
+            FROM
+              bar
+            JOIN
+              baz
+            ON
+              (a = 1)
+            WHERE
+              x = 1
+          /,
+          q/
+            SELECT
+              foo
+            FROM
+              bar
+            JOIN
+              baz
+            ON
+              ( a = 1 )
+            WHERE
+              x = 1
+          /,
+          q/SELECT foo FROM bar JOIN baz ON ((a = 1)) WHERE x = 1/,
+          q/SELECT foo FROM bar JOIN baz ON ( (a = 1) ) WHERE x = 1/,
+          q/SELECT foo FROM bar JOIN baz ON ( ( a = 1 ) ) WHERE x = 1/,
+        ]
+      },
+      {
+        equal => 1,
+        statements => [
+          q/SELECT foo FROM bar JOIN baz ON a = 1 AND b = 1 WHERE x = 1/,
+          q/SELECT foo FROM bar JOIN baz ON (a = 1) AND (b = 1) WHERE x = 1/,
+          q/SELECT foo FROM bar JOIN baz ON ((a = 1) AND (b = 1)) WHERE x = 1/,
+          q/SELECT foo FROM bar JOIN baz ON (a = 1 AND b = 1) WHERE x = 1/,
+          q/SELECT foo FROM bar JOIN baz ON ((a = 1 AND b = 1)) WHERE x = 1/,
+          q/SELECT foo FROM bar JOIN baz ON (((a = 1) AND (b = 1))) WHERE x = 1/,
+          q/
+            SELECT
+              foo
+            FROM
+              bar
+            JOIN
+              baz
+            ON
+              a = 1
+              AND
+              b = 1
+            WHERE
+              x = 1
+          /,
+          q/
+            SELECT
+              foo
+            FROM
+              bar
+            JOIN
+              baz
+            ON
+              (a = 1
+              AND
+              b = 1)
+            WHERE
+              x = 1
+          /,
+          q/
+            SELECT
+              foo
+            FROM
+              bar
+            JOIN
+              baz
+            ON
+              (a = 1)
+              AND
+              (b = 1)
+            WHERE
+              x = 1
+          /,
+          q/
+            SELECT
+              foo
+            FROM
+              bar
+            JOIN
+              baz
+            ON
+              ((a = 1)
+              AND
+              (b = 1))
+            WHERE
+              x = 1
+          /,
+        ]
+      },
+
+      # JOIN condition - different
+      {
+        equal => 0,
+        statements => [
+          q/SELECT foo FROM bar JOIN quux ON a = 1 WHERE quuux/,
+          q/SELECT quux FROM bar JOIN quux ON a = 1 WHERE quuux/,
+          q/SELECT foo FROM quux JOIN quux ON a = 1 WHERE quuux/,
+          q/FOOBAR foo FROM bar JOIN quux ON a = 1 WHERE quuux/,
+
+          q/SELECT foo FROM bar JOIN quux ON a = 2 WHERE quuux/,
+          q/SELECT foo FROM bar JOIN quux ON a < 1 WHERE quuux/,
+          q/SELECT foo FROM bar JOIN quux ON b = 1 WHERE quuux/,
+          q/SELECT foo FROM bar JOIN quux ON (c = 1) WHERE quuux/,
+          q/SELECT foo FROM bar JOIN quux ON (d = 1) WHERE quuux/,
+
+          q/SELECT foo FROM bar JOIN quux ON a = 1 AND quuux/,
+          q/SELECT foo FROM bar JOIN quux ON a = 1 GROUP BY foo/,
+          q/SELECT foo FROM bar JOIN quux ON a = 1 ORDER BY foo/,
+          q/SELECT foo FROM bar JOIN quux ON a = 1 LIMIT 1/,
+          q/SELECT foo FROM bar JOIN quux ON a = 1 OFFSET 1/,
+          q/SELECT foo FROM bar JOIN quux ON a = 1 JOIN quuux/,
+          q/SELECT foo FROM bar JOIN quux ON a = 1 JOIN quuux ON a = 1/,
+        ]
+      },
+      {
+        equal => 0,
+        statements => [
+          q/SELECT foo FROM bar JOIN quux ON a = 1 AND b = 1 WHERE quuux/,
+          q/SELECT quux FROM bar JOIN quux ON a = 1 AND b = 1 WHERE quuux/,
+          q/SELECT foo FROM quux JOIN quux ON a = 1 AND b = 1 WHERE quuux/,
+          q/FOOBAR foo FROM bar JOIN quux ON a = 1 AND b = 1 WHERE quuux/,
+
+          q/SELECT foo FROM bar JOIN quux ON a = 2 AND b = 1 WHERE quuux/,
+          q/SELECT foo FROM bar JOIN quux ON a = 3 AND (b = 1) WHERE quuux/,
+          q/SELECT foo FROM bar JOIN quux ON (a = 4) AND b = 1 WHERE quuux/,
+          q/SELECT foo FROM bar JOIN quux ON (a = 5) AND (b = 1) WHERE quuux/,
+          q/SELECT foo FROM bar JOIN quux ON ((a = 6) AND (b = 1)) WHERE quuux/,
+          q/SELECT foo FROM bar JOIN quux ON ((a = 7) AND (b = 1)) WHERE quuux/,
+
+          q/SELECT foo FROM bar JOIN quux ON a = 1 AND b = 2 WHERE quuux/,
+          q/SELECT foo FROM bar JOIN quux ON a = 1 AND (b = 3) WHERE quuux/,
+          q/SELECT foo FROM bar JOIN quux ON (a = 1) AND b = 4 WHERE quuux/,
+          q/SELECT foo FROM bar JOIN quux ON (a = 1) AND (b = 5) WHERE quuux/,
+          q/SELECT foo FROM bar JOIN quux ON ((a = 1) AND (b = 6)) WHERE quuux/,
+          q/SELECT foo FROM bar JOIN quux ON ((a = 1) AND (b = 7)) WHERE quuux/,
+
+          q/SELECT foo FROM bar JOIN quux ON a < 1 AND b = 1 WHERE quuux/,
+          q/SELECT foo FROM bar JOIN quux ON b = 1 AND b = 1 WHERE quuux/,
+          q/SELECT foo FROM bar JOIN quux ON (c = 1) AND b = 1 WHERE quuux/,
+          q/SELECT foo FROM bar JOIN quux ON (d = 1) AND b = 1 WHERE quuux/,
+
+          q/SELECT foo FROM bar JOIN quux ON a = 1 AND b = 1 AND quuux/,
+          q/SELECT foo FROM bar JOIN quux ON a = 1 AND b = 1 GROUP BY foo/,
+          q/SELECT foo FROM bar JOIN quux ON a = 1 AND b = 1 ORDER BY foo/,
+          q/SELECT foo FROM bar JOIN quux ON a = 1 AND b = 1 LIMIT 1/,
+          q/SELECT foo FROM bar JOIN quux ON a = 1 AND b = 1 OFFSET 1/,
+          q/SELECT foo FROM bar JOIN quux JOIN quuux ON a = 1 AND b = 1/,
+          q/SELECT foo FROM bar JOIN quux ON a = 1 JOIN quuux ON a = 1 AND b = 1/,
+        ]
+      },
+
+      # DISTINCT ON (...) not confused with JOIN ON (...)
+      {
+        equal => 1,
+        statements => [
+          q/SELECT DISTINCT ON (foo, quux) foo, quux FROM bar WHERE a = 1/,
+          q/SELECT DISTINCT ON (foo, quux) foo, quux FROM bar WHERE a=1/,
+          q/SELECT DISTINCT ON (foo, quux) foo, quux FROM bar WHERE (a = 1)/,
+          q/SELECT DISTINCT ON (foo, quux) foo, quux FROM bar WHERE (a=1)/,
+          q/SELECT DISTINCT ON (foo, quux) foo, quux FROM bar WHERE ( a = 1 )/,
+          q/
+            SELECT DISTINCT ON (foo, quux)
+              foo,
+              quux
+            FROM
+              bar
+            WHERE
+              a = 1
+          /,
+          q/
+            SELECT DISTINCT ON (foo, quux)
+              foo,
+              quux
+            FROM
+              bar
+            WHERE
+              (a = 1)
+          /,
+          q/
+            SELECT DISTINCT ON (foo, quux)
+              foo,
+              quux
+            FROM
+              bar
+            WHERE
+              ( a = 1 )
+          /,
+          q/SELECT DISTINCT ON (foo, quux) foo, quux FROM bar WHERE ((a = 1))/,
+          q/SELECT DISTINCT ON (foo, quux) foo, quux FROM bar WHERE ( (a = 1) )/,
+          q/SELECT DISTINCT ON (foo, quux) foo, quux FROM bar WHERE ( ( a = 1 ) )/,
+        ]
+      },
+
+      # subselects - equal
+      {
+        equal => 1,
+        statements => [
+          q/SELECT * FROM (SELECT * FROM bar WHERE b = 1) AS foo WHERE a = 1/,
+          q/SELECT * FROM (SELECT * FROM bar WHERE b = 1) AS foo WHERE (a = 1)/,
+          q/SELECT * FROM (SELECT * FROM bar WHERE (b = 1)) AS foo WHERE a = 1/,
+          q/SELECT * FROM (SELECT * FROM bar WHERE (b = 1)) AS foo WHERE (a = 1)/,
+        ]
+      },
+      {
+        equal => 1,
+        statements => [
+          q/SELECT * FROM (SELECT * FROM bar WHERE b = 1 AND c = 1) AS foo WHERE a = 1/,
+          q/SELECT * FROM (SELECT * FROM bar WHERE b = 1 AND (c = 1)) AS foo WHERE a = 1/,
+          q/SELECT * FROM (SELECT * FROM bar WHERE (b = 1) AND c = 1) AS foo WHERE a = 1/,
+          q/SELECT * FROM (SELECT * FROM bar WHERE (b = 1) AND (c = 1)) AS foo WHERE a = 1/,
+          q/SELECT * FROM (SELECT * FROM bar WHERE ((b = 1) AND (c = 1))) AS foo WHERE a = 1/,
+
+          q/SELECT * FROM (SELECT * FROM bar WHERE b = 1 AND c = 1) AS foo WHERE (a = 1)/,
+          q/SELECT * FROM (SELECT * FROM bar WHERE b = 1 AND (c = 1)) AS foo WHERE (a = 1)/,
+          q/SELECT * FROM (SELECT * FROM bar WHERE (b = 1) AND c = 1) AS foo WHERE (a = 1)/,
+          q/SELECT * FROM (SELECT * FROM bar WHERE (b = 1) AND (c = 1)) AS foo WHERE (a = 1)/,
+          q/SELECT * FROM (SELECT * FROM bar WHERE ((b = 1) AND (c = 1))) AS foo WHERE (a = 1)/,
+        ]
+      },
+
+      # subselects - different
+      {
+        equal => 0,
+        statements => [
+          q/SELECT * FROM (SELECT * FROM bar WHERE b = 1) AS foo WHERE a = 1/,
+          q/SELECT * FROM (SELECT * FROM bar WHERE b = 1) AS foo WHERE a = 2/,
+          q/SELECT * FROM (SELECT * FROM bar WHERE b = 1) AS foo WHERE (a = 3)/,
+          q/SELECT * FROM (SELECT * FROM bar WHERE (b = 1)) AS foo WHERE a = 4/,
+          q/SELECT * FROM (SELECT * FROM bar WHERE (b = 1)) AS foo WHERE (a = 5)/,
+          q/SELECT * FROM (SELECT * FROM bar WHERE b = 2) AS foo WHERE a = 1/,
+          q/SELECT * FROM (SELECT * FROM bar WHERE b = 3) AS foo WHERE (a = 1)/,
+          q/SELECT * FROM (SELECT * FROM bar WHERE (b = 4)) AS foo WHERE a = 1/,
+          q/SELECT * FROM (SELECT * FROM bar WHERE (b = 5)) AS foo WHERE (a = 1)/,
+        ]
+      },
+      {
+        equal => 0,
+        statements => [
+          q/SELECT * FROM (SELECT * FROM bar WHERE b = 1 AND c = 1) AS foo WHERE a = 1/,
+          q/SELECT * FROM (SELECT * FROM bar WHERE (b = 1) AND c = 2) AS foo WHERE a = 1/,
+          q/SELECT * FROM (SELECT * FROM bar WHERE b = 1 AND (c = 3)) AS foo WHERE a = 1/,
+          q/SELECT * FROM (SELECT * FROM bar WHERE (b = 1) AND (c = 4)) AS foo WHERE a = 1/,
+          q/SELECT * FROM (SELECT * FROM bar WHERE ((b = 1) AND (c = 5))) AS foo WHERE a = 1/,
+
+          q/SELECT * FROM (SELECT * FROM bar WHERE b = 1 AND c = 6) AS foo WHERE (a = 1)/,
+          q/SELECT * FROM (SELECT * FROM bar WHERE (b = 1) AND c = 7) AS foo WHERE (a = 1)/,
+          q/SELECT * FROM (SELECT * FROM bar WHERE b = 1 AND (c = 8)) AS foo WHERE (a = 1)/,
+          q/SELECT * FROM (SELECT * FROM bar WHERE (b = 1) AND (c = 9)) AS foo WHERE (a = 1)/,
+          q/SELECT * FROM (SELECT * FROM bar WHERE ((b = 1) AND (c = 10))) AS foo WHERE (a = 1)/,
+
+          q/SELECT * FROM (SELECT * FROM bar WHERE b = 1 AND c = 1) AS foo WHERE a = 2/,
+          q/SELECT * FROM (SELECT * FROM bar WHERE (b = 1) AND c = 2) AS foo WHERE a = 2/,
+          q/SELECT * FROM (SELECT * FROM bar WHERE b = 1 AND (c = 3)) AS foo WHERE a = 2/,
+          q/SELECT * FROM (SELECT * FROM bar WHERE (b = 1) AND (c = 4)) AS foo WHERE a = 2/,
+          q/SELECT * FROM (SELECT * FROM bar WHERE ((b = 1) AND (c = 5))) AS foo WHERE a = 2/,
+
+          q/SELECT * FROM (SELECT * FROM bar WHERE b = 1 AND c = 6) AS foo WHERE (a = 2)/,
+          q/SELECT * FROM (SELECT * FROM bar WHERE (b = 1) AND c = 7) AS foo WHERE (a = 2)/,
+          q/SELECT * FROM (SELECT * FROM bar WHERE b = 1 AND (c = 8)) AS foo WHERE (a = 2)/,
+          q/SELECT * FROM (SELECT * FROM bar WHERE (b = 1) AND (c = 9)) AS foo WHERE (a = 2)/,
+          q/SELECT * FROM (SELECT * FROM bar WHERE ((b = 1) AND (c = 10))) AS foo WHERE (a = 2)/,
+        ]
+      },
+);
 
 my @bind_tests = (
   # scalar - equal
@@ -200,13 +644,39 @@ my @bind_tests = (
   },
 );
 
-
-plan tests => 1 + sum
-  map { $_ * ($_ - 1) / 2 }
-    map { scalar @{$_->{bindvals}} }
-      @bind_tests;
+plan tests => 1 +
+  sum(
+    map { $_ * ($_ - 1) / 2 }
+      map { scalar @{$_->{statements}} }
+        @sql_tests
+  ) +
+  sum(
+    map { $_ * ($_ - 1) / 2 }
+      map { scalar @{$_->{bindvals}} }
+        @bind_tests
+  );
 
 use_ok('SQL::Abstract::Test', import => [qw(eq_sql eq_bind is_same_sql_bind)]);
+
+for my $test (@sql_tests) {
+  my $statements = $test->{statements};
+  while (@$statements) {
+    my $sql1 = shift @$statements;
+    foreach my $sql2 (@$statements) {
+      my $equal = eq_sql($sql1, $sql2);
+      if ($test->{equal}) {
+        ok($equal, "equal SQL expressions considered equal");
+      } else {
+        ok(!$equal, "different SQL expressions considered not equal");
+      }
+
+      if ($equal ^ $test->{equal}) {
+        diag("sql1: $sql1");
+        diag("sql2: $sql2");
+      }
+    }
+  }
+}
 
 for my $test (@bind_tests) {
   my $bindvals = $test->{bindvals};

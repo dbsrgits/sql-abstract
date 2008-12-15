@@ -16,13 +16,63 @@ our $case_sensitive = 0;
 our $sql_differ; # keeps track of differing portion between SQLs
 our $tb = __PACKAGE__->builder;
 
+# Parser states for _recurse_parse()
+use constant {
+  PARSE_TOP_LEVEL => 0,
+  PARSE_IN_EXPR => 1,
+  PARSE_IN_PARENS => 2,
+};
+
+# These SQL keywords always signal end of the current expression (except inside
+# of a parenthesized subexpression).
+# Format: A list of strings that will be compiled to extended syntax (ie.
+# /.../x) regexes, without capturing parentheses. They will be automatically
+# anchored to word boundaries to match the whole token).
+my @expression_terminator_sql_keywords = (
+  'FROM',
+  '(?:
+    (?:
+        (?: \b (?: LEFT | RIGHT | FULL ) \s+ )?
+        (?: \b (?: CROSS | INNER | OUTER ) \s+ )?
+    )?
+    JOIN
+  )',
+  'ON',
+  'WHERE',
+  'GROUP \s+ BY',
+  'HAVING',
+  'ORDER \s+ BY',
+  'LIMIT',
+  'OFFSET',
+  'FOR',
+  'UNION',
+  'INTERSECT',
+  'EXCEPT',
+);
+
+my $tokenizer_re_str = join('|',
+  map { '\b' . $_ . '\b' }
+    @expression_terminator_sql_keywords, 'AND', 'OR'
+);
+
+my $tokenizer_re = qr/
+  \s*
+  (
+      \(
+    |
+      \)
+    |
+      $tokenizer_re_str
+  )
+  \s*
+/xi;
+
+
 sub is_same_sql_bind {
   my ($sql1, $bind_ref1, $sql2, $bind_ref2, $msg) = @_;
 
   # compare
-  my $tree1     = parse($sql1);
-  my $tree2     = parse($sql2);
-  my $same_sql  = eq_sql($tree1, $tree2);
+  my $same_sql  = eq_sql($sql1, $sql2);
   my $same_bind = eq_bind($bind_ref1, $bind_ref2);
 
   # call Test::Builder::ok
@@ -51,6 +101,16 @@ sub eq_bind {
 }
 
 sub eq_sql {
+  my ($sql1, $sql2) = @_;
+
+  # parse
+  my $tree1 = parse($sql1);
+  my $tree2 = parse($sql2);
+
+  return _eq_sql($tree1, $tree2);
+}
+
+sub _eq_sql {
   my ($left, $right) = @_;
 
   # ignore top-level parentheses 
@@ -74,8 +134,8 @@ sub eq_sql {
       return $eq;
     }
     else { # binary operator
-      return eq_sql($left->[1][0], $right->[1][0])  # left operand
-          && eq_sql($left->[1][1], $right->[1][1]); # right operand
+      return _eq_sql($left->[1][0], $right->[1][0])  # left operand
+          && _eq_sql($left->[1][1], $right->[1][1]); # right operand
     }
   }
 }
@@ -84,27 +144,37 @@ sub eq_sql {
 sub parse {
   my $s = shift;
 
-  # tokenize string
-  my $tokens = [grep {!/^\s*$/} split /\s*(\(|\)|\bAND\b|\bOR\b)\s*/, $s];
+  # tokenize string, and remove all optional whitespace
+  my $tokens = [];
+  foreach my $token (split $tokenizer_re, $s) {
+    $token =~ s/\s+/ /g;
+    $token =~ s/\s+([^\w\s])/$1/g;
+    $token =~ s/([^\w\s])\s+/$1/g;
+    push @$tokens, $token if $token !~ /^$/;
+  }
 
-  my $tree = _recurse_parse($tokens);
+  my $tree = _recurse_parse($tokens, PARSE_TOP_LEVEL);
   return $tree;
 }
 
 sub _recurse_parse {
-  my $tokens = shift;
+  my ($tokens, $state) = @_;
 
   my $left;
   while (1) { # left-associative parsing
 
     my $lookahead = $tokens->[0];
-    return $left if !defined($lookahead) || $lookahead eq ')';
+    return $left if !defined($lookahead)
+      || ($state == PARSE_IN_PARENS && $lookahead eq ')')
+      || ($state == PARSE_IN_EXPR && grep { $lookahead =~ /^$_$/xi }
+            '\)', @expression_terminator_sql_keywords
+         );
 
     my $token = shift @$tokens;
 
     # nested expression in ()
     if ($token eq '(') {
-      my $right = _recurse_parse($tokens);
+      my $right = _recurse_parse($tokens, PARSE_IN_PARENS);
       $token = shift @$tokens   or croak "missing ')'";
       $token eq ')'             or croak "unexpected token : $token";
       $left = $left ? [CONCAT => [$left, [PAREN => $right]]]
@@ -112,8 +182,14 @@ sub _recurse_parse {
     }
     # AND/OR
     elsif ($token eq 'AND' || $token eq 'OR')  {
-      my $right = _recurse_parse($tokens);
+      my $right = _recurse_parse($tokens, PARSE_IN_EXPR);
       $left = [$token => [$left, $right]];
+    }
+    # expression terminator keywords (as they start a new expression)
+    elsif (grep { $token =~ /^$_$/xi } @expression_terminator_sql_keywords) {
+      my $right = _recurse_parse($tokens, PARSE_IN_EXPR);
+      $left = $left ? [CONCAT => [$left, [CONCAT => [[EXPR => $token], [PAREN => $right]]]]]
+                    : [CONCAT => [[EXPR => $token], [PAREN  => $right]]];
     }
     # leaf expression
     else {
@@ -220,9 +296,11 @@ where a difference was encountered.
 
 L<SQL::Abstract>, L<Test::More>, L<Test::Builder>.
 
-=head1 AUTHOR
+=head1 AUTHORS
 
 Laurent Dami, E<lt>laurent.dami AT etat  geneve  chE<gt>
+
+Norbert Buchmuller <norbi@nix.hu>
 
 =head1 COPYRIGHT AND LICENSE
 
