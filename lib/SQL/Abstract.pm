@@ -161,6 +161,12 @@ sub _insert_ARRAYREF { # just generate values(?,?) part (no list of fields)
       },
 
       # THINK : anything useful to do with a HASHREF ? 
+      HASHREF => sub {  # (nothing, but old SQLA passed it through)
+        #TODO in SQLA >= 2.0 it will die instead
+        belch "HASH ref as bind value in insert is not supported";
+        push @values, '?';
+        push @all_bind, $v;
+      },
 
       SCALARREF => sub {  # literal SQL without bind
         push @values, $$v;
