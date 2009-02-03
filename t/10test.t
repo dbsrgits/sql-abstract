@@ -654,9 +654,12 @@ plan tests => 1 +
     map { $_ * ($_ - 1) / 2 }
       map { scalar @{$_->{bindvals}} }
         @bind_tests
-  );
+  ) +
+  3;
 
-use_ok('SQL::Abstract::Test', import => [qw(eq_sql eq_bind is_same_sql_bind)]);
+use_ok('SQL::Abstract::Test', import => [qw(
+  eq_sql_bind eq_sql eq_bind is_same_sql_bind
+)]);
 
 for my $test (@sql_tests) {
   my $statements = $test->{statements};
@@ -697,3 +700,25 @@ for my $test (@bind_tests) {
     }
   }
 }
+
+ok(eq_sql_bind(
+    "SELECT * FROM foo WHERE id = ?", [42],
+    "SELECT * FROM foo WHERE (id = ?)", [42],
+  ),
+  "eq_sql_bind considers equal SQL expressions and bind values equal"
+);
+
+
+ok(!eq_sql_bind(
+    "SELECT * FROM foo WHERE id = ?", [42],
+    "SELECT * FROM foo WHERE (id = ?)", [0],
+  ),
+  "eq_sql_bind considers equal SQL expressions and different bind values different"
+);
+
+ok(!eq_sql_bind(
+    "SELECT * FROM foo WHERE id = ?", [42],
+    "SELECT * FROM bar WHERE (id = ?)", [42],
+  ),
+  "eq_sql_bind considers different SQL expressions and equal bind values different"
+);

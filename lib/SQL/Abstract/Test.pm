@@ -8,7 +8,8 @@ use Carp;
 use Test::Builder;
 use Test::Deep qw(eq_deeply);
 
-our @EXPORT_OK = qw/&is_same_sql_bind &eq_sql &eq_bind 
+our @EXPORT_OK = qw/&is_same_sql_bind &is_same_sql &is_same_bind
+                    &eq_sql_bind &eq_sql &eq_bind 
                     $case_sensitive $sql_differ/;
 
 our $case_sensitive = 0;
@@ -79,19 +80,68 @@ sub is_same_sql_bind {
 
   # add debugging info
   if (!$same_sql) {
-    $tb->diag("SQL expressions differ\n"
-        ."     got: $sql1\n"
-        ."expected: $sql2\n"
-        ."differing in :\n$sql_differ\n"
-        );
+    _sql_differ_diag($sql1, $sql2);
   }
   if (!$same_bind) {
-    $tb->diag("BIND values differ\n"
-        ."     got: " . Dumper($bind_ref1)
-        ."expected: " . Dumper($bind_ref2)
-        );
+    _bind_differ_diag($bind_ref1, $bind_ref2);
   }
 }
+
+sub is_same_sql {
+  my ($sql1, $sql2, $msg) = @_;
+
+  # compare
+  my $same_sql  = eq_sql($sql1, $sql2);
+
+  # call Test::Builder::ok
+  $tb->ok($same_sql, $msg);
+
+  # add debugging info
+  if (!$same_sql) {
+    _sql_differ_diag($sql1, $sql2);
+  }
+}
+
+sub is_same_bind {
+  my ($bind_ref1, $bind_ref2, $msg) = @_;
+
+  # compare
+  my $same_bind = eq_bind($bind_ref1, $bind_ref2);
+
+  # call Test::Builder::ok
+  $tb->ok($same_bind, $msg);
+
+  # add debugging info
+  if (!$same_bind) {
+    _bind_differ_diag($bind_ref1, $bind_ref2);
+  }
+}
+
+sub _sql_differ_diag {
+  my ($sql1, $sql2) = @_;
+
+  $tb->diag("SQL expressions differ\n"
+      ."     got: $sql1\n"
+      ."expected: $sql2\n"
+      ."differing in :\n$sql_differ\n"
+      );
+}
+
+sub _bind_differ_diag {
+  my ($bind_ref1, $bind_ref2) = @_;
+
+  $tb->diag("BIND values differ\n"
+      ."     got: " . Dumper($bind_ref1)
+      ."expected: " . Dumper($bind_ref2)
+      );
+}
+
+sub eq_sql_bind {
+  my ($sql1, $bind_ref1, $sql2, $bind_ref2) = @_;
+
+  return eq_sql($sql1, $sql2) && eq_bind($bind_ref1, $bind_ref2);
+}
+
 
 sub eq_bind {
   my ($bind_ref1, $bind_ref2) = @_;
@@ -226,11 +276,24 @@ SQL::Abstract::Test - Helper function for testing SQL::Abstract
 
   use SQL::Abstract;
   use Test::More;
-  use SQL::Abstract::Test import => ['is_same_sql_bind'];
+  use SQL::Abstract::Test import => [qw/
+    is_same_sql_bind is_same_sql is_same_bind
+    eq_sql_bind eq_sql eq_bind
+  /];
   
   my ($sql, @bind) = SQL::Abstract->new->select(%args);
+
   is_same_sql_bind($given_sql,    \@given_bind, 
                    $expected_sql, \@expected_bind, $test_msg);
+
+  is_same_sql($given_sql, $expected_sql, $test_msg);
+  is_same_bind(\@given_bind, \@expected_bind, $test_msg);
+
+  my $is_same = eq_sql_bind($given_sql,    \@given_bind, 
+                            $expected_sql, \@expected_bind);
+
+  my $sql_same = eq_sql($given_sql, $expected_sql);
+  my $bind_same = eq_bind(\@given_bind, \@expected_bind);
 
 =head1 DESCRIPTION
 
@@ -257,34 +320,66 @@ laws, etc.
                    $expected_sql, \@expected_bind, $test_msg);
 
 Compares given and expected pairs of C<($sql, \@bind)>, and calls
-L<Test::Builder/ok> on the result, with C<$test_msg> as message. If the
-test fails, a detailed diagnostic is printed. For clients which use
-L<Test::Build>, this is the only function that needs to be
-imported.
+L<Test::Builder/ok> on the result, with C<$test_msg> as message. If the test
+fails, a detailed diagnostic is printed. For clients which use L<Test::More>,
+this is the one of the three functions (L</is_same_sql_bind>, L</is_same_sql>,
+L</is_same_bind>) that needs to be imported.
+
+=head2 is_same_sql
+
+  is_same_sql($given_sql, $expected_sql, $test_msg);
+
+Compares given and expected SQL statements, and calls L<Test::Builder/ok> on
+the result, with C<$test_msg> as message. If the test fails, a detailed
+diagnostic is printed. For clients which use L<Test::More>, this is the one of
+the three functions (L</is_same_sql_bind>, L</is_same_sql>, L</is_same_bind>)
+that needs to be imported.
+
+=head2 is_same_bind
+
+  is_same_bind(\@given_bind, \@expected_bind, $test_msg);
+
+Compares given and expected bind values, and calls L<Test::Builder/ok> on the
+result, with C<$test_msg> as message. If the test fails, a detailed diagnostic
+is printed. For clients which use L<Test::More>, this is the one of the three
+functions (L</is_same_sql_bind>, L</is_same_sql>, L</is_same_bind>) that needs
+to be imported.
+
+=head2 eq_sql_bind
+
+  my $is_same = eq_sql_bind($given_sql,    \@given_bind, 
+                            $expected_sql, \@expected_bind);
+
+Compares given and expected pairs of C<($sql, \@bind)>. Similar to
+L</is_same_sql_bind>, but it just returns a boolean value and does not print
+diagnostics or talk to L<Test::Builder>.
 
 =head2 eq_sql
 
   my $is_same = eq_sql($given_sql, $expected_sql);
 
-Compares the abstract syntax of two SQL statements.  If the result is
-false, global variable L</sql_differ> will contain the SQL portion
-where a difference was encountered; this is useful for printing diagnostics.
+Compares the abstract syntax of two SQL statements. Similar to L</is_same_sql>,
+but it just returns a boolean value and does not print diagnostics or talk to
+L<Test::Builder>. If the result is false, the global variable L</$sql_differ>
+will contain the SQL portion where a difference was encountered; this is useful
+for printing diagnostics.
 
 =head2 eq_bind
 
   my $is_same = eq_sql(\@given_bind, \@expected_bind);
 
-Compares two lists of bind values, taking into account
-the fact that some of the values may be
-arrayrefs (see L<SQL::Abstract/bindtype>).
+Compares two lists of bind values, taking into account the fact that some of
+the values may be arrayrefs (see L<SQL::Abstract/bindtype>). Similar to
+L</is_same_bind>, but it just returns a boolean value and does not print
+diagnostics or talk to L<Test::Builder>.
 
 =head1 GLOBAL VARIABLES
 
-=head2 case_sensitive
+=head2 $case_sensitive
 
 If true, SQL comparisons will be case-sensitive. Default is false;
 
-=head2 sql_differ
+=head2 $sql_differ
 
 When L</eq_sql> returns false, the global variable
 C<$sql_differ> contains the SQL portion
