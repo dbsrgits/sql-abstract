@@ -16,5 +16,5 @@ WriteMakefile(
       "Data::Dumper" => 0,
      }, # e.g., Module::Name => 1.1
     ABSTRACT_FROM  => 'lib/SQL/Abstract.pm', # retrieve abstract from module
-    AUTHOR         => 'Nathan Wiger (nate@wiger.org)',
+    AUTHOR         => 'Matt Trout <mst@shadowcat.co.uk>, but see the POD',
 );
