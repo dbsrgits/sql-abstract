@@ -3,6 +3,7 @@
 use strict;
 use warnings;
 use Test::More;
+use Test::Warn;
 
 use SQL::Abstract::Test import => ['is_same_sql_bind'];
 
@@ -367,29 +368,52 @@ my @tests = (
               stmt   => 'INSERT INTO test (a, b, c, d, e) VALUES (?, ?, ?, ?, ?)',
               stmt_q => 'INSERT INTO `test` (`a`, `b`, `c`, `d`, `e`) VALUES (?, ?, ?, ?, ?)',
               bind   => [qw/1 2 3 4/, { answer => 42}],
+              warning_like => qr/HASH ref as bind value in insert is not supported/i,
       },             
 );
 
 
-plan tests => scalar(@tests) * 2;
+plan tests => scalar(grep { !$_->{warning_like} } @tests) * 2
+            + scalar(grep { $_->{warning_like} } @tests) * 4;
 
 for (@tests) {
   local $"=', ';
 
   my $new = $_->{new} || {};
   $new->{debug} = $ENV{DEBUG} || 0;
-  my $sql = SQL::Abstract->new(%$new);
 
-  #print "testing with args (@{$_->{args}}): ";
-  my $func = $_->{func};
-  my($stmt, @bind) = $sql->$func(@{$_->{args}});
-  is_same_sql_bind($stmt, \@bind, $_->{stmt}, $_->{bind});
+  # test without quoting labels
+  {
+    my $sql = SQL::Abstract->new(%$new);
+
+    my $func = $_->{func};
+    my($stmt, @bind);
+    my $test = sub {
+      ($stmt, @bind) = $sql->$func(@{$_->{args}})
+    };
+    if ($_->{warning_like}) {
+      warning_like { &$test } $_->{warning_like}, "throws the expected warning ($_->{warning_like})";
+    } else {
+      &$test;
+    }
+    is_same_sql_bind($stmt, \@bind, $_->{stmt}, $_->{bind});
+  }
 
   # test with quoted labels
-  my $sql_q = SQL::Abstract->new(%$new, quote_char => '`', name_sep => '.');
+  {
+    my $sql_q = SQL::Abstract->new(%$new, quote_char => '`', name_sep => '.');
 
-  my $func_q = $_->{func};
-  my($stmt_q, @bind_q) = $sql_q->$func_q(@{$_->{args}});
+    my $func_q = $_->{func};
+    my($stmt_q, @bind_q);
+    my $test = sub {
+      ($stmt_q, @bind_q) = $sql_q->$func_q(@{$_->{args}})
+    };
+    if ($_->{warning_like}) {
+      warning_like { &$test } $_->{warning_like}, "throws the expected warning ($_->{warning_like})";
+    } else {
+      &$test;
+    }
 
-  is_same_sql_bind($stmt_q, \@bind_q, $_->{stmt_q}, $_->{bind});
+    is_same_sql_bind($stmt_q, \@bind_q, $_->{stmt_q}, $_->{bind});
+  }
 }
