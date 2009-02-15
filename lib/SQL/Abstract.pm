@@ -697,25 +697,36 @@ sub _where_field_IN {
   # backwards compatibility : if scalar, force into an arrayref
   $vals = [$vals] if defined $vals && ! ref $vals;
 
-  ref $vals eq 'ARRAY'
-    or puke "special op 'in' requires an arrayref";
-
   my ($label)       = $self->_convert($self->_quote($k));
   my ($placeholder) = $self->_convert('?');
-  my $and           = $self->_sqlcase('and');
   $op               = $self->_sqlcase($op);
 
-  if (@$vals) { # nonempty list
-    my $placeholders  = join ", ", (($placeholder) x @$vals);
-    my $sql           = "$label $op ( $placeholders )";
-    my @bind = $self->_bindtype($k, @$vals);
+  my ($sql, @bind) = $self->_SWITCH_refkind($vals, {
+    ARRAYREF => sub {     # list of choices
+      if (@$vals) { # nonempty list
+        my $placeholders  = join ", ", (($placeholder) x @$vals);
+        my $sql           = "$label $op ( $placeholders )";
+        my @bind = $self->_bindtype($k, @$vals);
 
-    return ($sql, @bind);
-  }
-  else { # empty list : some databases won't understand "IN ()", so DWIM
-    my $sql = ($op =~ /\bnot\b/i) ? $self->{sqltrue} : $self->{sqlfalse};
-    return ($sql);
-  }
+        return ($sql, @bind);
+      }
+      else { # empty list : some databases won't understand "IN ()", so DWIM
+        my $sql = ($op =~ /\bnot\b/i) ? $self->{sqltrue} : $self->{sqlfalse};
+        return ($sql);
+      }
+    },
+
+    ARRAYREFREF => sub {  # literal SQL with bind
+      my ($sql, @bind) = @$$vals;
+      return ("$label $op ( $sql )", @bind);
+    },
+
+    FALLBACK => sub {
+      puke "special op 'in' requires an arrayref (or arrayref-ref)";
+    },
+  });
+
+  return ($sql, @bind);
 }
 
 

@@ -77,6 +77,19 @@ push @tests, {
   bind => [10, 20, '%son%'],
 };
 
+#6
+($sub_stmt, @sub_bind) = ("SELECT c1 FROM t1 WHERE c2 < ? AND c3 LIKE ?",
+                          100, "foo%");
+$where = {
+    foo => 1234,
+    bar => { -in => \[$sub_stmt => @sub_bind] },
+  };
+push @tests, {
+  where => $where,
+  stmt => " WHERE ( bar IN (SELECT c1 FROM t1 WHERE c2 < ? AND c3 LIKE ?) AND foo = ? )",
+  bind => [100, "foo%", 1234],
+};
+
 
 plan tests => scalar(@tests);
 
