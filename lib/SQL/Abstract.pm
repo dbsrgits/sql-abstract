@@ -547,7 +547,7 @@ sub _where_hashpair_HASHREF {
           $sql  = join ' ', $self->_convert($self->_quote($k)),
                             $self->_sqlcase($op),
                             $sub_sql;
-          @bind = @sub_bind;
+          @bind = $self->_bindtype($k, @sub_bind);
         },
 
         UNDEF => sub {          # CASE: col => {op => undef} : sql "IS (NOT)? NULL"
