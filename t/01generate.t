@@ -402,7 +402,6 @@ my @tests = (
               stmt_q => 'SELECT * FROM `test` WHERE ( `a` < 42 AND `b` = ? )',
               bind   => [qw(8)],
       },             
-
       #44
       {
               func   => 'insert',
