@@ -17,11 +17,9 @@ our $sql_differ; # keeps track of differing portion between SQLs
 our $tb = __PACKAGE__->builder;
 
 # Parser states for _recurse_parse()
-use constant {
-  PARSE_TOP_LEVEL => 0,
-  PARSE_IN_EXPR => 1,
-  PARSE_IN_PARENS => 2,
-};
+use constant PARSE_TOP_LEVEL => 0;
+use constant PARSE_IN_EXPR => 1;
+use constant PARSE_IN_PARENS => 2;
 
 # These SQL keywords always signal end of the current expression (except inside
 # of a parenthesized subexpression).
