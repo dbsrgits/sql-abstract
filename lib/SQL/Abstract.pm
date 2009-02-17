@@ -1382,6 +1382,10 @@ are or are not included. You could wrap that above C<for> loop in a simple
 sub called C<bind_fields()> or something and reuse it repeatedly. You still
 get a layer of abstraction over manual SQL specification.
 
+Note that if you set L</bindtype> to C<columns>, the C<\[$sql, @bind]>
+construct (see L</Literal SQL with placeholders and bind values (subqueries)>)
+will expect the bind values in this format.
+
 =item quote_char
 
 This is the character that a table or column name will be quoted
@@ -1875,6 +1879,14 @@ This would create:
     $stmt = "WHERE ( date_column = date '2008-09-30' - ?::integer )"
     @bind = ('10');
 
+Note that you must pass the bind values in the same format as they are returned
+by C</where>. That means that if you set L</bindtype> to C<columns>, you must
+provide the bind values in the C<< [ column_name => value ] >> format, so eg.
+the above example will look like:
+
+    my %where = (
+       date_column => \[q/= date '2008-09-30' - ?::integer/, [ dummy => 10 ]/]
+    )
 
 Literal SQL is especially useful for nesting parenthesized clauses in the
 main SQL query. Here is a first example :
