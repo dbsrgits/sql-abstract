@@ -110,18 +110,7 @@ sub _insert_HASHREF { # explicit list of fields and then values
 
   my @fields = sort keys %$data;
 
-  my ($sql, @bind);
-  { # get values (need temporary override of bindtype to avoid an error)
-    local $self->{bindtype} = 'normal'; 
-    ($sql, @bind) = $self->_insert_ARRAYREF([@{$data}{@fields}]);
-  }
-
-  # if necessary, transform values according to 'bindtype'
-  if ($self->{bindtype} eq 'columns') {
-    for my $i (0 .. $#fields) {
-      ($bind[$i]) = $self->_bindtype($fields[$i], $bind[$i]);
-    }
-  }
+  my ($sql, @bind) = $self->_insert_values($data);
 
   # assemble SQL
   $_ = $self->_quote($_) foreach @fields;
@@ -137,18 +126,48 @@ sub _insert_ARRAYREF { # just generate values(?,?) part (no list of fields)
   $self->{bindtype} ne 'columns'
     or belch "can't do 'columns' bindtype when called with arrayref";
 
+  # fold the list of values into a hash of column name - value pairs
+  # (where the column names are artificially generated, and their
+  # lexicographical ordering keep the ordering of the original list)
+  my $i = "a";  # incremented values will be in lexicographical order
+  my $data_in_hash = { map { ($i++ => $_) } @$data };
+
+  return $self->_insert_values($data_in_hash);
+}
+
+sub _insert_ARRAYREFREF { # literal SQL with bind
+  my ($self, $data) = @_;
+
+  my ($sql, @bind) = @${$data};
+  $self->_assert_bindval_matches_bindtype(@bind);
+
+  return ($sql, @bind);
+}
+
+
+sub _insert_SCALARREF { # literal SQL without bind
+  my ($self, $data) = @_;
+
+  return ($$data);
+}
+
+sub _insert_values {
+  my ($self, $data) = @_;
+
   my (@values, @all_bind);
-  for my $v (@$data) {
+  foreach my $column (sort keys %$data) {
+    my $v = $data->{$column};
 
     $self->_SWITCH_refkind($v, {
 
       ARRAYREF => sub { 
         if ($self->{array_datatypes}) { # if array datatype are activated
           push @values, '?';
-          push @all_bind, $v;
+          push @all_bind, $self->_bindtype($column, $v);
         }
         else {                          # else literal SQL with bind
           my ($sql, @bind) = @$v;
+          $self->_assert_bindval_matches_bindtype(@bind);
           push @values, $sql;
           push @all_bind, @bind;
         }
@@ -156,6 +175,7 @@ sub _insert_ARRAYREF { # just generate values(?,?) part (no list of fields)
 
       ARRAYREFREF => sub { # literal SQL with bind
         my ($sql, @bind) = @${$v};
+        $self->_assert_bindval_matches_bindtype(@bind);
         push @values, $sql;
         push @all_bind, @bind;
       },
@@ -165,7 +185,7 @@ sub _insert_ARRAYREF { # just generate values(?,?) part (no list of fields)
         #TODO in SQLA >= 2.0 it will die instead
         belch "HASH ref as bind value in insert is not supported";
         push @values, '?';
-        push @all_bind, $v;
+        push @all_bind, $self->_bindtype($column, $v);
       },
 
       SCALARREF => sub {  # literal SQL without bind
@@ -174,7 +194,7 @@ sub _insert_ARRAYREF { # just generate values(?,?) part (no list of fields)
 
       SCALAR_or_UNDEF => sub {
         push @values, '?';
-        push @all_bind, $v;
+        push @all_bind, $self->_bindtype($column, $v);
       },
 
      });
@@ -183,19 +203,6 @@ sub _insert_ARRAYREF { # just generate values(?,?) part (no list of fields)
 
   my $sql = $self->_sqlcase('values')." ( ".join(", ", @values)." )";
   return ($sql, @all_bind);
-}
-
-
-sub _insert_ARRAYREFREF { # literal SQL with bind
-  my ($self, $data) = @_;
-  return @${$data};
-}
-
-
-sub _insert_SCALARREF { # literal SQL without bind
-  my ($self, $data) = @_;
-
-  return ($$data);
 }
 
 
@@ -229,14 +236,16 @@ sub update {
         }
         else {                          # literal SQL with bind
           my ($sql, @bind) = @$v;
+          $self->_assert_bindval_matches_bindtype(@bind);
           push @set, "$label = $sql";
-          push @all_bind, $self->_bindtype($k, @bind);
+          push @all_bind, @bind;
         }
       },
       ARRAYREFREF => sub { # literal SQL with bind
         my ($sql, @bind) = @${$v};
+        $self->_assert_bindval_matches_bindtype(@bind);
         push @set, "$label = $sql";
-        push @all_bind, $self->_bindtype($k, @bind);
+        push @all_bind, @bind;
       },
       SCALARREF => sub {  # literal SQL without bind
         push @set, "$label = $$v";
@@ -536,18 +545,19 @@ sub _where_hashpair_HASHREF {
           ($sql, @bind) = $self->_where_field_op_ARRAYREF($k, $op, $val);
         },
 
-        SCALARREF => sub {      # CASE: col => {op => \$scalar}
+        SCALARREF => sub {      # CASE: col => {op => \$scalar} (literal SQL without bind)
           $sql  = join ' ', $self->_convert($self->_quote($k)),
                             $self->_sqlcase($op),
                             $$val;
         },
 
-        ARRAYREFREF => sub {    # CASE: col => {op => \[$sql, @bind]}
+        ARRAYREFREF => sub {    # CASE: col => {op => \[$sql, @bind]} (literal SQL with bind)
           my ($sub_sql, @sub_bind) = @$$val;
+          $self->_assert_bindval_matches_bindtype(@sub_bind);
           $sql  = join ' ', $self->_convert($self->_quote($k)),
                             $self->_sqlcase($op),
                             $sub_sql;
-          @bind = $self->_bindtype($k, @sub_bind);
+          @bind = @sub_bind;
         },
 
         UNDEF => sub {          # CASE: col => {op => undef} : sql "IS (NOT)? NULL"
@@ -613,15 +623,17 @@ sub _where_hashpair_SCALARREF {
   return ($sql);
 }
 
+# literal SQL with bind
 sub _where_hashpair_ARRAYREFREF {
   my ($self, $k, $v) = @_;
   $self->_debug("REF($k) means literal SQL: @${$v}");
   my ($sql, @bind) = @${$v};
+  $self->_assert_bindval_matches_bindtype(@bind);
   $sql  = $self->_quote($k) . " " . $sql;
-  @bind = $self->_bindtype($k, @bind);
   return ($sql, @bind );
 }
 
+# literal SQL without bind
 sub _where_hashpair_SCALAR {
   my ($self, $k, $v) = @_;
   $self->_debug("NOREF($k) means simple key=val: $k $self->{cmp} $v");
@@ -718,6 +730,7 @@ sub _where_field_IN {
 
     ARRAYREFREF => sub {  # literal SQL with bind
       my ($sql, @bind) = @$$vals;
+      $self->_assert_bindval_matches_bindtype(@bind);
       return ("$label $op ( $sql )", @bind);
     },
 
@@ -869,6 +882,20 @@ sub _bindtype (@) {
   return $self->{bindtype} eq 'columns' ? map {[$col, $_]} @vals : @vals;
 }
 
+# Dies if any element of @bind is not in [colname => value] format
+# if bindtype is 'columns'.
+sub _assert_bindval_matches_bindtype {
+  my ($self, @bind) = @_;
+
+  if ($self->{bindtype} eq 'columns') {
+    foreach my $val (@bind) {
+      if (!defined $val || ref($val) ne 'ARRAY' || @$val != 2) {
+        die "bindtype 'columns' selected, you need to pass: [column_name => bind_value]"
+      }
+    }
+  }
+}
+
 sub _join_sql_clauses {
   my ($self, $logic, $clauses_aref, $bind_aref) = @_;
 
@@ -979,13 +1006,13 @@ sub generate {
                 my $r = ref $v;
                 my $label = $self->_quote($k);
                 if ($r eq 'ARRAY') {
-                    # SQL included for values
-                    my @bind = @$v;
-                    my $sql = shift @bind;
+                    # literal SQL with bind
+                    my ($sql, @bind) = @$v;
+                    $self->_assert_bindval_matches_bindtype(@bind);
                     push @sqlq, "$label = $sql";
-                    push @sqlv, $self->_bindtype($k, @bind);
+                    push @sqlv, @bind;
                 } elsif ($r eq 'SCALAR') {
-                    # embedded literal SQL
+                    # literal SQL without bind
                     push @sqlq, "$label = $$v";
                 } else { 
                     push @sqlq, "$label = ?";
@@ -997,11 +1024,12 @@ sub generate {
             # unlike insert(), assume these are ONLY the column names, i.e. for SQL
             for my $v (@$_) {
                 my $r = ref $v;
-                if ($r eq 'ARRAY') {
-                    my @val = @$v;
-                    push @sqlq, shift @val;
-                    push @sqlv, @val;
-                } elsif ($r eq 'SCALAR') {
+                if ($r eq 'ARRAY') {   # literal SQL with bind
+                    my ($sql, @bind) = @$v;
+                    $self->_assert_bindval_matches_bindtype(@bind);
+                    push @sqlq, $sql;
+                    push @sqlv, @bind;
+                } elsif ($r eq 'SCALAR') {  # literal SQL without bind
                     # embedded literal SQL
                     push @sqlq, $$v;
                 } else { 

@@ -4,6 +4,7 @@ use strict;
 use warnings;
 use Test::More;
 use Test::Warn;
+use Test::Exception;
 
 use SQL::Abstract::Test import => ['is_same_sql_bind'];
 
@@ -406,37 +407,65 @@ my @tests = (
       {
               func   => 'insert',
               new    => {bindtype => 'columns'},
-              args   => ['test', {a => 1, b => \["to_date(?, 'MM/DD/YY')", '02/02/02']}],
+              args   => ['test', {a => 1, b => \["to_date(?, 'MM/DD/YY')", [dummy => '02/02/02']]}],
               stmt   => 'INSERT INTO test (a, b) VALUES (?, to_date(?, \'MM/DD/YY\'))',
               stmt_q => 'INSERT INTO `test` (`a`, `b`) VALUES (?, to_date(?, \'MM/DD/YY\'))',
-              bind   => [[a => '1'], [b => '02/02/02']],
+              bind   => [[a => '1'], [dummy => '02/02/02']],
       },
       #45
       {              
               func   => 'update',
               new    => {bindtype => 'columns'},
-              args   => ['test', {a => 1, b => \["to_date(?, 'MM/DD/YY')", '02/02/02']}, {a => {'between', [1,2]}}],
+              args   => ['test', {a => 1, b => \["to_date(?, 'MM/DD/YY')", [dummy => '02/02/02']]}, {a => {'between', [1,2]}}],
               stmt   => 'UPDATE test SET a = ?, b = to_date(?, \'MM/DD/YY\') WHERE ( a BETWEEN ? AND ? )',
               stmt_q => 'UPDATE `test` SET `a` = ?, `b` = to_date(?, \'MM/DD/YY\') WHERE ( `a` BETWEEN ? AND ? )',
-              bind   => [[a => '1'], [b => '02/02/02'], [a => '1'], [a => '2']],
+              bind   => [[a => '1'], [dummy => '02/02/02'], [a => '1'], [a => '2']],
       },             
       #46
       {
               func   => 'select',
               new    => {bindtype => 'columns'},
-              args   => ['test', '*', { a => \["= to_date(?, 'MM/DD/YY')", '02/02/02']}],
+              args   => ['test', '*', { a => \["= to_date(?, 'MM/DD/YY')", [dummy => '02/02/02']]}],
               stmt   => q{SELECT * FROM test WHERE ( a = to_date(?, 'MM/DD/YY') )},
               stmt_q => q{SELECT * FROM `test` WHERE ( `a` = to_date(?, 'MM/DD/YY') )},
-              bind   => [[a => '02/02/02']],
+              bind   => [[dummy => '02/02/02']],
       },
       #47
       {
               func   => 'select',
               new    => {bindtype => 'columns'},
-              args   => ['test', '*', { a => {'<' => \["to_date(?, 'MM/DD/YY')", '02/02/02']}, b => 8 }],
+              args   => ['test', '*', { a => {'<' => \["to_date(?, 'MM/DD/YY')", [dummy => '02/02/02']]}, b => 8 }],
               stmt   => 'SELECT * FROM test WHERE ( a < to_date(?, \'MM/DD/YY\') AND b = ? )',
               stmt_q => 'SELECT * FROM `test` WHERE ( `a` < to_date(?, \'MM/DD/YY\') AND `b` = ? )',
-              bind   => [[a => '02/02/02'], [b => 8]],
+              bind   => [[dummy => '02/02/02'], [b => 8]],
+      },             
+      #48
+      {
+              func   => 'insert',
+              new    => {bindtype => 'columns'},
+              args   => ['test', {a => 1, b => \["to_date(?, 'MM/DD/YY')", '02/02/02']}],
+              exception_like => qr/bindtype 'columns' selected, you need to pass: \[column_name => bind_value\]/,
+      },
+      #49
+      {              
+              func   => 'update',
+              new    => {bindtype => 'columns'},
+              args   => ['test', {a => 1, b => \["to_date(?, 'MM/DD/YY')", '02/02/02']}, {a => {'between', [1,2]}}],
+              exception_like => qr/bindtype 'columns' selected, you need to pass: \[column_name => bind_value\]/,
+      },             
+      #49
+      {
+              func   => 'select',
+              new    => {bindtype => 'columns'},
+              args   => ['test', '*', { a => \["= to_date(?, 'MM/DD/YY')", '02/02/02']}],
+              exception_like => qr/bindtype 'columns' selected, you need to pass: \[column_name => bind_value\]/,
+      },
+      #50
+      {
+              func   => 'select',
+              new    => {bindtype => 'columns'},
+              args   => ['test', '*', { a => {'<' => \["to_date(?, 'MM/DD/YY')", '02/02/02']}, b => 8 }],
+              exception_like => qr/bindtype 'columns' selected, you need to pass: \[column_name => bind_value\]/,
       },             
 );
 
@@ -459,12 +488,16 @@ for (@tests) {
     my $test = sub {
       ($stmt, @bind) = $sql->$func(@{$_->{args}})
     };
-    if ($_->{warning_like}) {
-      warning_like { &$test } $_->{warning_like}, "throws the expected warning ($_->{warning_like})";
+    if ($_->{exception_like}) {
+      throws_ok { &$test } $_->{exception_like}, "throws the expected exception ($_->{exception_like})";
     } else {
-      &$test;
+      if ($_->{warning_like}) {
+        warning_like { &$test } $_->{warning_like}, "throws the expected warning ($_->{warning_like})";
+      } else {
+        &$test;
+      }
+      is_same_sql_bind($stmt, \@bind, $_->{stmt}, $_->{bind});
     }
-    is_same_sql_bind($stmt, \@bind, $_->{stmt}, $_->{bind});
   }
 
   # test with quoted labels
@@ -476,12 +509,16 @@ for (@tests) {
     my $test = sub {
       ($stmt_q, @bind_q) = $sql_q->$func_q(@{$_->{args}})
     };
-    if ($_->{warning_like}) {
-      warning_like { &$test } $_->{warning_like}, "throws the expected warning ($_->{warning_like})";
+    if ($_->{exception_like}) {
+      throws_ok { &$test } $_->{exception_like}, "throws the expected exception ($_->{exception_like})";
     } else {
-      &$test;
-    }
+      if ($_->{warning_like}) {
+        warning_like { &$test } $_->{warning_like}, "throws the expected warning ($_->{warning_like})";
+      } else {
+        &$test;
+      }
 
-    is_same_sql_bind($stmt_q, \@bind_q, $_->{stmt_q}, $_->{bind});
+      is_same_sql_bind($stmt_q, \@bind_q, $_->{stmt_q}, $_->{bind});
+    }
   }
 }
