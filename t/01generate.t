@@ -190,6 +190,13 @@ my @tests = (
               stmt_q => 'INSERT INTO `test`.`table` (`high_limit`, `low_limit`) VALUES (max(all_limits), ?)',
               bind   => ['4'],
       },             
+      {              
+              func   => 'insert',
+              args   => ['test.table', [ \'max(all_limits)', 4 ] ],
+              stmt   => 'INSERT INTO test.table VALUES (max(all_limits), ?)',
+              stmt_q => 'INSERT INTO `test`.`table` VALUES (max(all_limits), ?)',
+              bind   => ['4'],
+      },             
       #23            
       {              
               func   => 'insert',
