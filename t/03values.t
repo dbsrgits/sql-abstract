@@ -85,17 +85,23 @@ for my $record (@data) {
 }
 
 # test values() with literal sql
+#
+# NOTE:
+# The example is deliberately complicated by the addition of a literal ? in xfunc
+# This is an intentional test making sure literal ? remains untouched.
+# It is rather impractical in the field, as the user will have to insert
+# a bindvalue for the literal position(s) in the correct offset of \@bind
 {
   my $sql = SQL::Abstract->new;
 
-  my $data = { event => 'rapture', time => \ 'now()', func => \ 'somefunc(?)', stuff => 'fluff', };
+  my $data = { event => 'rapture', time => \ 'now()', xfunc => \ 'somefunc(?)', stuff => 'fluff', };
 
   my ($stmt, @bind) = $sql->insert ('table', $data);
 
   is_same_sql_bind (
     $stmt,
     \@bind,
-    'INSERT INTO table ( event, func, stuff, time) VALUES ( ?, somefunc (?), ?, now() )',
+    'INSERT INTO table ( event, stuff, time, xfunc) VALUES ( ?, ?, now(), somefunc (?) )',
     [qw/rapture fluff/],  # event < stuff
   );
 
@@ -103,5 +109,5 @@ for my $record (@data) {
     [$sql->values ($data)],
     [\@bind],
     'values() output matches that of initial bind'
-  );
+  ) || diag "Corresponding SQL statement: $stmt";
 }
