@@ -27,6 +27,15 @@ my @handle_tests = (
     },
 
     {
+        where  => [
+            status => 'completed',
+            user   => 'nwiger',
+        ],
+        stmt => " WHERE ( status = ? OR user = ? )",
+        bind => [qw/completed nwiger/],
+    },
+
+    {
         where  => {
             user   => 'nwiger',
             status => 'completed'
@@ -188,15 +197,30 @@ my @handle_tests = (
        bind => [ $not_stringifiable ],
    },
 
+   {
+       where => \[ 'foo ?','bar' ],
+       stmt => " WHERE (foo = ?)", 
+       bind => [ "bar" ],
+   },
+
+   {
+       where => [ \[ 'foo ?','bar' ] ],
+       stmt => " WHERE (foo = ?)", 
+       bind => [ "bar" ],
+   },
+
 );
 
 
-plan tests => scalar(@handle_tests) + 1;
+plan tests => ( @handle_tests * 2 ) + 1;
 
 for my $case (@handle_tests) {
     my $sql = SQL::Abstract->new;
-    my($stmt, @bind) = $sql->where($case->{where}, $case->{order});
-    is_same_sql_bind($stmt, \@bind, $case->{stmt}, $case->{bind})
+    my($stmt, @bind);
+    lives_ok (sub { 
+      ($stmt, @bind) = $sql->where($case->{where}, $case->{order});
+      is_same_sql_bind($stmt, \@bind, $case->{stmt}, $case->{bind});
+    });
 }
 
 dies_ok {
