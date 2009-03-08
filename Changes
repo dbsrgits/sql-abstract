@@ -1,22 +1,45 @@
 Revision history for SQL::Abstract
 
+revision 1.49_04  2009-03-03
+    - add support for a [\%column_meta => value] bind value format
+
 ----------------------------
-revision 1.49_01
-    - deep internal refactoring (see L</"CHANGES")
-    - support for literal SQL through the C<< \ [$sql, bind] >> syntax.
+revision 1.49_03  2009-02-17
+    - clarify syntax of \['...', @bind] when used with a bindtype
+      of 'columns'
+
+----------------------------
+revision 1.49_02  2009-02-16
+    - added an AST-aware SQL::Abstract::Test library for sql syntax tests
+    - vastly expanded test coverage
+    - support for the { operator => \'...'|\['...', @bind] } syntax
+      allowing to embed arbitrary operators on the LHS
+    - fixed multiple regressions wrt DBIx::Cass
+
+----------------------------
+revision 1.49_02  2009-02-16
+    - added an AST-aware SQL::Abstract::Test library for sql syntax tests
+    - vastly expanded test coverage
+    - support for the { operator => \'...'|\['...', @bind] } syntax
+      allowing to embed arbitrary operators on the LHS
+    - fixed multiple regressions wrt DBIx::Cass
+
+----------------------------
+revision 1.49_01  2009-02-11
+    - support for literal SQL through the [$sql, bind] syntax.
     - added -nest1, -nest2 or -nest_1, -nest_2, ...
     - optional support for array datatypes
     - defensive programming : check arguments to functions/methods
     - fixed bug with global logic of -and/-or (no side-effects any more)
     - changed logic for distributing an op over arrayrefs
     - fixed semantics of  _bindtype on array args
-    - dropped the C<_anoncopy> of the %where tree. No longer necessary.
-    - dropped the C<_modlogic> function
+    - dropped the _anoncopy of the %where tree. No longer necessary.
+    - dropped the _modlogic function
     - Make col => [] and col => {$op => [] } DTRT or die instead of generating
-      broken SQL. Added tests for this. 
+      broken SQL. Added tests for this.
     - Added { -desc => 'column' } order by support (Ash)
-    - Tiny "$_"-related fix for { -desc => 'columns'} order by support 
-      - tests + docs (groditi)
+    - Tiny "$_"-related fix for { -desc => 'columns'} order by support
+      tests + docs (groditi)
 
 ----------------------------
 revision 1.20
