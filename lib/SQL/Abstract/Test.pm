@@ -161,11 +161,15 @@ sub _eq_sql {
   my ($left, $right) = @_;
 
   # ignore top-level parentheses 
-  while ($left->[0]  eq 'PAREN') {$left  = $left->[1] }
-  while ($right->[0] eq 'PAREN') {$right = $right->[1]}
+  while ($left->[0] and $left->[0]  eq 'PAREN') {$left  = $left->[1] }
+  while ($right->[0] and $right->[0] eq 'PAREN') {$right = $right->[1]}
 
+  # if both are undef i.e. ()
+  if (not grep { defined $_ } ($left->[0], $right->[0]) ) {
+    return 1;
+  }
   # if operators are different
-  if ($left->[0] ne $right->[0]) { 
+  elsif ($left->[0] ne $right->[0]) { 
     $sql_differ = sprintf "OP [$left->[0]] != [$right->[0]] in\nleft: %s\nright: %s\n",
       unparse($left),
       unparse($right);
