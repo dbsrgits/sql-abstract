@@ -94,20 +94,28 @@ for my $record (@data) {
 {
   my $sql = SQL::Abstract->new;
 
-  my $data = { event => 'rapture', time => \ 'now()', xfunc => \ 'somefunc(?)', stuff => 'fluff', };
+  my $data = { 
+    event => 'rapture',
+    stuff => 'fluff',
+    time => \ 'now()',
+    xfunc => \ 'xfunc(?)',
+    yfunc => ['yfunc(?)', 'ystuff' ],
+    zfunc => \['zfunc(?)', 'zstuff' ],
+    zzlast => 'zzstuff',
+  };
 
   my ($stmt, @bind) = $sql->insert ('table', $data);
 
   is_same_sql_bind (
     $stmt,
     \@bind,
-    'INSERT INTO table ( event, stuff, time, xfunc) VALUES ( ?, ?, now(), somefunc (?) )',
-    [qw/rapture fluff/],  # event < stuff
+    'INSERT INTO table ( event, stuff, time, xfunc, yfunc, zfunc, zzlast) VALUES ( ?, ?, now(), xfunc (?), yfunc(?), zfunc(?), ? )',
+    [qw/rapture fluff ystuff zstuff zzstuff/],  # event < stuff
   );
 
   is_same_bind (
     [$sql->values ($data)],
     [@bind],
     'values() output matches that of initial bind'
-  );# || diag "Corresponding SQL statement: $stmt";
+  ) || diag "Corresponding SQL statement: $stmt";
 }
