@@ -107,7 +107,7 @@ for my $record (@data) {
 
   is_same_bind (
     [$sql->values ($data)],
-    [\@bind],
+    [@bind],
     'values() output matches that of initial bind'
   ) || diag "Corresponding SQL statement: $stmt";
 }

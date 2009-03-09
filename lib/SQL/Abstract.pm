@@ -990,7 +990,35 @@ sub values {
     my $data = shift || return;
     puke "Argument to ", __PACKAGE__, "->values must be a \\%hash"
         unless ref $data eq 'HASH';
-    return map { $self->_bindtype($_, $data->{$_}) } sort keys %$data;
+
+    my @all_bind;
+    foreach my $k ( sort keys %$data ) {
+        my $v = $data->{$k};
+        $self->_SWITCH_refkind($v, {
+          ARRAYREF => sub { 
+            if ($self->{array_datatypes}) { # array datatype
+              push @all_bind, $self->_bindtype($k, $v);
+            }
+            else {                          # literal SQL with bind
+              my ($sql, @bind) = @$v;
+              $self->_assert_bindval_matches_bindtype(@bind);
+              push @all_bind, @bind;
+            }
+          },
+          ARRAYREFREF => sub { # literal SQL with bind
+            my ($sql, @bind) = @${$v};
+            $self->_assert_bindval_matches_bindtype(@bind);
+            push @all_bind, @bind;
+          },
+          SCALARREF => sub {  # literal SQL without bind
+          },
+          SCALAR_or_UNDEF => sub {
+            push @all_bind, $self->_bindtype($k, $v);
+          },
+        });
+    }
+
+    return @all_bind;
 }
 
 sub generate {
