@@ -74,7 +74,7 @@ sub is_same_sql_bind {
   my $same_bind = eq_bind($bind_ref1, $bind_ref2);
 
   # call Test::Builder::ok
-  $tb->ok($same_sql && $same_bind, $msg);
+  my $ret = $tb->ok($same_sql && $same_bind, $msg);
 
   # add debugging info
   if (!$same_sql) {
@@ -83,6 +83,9 @@ sub is_same_sql_bind {
   if (!$same_bind) {
     _bind_differ_diag($bind_ref1, $bind_ref2);
   }
+
+  # pass ok() result further
+  return $ret;
 }
 
 sub is_same_sql {
@@ -92,12 +95,15 @@ sub is_same_sql {
   my $same_sql  = eq_sql($sql1, $sql2);
 
   # call Test::Builder::ok
-  $tb->ok($same_sql, $msg);
+  my $ret = $tb->ok($same_sql, $msg);
 
   # add debugging info
   if (!$same_sql) {
     _sql_differ_diag($sql1, $sql2);
   }
+
+  # pass ok() result further
+  return $ret;
 }
 
 sub is_same_bind {
@@ -107,12 +113,15 @@ sub is_same_bind {
   my $same_bind = eq_bind($bind_ref1, $bind_ref2);
 
   # call Test::Builder::ok
-  $tb->ok($same_bind, $msg);
+  my $ret = $tb->ok($same_bind, $msg);
 
   # add debugging info
   if (!$same_bind) {
     _bind_differ_diag($bind_ref1, $bind_ref2);
   }
+
+  # pass ok() result further
+  return $ret;
 }
 
 sub _sql_differ_diag {
