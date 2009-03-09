@@ -386,6 +386,8 @@ sub _where_ARRAYREF {
       # skip empty elements, otherwise get invalid trailing AND stuff
       ARRAYREF  => sub {$self->_recurse_where($el)        if @$el},
 
+      ARRAYREFREF => sub { @{${$el}}                 if @{${$el}}},
+
       HASHREF   => sub {$self->_recurse_where($el, 'and') if %$el},
            # LDNOTE : previous SQLA code for hashrefs was creating a dirty
            # side-effect: the first hashref within an array would change
@@ -410,7 +412,16 @@ sub _where_ARRAYREF {
   return $self->_join_sql_clauses($logic, \@sql_clauses, \@all_bind);
 }
 
+#======================================================================
+# WHERE: top-level ARRAYREFREF
+#======================================================================
 
+sub _where_ARRAYREFREF {
+    my ($self, $where) = @_;
+    my ($sql, @bind) = @{${$where}};
+
+    return ($sql, @bind);
+}
 
 #======================================================================
 # WHERE: top-level HASHREF

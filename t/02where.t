@@ -14,6 +14,7 @@ use SQL::Abstract;
 my $not_stringifiable = bless {}, 'SQLA::NotStringifiable';
 
 my@x=(
+);my @handle_tests = (
     {
         where => {
             requestor => 'inna',
@@ -196,19 +197,18 @@ my@x=(
        bind => [ $not_stringifiable ],
    },
 
-);my @handle_tests = (
    {
-       where => \[ 'foo ?','bar' ],
+       where => \[ 'foo = ?','bar' ],
+       stmt => " WHERE (foo = ?)", 
+       bind => [ "bar" ],
+   },
+
+   {
+       where => [ \[ 'foo = ?','bar' ] ],
        stmt => " WHERE (foo = ?)", 
        bind => [ "bar" ],
    },
 );my@x2=(
-
-   {
-       where => [ \[ 'foo ?','bar' ] ],
-       stmt => " WHERE (foo = ?)", 
-       bind => [ "bar" ],
-   },
 );
 
 

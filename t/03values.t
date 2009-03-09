@@ -109,5 +109,5 @@ for my $record (@data) {
     [$sql->values ($data)],
     [@bind],
     'values() output matches that of initial bind'
-  ) || diag "Corresponding SQL statement: $stmt";
+  );# || diag "Corresponding SQL statement: $stmt";
 }
