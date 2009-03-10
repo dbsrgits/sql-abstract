@@ -1,5 +1,16 @@
 Revision history for SQL::Abstract
 
+revision 1.59_04  2009-03-10
+    - fixed the problem with values() not behaving the same as the rest of the code (RT#43483)
+    - fixed interjecting arrayrefref into a where clause
+    - added value-only insert test with a literal SQL snippet
+    - cleanup and enhancement of t/03values.t
+    - better handling of borked SQL in tests
+    - deal properly with parentheses in is_same_sql_bind()
+    - fixed test subs (is_same_*) in SQL::Abstract::Test to return the correct test value
+    - do not version MANIFEST
+
+----------------------------
 revision 1.49_04  2009-03-03
     - add support for a [\%column_meta => value] bind value format
 
