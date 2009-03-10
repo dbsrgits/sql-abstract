@@ -15,9 +15,10 @@ use Scalar::Util qw/blessed/;
 # GLOBALS
 #======================================================================
 
-our $VERSION  = '1.49_05';
-$VERSION      = eval $VERSION; # numify for warning-free dev releases
+our $VERSION  = '1.50';
 
+# This would confuse some packagers
+#$VERSION      = eval $VERSION; # numify for warning-free dev releases
 
 our $AUTOLOAD;
 
