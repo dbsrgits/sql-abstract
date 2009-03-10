@@ -14,15 +14,7 @@ revision 1.49_02  2009-02-16
     - vastly expanded test coverage
     - support for the { operator => \'...'|\['...', @bind] } syntax
       allowing to embed arbitrary operators on the LHS
-    - fixed multiple regressions wrt DBIx::Cass
-
-----------------------------
-revision 1.49_02  2009-02-16
-    - added an AST-aware SQL::Abstract::Test library for sql syntax tests
-    - vastly expanded test coverage
-    - support for the { operator => \'...'|\['...', @bind] } syntax
-      allowing to embed arbitrary operators on the LHS
-    - fixed multiple regressions wrt DBIx::Cass
+    - fixed multiple regressions wrt DBIx::Class
 
 ----------------------------
 revision 1.49_01  2009-02-11
