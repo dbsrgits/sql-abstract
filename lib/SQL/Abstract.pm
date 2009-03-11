@@ -1920,12 +1920,12 @@ This would create:
     @bind = ('10');
 
 Note that you must pass the bind values in the same format as they are returned
-by C</where>. That means that if you set L</bindtype> to C<columns>, you must
+by L</where>. That means that if you set L</bindtype> to C<columns>, you must
 provide the bind values in the C<< [ column_meta => value ] >> format, where
 C<column_meta> is an opaque scalar value; most commonly the column name, but
-you can use any scalar scalar value (including references and blessed
-references), L<SQL::Abstract> will simply pass it through intact. So eg. the
-above example will look like:
+you can use any scalar value (including references and blessed references),
+L<SQL::Abstract> will simply pass it through intact. So if C<bindtype> is set
+to C<columns> the above example will look like:
 
     my %where = (
        date_column => \[q/= date '2008-09-30' - ?::integer/, [ dummy => 10 ]/]
