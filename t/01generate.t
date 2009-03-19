@@ -526,6 +526,16 @@ my @tests = (
               stmt_q => 'SELECT * FROM `test` WHERE ( `a` < to_date(?, \'MM/DD/YY\') AND `b` = ? )',
               bind   => [[{dummy => 1} => '02/02/02'], [b => 8]],
       },             
+      #57
+      {
+              func   => 'select',
+              new    => {bindtype => 'columns'},
+              args   => ['test', '*', { -or => [ -and => [ a => 'a', b => 'b' ],-and => [ c => 'c', d => 'd' ]  ]  }],
+              stmt   => 'SELECT * FROM test WHERE ( ( ( ( ( a = ? ) AND ( b = ? ) ) ) OR ( ( ( c = ? ) AND ( d = ? ) ) ) ) )',
+              stmt_q => 'SELECT * FROM `test` WHERE ( ( ( ( ( `a` = ? ) AND ( `b` = ? ) ) ) OR ( ( ( `c` = ? ) AND ( `d` = ? ) ) ) ) )',
+              bind   => [[a => 'a'], [b => 'b'], [ c => 'c'],[ d => 'd']],
+      },          
+      
 );
 
 
