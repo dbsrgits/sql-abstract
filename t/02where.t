@@ -6,6 +6,7 @@ use Test::More;
 use Test::Exception;
 use SQL::Abstract::Test import => ['is_same_sql_bind'];
 
+use Data::Dumper;
 use SQL::Abstract;
 
 # Make sure to test the examples, since having them break is somewhat
@@ -209,14 +210,92 @@ my @handle_tests = (
    },
 );
 
+# add extra modifier tests, based on 2 outcomes
+my $mod_and = {
+  stmt => 'WHERE ( foo = ? OR bar = ? ) AND baz = ? ',
+  bind => [qw/1 2 3/],
+};
+my $mod_or = {
+  stmt => 'WHERE ( foo = ? OR bar = ? ) OR baz = ?',
+  bind => [qw/1 2 3/],
+};
+
+push @handle_tests, (
+   # test modifiers within hashrefs
+   {
+      where => { -or => [
+        [ foo => 1, bar => 2 ],
+        baz => 3,
+      ]},
+      %$mod_or,
+   },
+   {
+      where => { -and => [
+        [ foo => 1, bar => 2 ],
+        baz => 3,
+      ]},
+      %$mod_and,
+   },
+
+   # test modifiers within arrayrefs
+   {
+      where => [ -or => [
+        [ foo => 1, bar => 2 ],
+        baz => 3,
+      ]],
+      %$mod_or,
+   },
+   {
+      where => [ -and => [
+        [ foo => 1, bar => 2 ],
+        baz => 3,
+      ]],
+      %$mod_and,
+   },
+
+   # test conflicting modifiers within hashrefs (last one should win?)
+   {
+      where => { -and => [ -or =>
+        [ foo => 1, bar => 2 ],
+        baz => 3,
+      ]},
+      %$mod_or,
+   },
+   {
+      where => { -or => [ -and =>
+        [ foo => 1, bar => 2 ],
+        baz => 3,
+      ]},
+      %$mod_and,
+   },
+
+   # test conflicting modifiers within arrayrefs (last one should win?)
+   {
+      where => [ -and => [ -or =>
+        [ foo => 1, bar => 2 ],
+        baz => 3,
+      ]],
+      %$mod_or,
+   },
+   {
+      where => [ -or => [ -and =>
+        [ foo => 1, bar => 2 ],
+        baz => 3,
+      ]],
+      %$mod_and,
+   },
+);
+
 plan tests => ( @handle_tests * 2 ) + 1;
 
 for my $case (@handle_tests) {
+    local $Data::Dumper::Terse = 1;
     my $sql = SQL::Abstract->new;
     my($stmt, @bind);
     lives_ok (sub { 
       ($stmt, @bind) = $sql->where($case->{where}, $case->{order});
-      is_same_sql_bind($stmt, \@bind, $case->{stmt}, $case->{bind});
+      is_same_sql_bind($stmt, \@bind, $case->{stmt}, $case->{bind})
+        || diag "Search term:\n" . Dumper $case->{where};
     });
 }
 
