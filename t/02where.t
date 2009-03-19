@@ -211,12 +211,16 @@ my @handle_tests = (
 );
 
 # add extra modifier tests, based on 2 outcomes
-my $mod_and = {
+my $mod_or_and = {
   stmt => 'WHERE ( foo = ? OR bar = ? ) AND baz = ? ',
   bind => [qw/1 2 3/],
 };
-my $mod_or = {
+my $mod_or_or = {
   stmt => 'WHERE ( foo = ? OR bar = ? ) OR baz = ?',
+  bind => [qw/1 2 3/],
+};
+my $mod_and_or = {
+  stmt => 'WHERE ( foo = ? AND bar = ? ) OR baz = ?',
   bind => [qw/1 2 3/],
 };
 
@@ -227,14 +231,14 @@ push @handle_tests, (
         [ foo => 1, bar => 2 ],
         baz => 3,
       ]},
-      %$mod_or,
+      %$mod_or_or,
    },
    {
       where => { -and => [
         [ foo => 1, bar => 2 ],
         baz => 3,
       ]},
-      %$mod_and,
+      %$mod_or_and,
    },
 
    # test modifiers within arrayrefs
@@ -243,46 +247,46 @@ push @handle_tests, (
         [ foo => 1, bar => 2 ],
         baz => 3,
       ]],
-      %$mod_or,
+      %$mod_or_or,
    },
    {
       where => [ -and => [
         [ foo => 1, bar => 2 ],
         baz => 3,
       ]],
-      %$mod_and,
+      %$mod_or_and,
    },
 
-   # test conflicting modifiers within hashrefs (last one should win?)
+   # test ambiguous modifiers within hashrefs (op extends to to immediate RHS only)
    {
       where => { -and => [ -or =>
         [ foo => 1, bar => 2 ],
         baz => 3,
       ]},
-      %$mod_or,
+      %$mod_or_and,
    },
    {
       where => { -or => [ -and =>
         [ foo => 1, bar => 2 ],
         baz => 3,
       ]},
-      %$mod_and,
+      %$mod_and_or,
    },
 
-   # test conflicting modifiers within arrayrefs (last one should win?)
+   # test ambiguous modifiers within arrayrefs (op extends to to immediate RHS only)
    {
       where => [ -and => [ -or =>
         [ foo => 1, bar => 2 ],
         baz => 3,
       ]],
-      %$mod_or,
+      %$mod_or_and,
    },
    {
       where => [ -or => [ -and =>
         [ foo => 1, bar => 2 ],
         baz => 3,
       ]],
-      %$mod_and,
+      %$mod_and_or,
    },
 );
 
