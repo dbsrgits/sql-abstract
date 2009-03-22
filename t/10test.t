@@ -99,20 +99,28 @@ my @sql_tests = (
       },
       {
         equal => 1,
-        todo => '( (x AND y) AND z ) should be reducable to ( x AND y AND z )',
         statements => [
           q/SELECT foo FROM bar WHERE a = 1 AND b = 1 AND c = 1/,
           q/SELECT foo FROM bar WHERE (a = 1 AND b = 1) AND c = 1/,
           q/SELECT foo FROM bar WHERE a = 1 AND (b = 1 AND c = 1)/,
+          q/SELECT foo FROM bar WHERE ((((a = 1))) AND (b = 1 AND c = 1))/,
         ]
       },
       {
         equal => 1,
-        todo => '( (x OR y) OR z ) should be reducable to ( x OR y OR z )',
         statements => [
           q/SELECT foo FROM bar WHERE a = 1 OR b = 1 OR c = 1/,
           q/SELECT foo FROM bar WHERE (a = 1 OR b = 1) OR c = 1/,
           q/SELECT foo FROM bar WHERE a = 1 OR (b = 1 OR c = 1)/,
+          q/SELECT foo FROM bar WHERE a = 1 OR ((b = 1 OR (c = 1)))/,
+        ]
+      },
+      {
+        equal => 1,
+        statements => [
+          q/SELECT foo FROM bar WHERE (a = 1) AND (b = 1 OR c = 1 OR d = 1) AND (e = 1 AND f = 1)/,
+          q/SELECT foo FROM bar WHERE a = 1 AND (b = 1 OR c = 1 OR d = 1) AND e = 1 AND (f = 1)/,
+          q/SELECT foo FROM bar WHERE ( ((a = 1) AND ( b = 1 OR (c = 1 OR d = 1) )) AND ((e = 1)) AND f = 1) /,
         ]
       },
 
