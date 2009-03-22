@@ -367,17 +367,7 @@ sub _where_ARRAYREF {
 
   my @clauses = @$where;
 
-  # if the array starts with [-and|or => ...], recurse with that logic
-  my $first   = $clauses[0] || '';
-  if ($first =~ /^-(and|or)/i) {
-    $logic = $1;
-    shift @clauses;
-    return $self->_where_ARRAYREF(\@clauses, $logic);
-  }
-
-  #otherwise..
   my (@sql_clauses, @all_bind);
-
   # need to use while() so can shift() for pairs
   while (my $el = shift @clauses) { 
 
@@ -518,8 +508,9 @@ sub _where_hashpair_ARRAYREF {
 
     my @distributed = map { {$k =>  $_} } @v;
     unshift @distributed, $op if $op;
+    my $logic = $op ? substr($op, 1) : '';
 
-    return $self->_recurse_where(\@distributed);
+    return $self->_recurse_where(\@distributed, $logic);
   } 
   else {
     # LDNOTE : not sure of this one. What does "distribute over nothing" mean?
