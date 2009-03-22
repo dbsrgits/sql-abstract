@@ -83,8 +83,9 @@ my @handle_tests = (
         },
         order => \'ticket, requestor',
 #LDNOTE: modified parentheses
-#        stmt => " WHERE ( completion_date BETWEEN ? AND ? AND status = ? ) ORDER BY ticket, requestor",
-        stmt => " WHERE ( ( completion_date BETWEEN ? AND ? ) AND status = ? ) ORDER BY ticket, requestor",
+#
+# acked by RIBASUSHI
+        stmt => "WHERE ( ( completion_date BETWEEN ? AND ? ) AND status = ? ) ORDER BY ticket, requestor",
         bind => [qw/2002-10-01 2003-02-06 completed/],
     },
 
@@ -132,7 +133,8 @@ my @handle_tests = (
         },
         order => \'requestor, ticket',
 #LDNOTE: modified parentheses
-#        stmt => " WHERE ( priority BETWEEN ? AND ? AND requestor IS NULL ) ORDER BY requestor, ticket",
+#
+# acked by RIBASUSHI
         stmt => " WHERE ( ( priority BETWEEN ? AND ? ) AND requestor IS NULL ) ORDER BY requestor, ticket",
         bind => [qw/1 3/],
     },
@@ -147,7 +149,8 @@ my @handle_tests = (
 	    },
         },
 # LDNOTE : modified test below, just parentheses differ
-#        stmt => " WHERE ( id = ? AND num <= ? AND num > ? )",
+#
+# acked by RIBASUSHI
         stmt => " WHERE ( id = ? AND ( num <= ? AND num > ? ) )",
         bind => [qw/1 20 10/],
     },
@@ -160,10 +163,7 @@ my @handle_tests = (
                    wix => {'in' => [qw/zz yy/]},
                    wux => {'not_in'  => [qw/30 40/]}
                  },
-# LDNOTE: modified parentheses for BETWEEN (trivial).
-# Also modified the logic of "not_like" (severe, same reasons as #14 in 00where.t)
-#        stmt => " WHERE ( ( ( foo NOT LIKE ? ) OR ( foo NOT LIKE ? ) OR ( foo NOT LIKE ? ) ) AND ( ( fum LIKE ? ) OR ( fum LIKE ? ) ) AND nix BETWEEN ? AND ? AND nox NOT BETWEEN ? AND ? AND wix IN ( ?, ? ) AND wux NOT IN ( ?, ? ) )",
-        stmt => " WHERE ( ( foo NOT LIKE ? AND foo NOT LIKE ? AND foo NOT LIKE ? ) AND ( ( fum LIKE ? ) OR ( fum LIKE ? ) ) AND ( nix BETWEEN ? AND ? ) AND ( nox NOT BETWEEN ? AND ? ) AND wix IN ( ?, ? ) AND wux NOT IN ( ?, ? ) )",
+        stmt => " WHERE ( ( ( foo NOT LIKE ? ) OR ( foo NOT LIKE ? ) OR ( foo NOT LIKE ? ) ) AND ( ( fum LIKE ? ) OR ( fum LIKE ? ) ) AND nix BETWEEN ? AND ? AND nox NOT BETWEEN ? AND ? AND wix IN ( ?, ? ) AND wux NOT IN ( ?, ? ) )",
         bind => [7,8,9,'a','b',100,200,150,160,'zz','yy','30','40'],
     },
 

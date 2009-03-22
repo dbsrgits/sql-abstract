@@ -253,13 +253,10 @@ my @tests = (
                                            tasty => { '!=', [qw(yes YES)] },
                                            -nest => [ face => [ -or => {'=', 'mr.happy'}, {'=', undef} ] ] },
                         ],
-# LDNOTE : modified the test below, same reasons as #14 in 00where.t
               stmt   => 'UPDATE taco_punches SET one = ?, three = ? WHERE ( ( ( ( ( face = ? ) OR ( face IS NULL ) ) ) )'
-#                      . ' AND ( ( bland != ? ) AND ( bland != ? ) ) AND ( ( tasty != ? ) OR ( tasty != ? ) ) )',
-                      . ' AND ( ( bland != ? ) AND ( bland != ? ) ) AND ( ( tasty != ? ) AND ( tasty != ? ) ) )',
+                      . ' AND ( ( bland != ? ) AND ( bland != ? ) ) AND ( ( tasty != ? ) OR ( tasty != ? ) ) )',
               stmt_q => 'UPDATE `taco_punches` SET `one` = ?, `three` = ? WHERE ( ( ( ( ( `face` = ? ) OR ( `face` IS NULL ) ) ) )'
-#                      . ' AND ( ( `bland` != ? ) AND ( `bland` != ? ) ) AND ( ( `tasty` != ? ) OR ( `tasty` != ? ) ) )',
-                      . ' AND ( ( `bland` != ? ) AND ( `bland` != ? ) ) AND ( ( `tasty` != ? ) AND ( `tasty` != ? ) ) )',
+                      . ' AND ( ( `bland` != ? ) AND ( `bland` != ? ) ) AND ( ( `tasty` != ? ) OR ( `tasty` != ? ) ) )',
               bind   => [qw(2 4 mr.happy yes YES yes YES)],
       },             
       #29            
@@ -268,26 +265,18 @@ my @tests = (
               args   => ['jeff', '*', { name => {'like', '%smith%', -not_in => ['Nate','Jim','Bob','Sally']},
                                        -nest => [ -or => [ -and => [age => { -between => [20,30] }, age => {'!=', 25} ],
                                                                    yob => {'<', 1976} ] ] } ],
-# LDNOTE : original test below was WRONG with respect to the doc.
-# [-and, [cond1, cond2], cond3] should mean (cond1 OR cond2) AND cond3
-# instead of (cond1 AND cond2) OR cond3. 
-# Probably a misconception because of '=>' notation 
-# in [-and => [cond1, cond2], cond3].
-# Also some differences in parentheses, but without impact on semantics.
-#               stmt   => 'SELECT * FROM jeff WHERE ( ( ( ( ( ( ( age BETWEEN ? AND ? ) AND ( age != ? ) ) ) OR ( yob < ? ) ) ) )'
-#                       . ' AND name NOT IN ( ?, ?, ?, ? ) AND name LIKE ? )',
-#               stmt_q => 'SELECT * FROM `jeff` WHERE ( ( ( ( ( ( ( `age` BETWEEN ? AND ? ) AND ( `age` != ? ) ) ) OR ( `yob` < ? ) ) ) )'
-#                       . ' AND `name` NOT IN ( ?, ?, ?, ? ) AND `name` LIKE ? )',
-              stmt   => 'SELECT * FROM jeff WHERE ( ( ( ( ( age BETWEEN ? AND ? ) OR ( age != ? ) ) AND ( yob < ? ) ) )'
-                      . ' AND ( name NOT IN ( ?, ?, ?, ? ) AND name LIKE ? ) )',
-              stmt_q => 'SELECT * FROM `jeff` WHERE ( ( ( ( ( `age` BETWEEN ? AND ? ) OR ( `age` != ? ) ) AND ( `yob` < ? ) ) )'
-                      . ' AND ( `name` NOT IN ( ?, ?, ?, ? ) AND `name` LIKE ? ) )',
+              stmt   => 'SELECT * FROM jeff WHERE ( ( ( ( ( ( ( age BETWEEN ? AND ? ) AND ( age != ? ) ) ) OR ( yob < ? ) ) ) )'
+                      . ' AND name NOT IN ( ?, ?, ?, ? ) AND name LIKE ? )',
+              stmt_q => 'SELECT * FROM `jeff` WHERE ( ( ( ( ( ( ( `age` BETWEEN ? AND ? ) AND ( `age` != ? ) ) ) OR ( `yob` < ? ) ) ) )'
+                      . ' AND `name` NOT IN ( ?, ?, ?, ? ) AND `name` LIKE ? )',
               bind   => [qw(20 30 25 1976 Nate Jim Bob Sally %smith%)]
       },             
       #30            
       {              
               func   => 'update',
 # LDNOTE : removed the "-maybe", because we no longer admit unknown ops
+#
+# acked by RIBASUSHI
 #              args   => ['fhole', {fpoles => 4}, [-maybe => {race => [-and => [qw(black white asian)]]},
               args   => ['fhole', {fpoles => 4}, [          {race => [-and => [qw(black white asian)]]},
                                                             {-nest => {firsttime => [-or => {'=','yes'}, undef]}},
@@ -311,6 +300,8 @@ my @tests = (
               func   => 'select',
 # LDNOTE: modified test below because we agreed with MST that literal SQL
 #         should not automatically insert a '='; the user has to do it
+#
+# acked by MSTROUT
 #              args   => ['test', '*', { a => \["to_date(?, 'MM/DD/YY')", '02/02/02']}],
               args   => ['test', '*', { a => \["= to_date(?, 'MM/DD/YY')", '02/02/02']}],
               stmt   => q{SELECT * FROM test WHERE ( a = to_date(?, 'MM/DD/YY') )},
@@ -530,9 +521,9 @@ my @tests = (
       {
               func   => 'select',
               new    => {bindtype => 'columns'},
-              args   => ['test', '*', { -or => [ -and => [ a => 'a', b => 'b' ],-and => [ c => 'c', d => 'd' ]  ]  }],
-              stmt   => 'SELECT * FROM test WHERE ( ( ( ( ( a = ? ) AND ( b = ? ) ) ) OR ( ( ( c = ? ) AND ( d = ? ) ) ) ) )',
-              stmt_q => 'SELECT * FROM `test` WHERE ( ( ( ( ( `a` = ? ) AND ( `b` = ? ) ) ) OR ( ( ( `c` = ? ) AND ( `d` = ? ) ) ) ) )',
+              args   => ['test', '*', { -or => [ -and => [ a => 'a', b => 'b' ], -and => [ c => 'c', d => 'd' ]  ]  }],
+              stmt   => 'SELECT * FROM test WHERE ( a = ? AND b = ? ) OR ( c = ? AND d = ?  )',
+              stmt_q => 'SELECT * FROM `test` WHERE ( `a` = ? AND `b` = ?  ) OR ( `c` = ? AND `d` = ? )',
               bind   => [[a => 'a'], [b => 'b'], [ c => 'c'],[ d => 'd']],
       },          
       

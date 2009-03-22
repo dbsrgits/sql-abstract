@@ -17,6 +17,8 @@ my @handle_tests = (
 # the test was not consistent with the doc: hashrefs should not be
 # influenced by the current logic, they always mean 'AND'. So 
 # { a => 4, b => 0} should ALWAYS mean ( a = ? AND b = ? ).
+#
+# acked by RIBASUSHI
               stmt => 'SELECT * FROM test WHERE ( a = ? AND b = ? )'
       },
       #2
@@ -39,6 +41,7 @@ my @handle_tests = (
               args => {cmp => "=", logic => 'or'},
 # LDNOTE idem
 #              stmt => 'SELECT * FROM test WHERE ( a = ? OR b = ? )'
+# acked by RIBASUSHI
               stmt => 'SELECT * FROM test WHERE ( a = ? AND b = ? )'
       },
       #6
@@ -51,6 +54,7 @@ my @handle_tests = (
               args => {logic => "or", cmp => "like"},
 # LDNOTE idem
 #              stmt => 'SELECT * FROM test WHERE ( a LIKE ? OR b LIKE ? )'
+# acked by RIBASUSHI
               stmt => 'SELECT * FROM test WHERE ( a LIKE ? AND b LIKE ? )'
       },
       #8
@@ -87,15 +91,7 @@ my @handle_tests = (
       #14
       {
               args => {convert => "upper"},
-# LDNOTE : modified the test below, because modified the semantics
-# of "e => { '!=', [qw(f g)] }" : generating "e != 'f' OR e != 'g'"
-# is nonsense (will always be true whatever the value of e). Since
-# this is a 'negative' operator, we must apply the Morgan laws and
-# interpret it as "e != 'f' AND e != 'g'" (and actually the user
-# should rather write "e => {-not_in => [qw/f g/]}".
-
-#              stmt => 'SELECT * FROM test WHERE ( ( UPPER(hostname) IN ( UPPER(?), UPPER(?), UPPER(?), UPPER(?) ) AND ( ( UPPER(ticket) = UPPER(?) ) OR ( UPPER(ticket) = UPPER(?) ) OR ( UPPER(ticket) = UPPER(?) ) ) ) OR ( UPPER(tack) BETWEEN UPPER(?) AND UPPER(?) ) OR ( ( ( UPPER(a) = UPPER(?) ) OR ( UPPER(a) = UPPER(?) ) OR ( UPPER(a) = UPPER(?) ) ) AND ( ( UPPER(e) != UPPER(?) ) OR ( UPPER(e) != UPPER(?) ) ) AND UPPER(q) NOT IN ( UPPER(?), UPPER(?), UPPER(?), UPPER(?), UPPER(?), UPPER(?), UPPER(?) ) ) )',
-              stmt => 'SELECT * FROM test WHERE ( ( UPPER(hostname) IN ( UPPER(?), UPPER(?), UPPER(?), UPPER(?) ) AND ( ( UPPER(ticket) = UPPER(?) ) OR ( UPPER(ticket) = UPPER(?) ) OR ( UPPER(ticket) = UPPER(?) ) ) ) OR ( UPPER(tack) BETWEEN UPPER(?) AND UPPER(?) ) OR ( ( ( UPPER(a) = UPPER(?) ) OR ( UPPER(a) = UPPER(?) ) OR ( UPPER(a) = UPPER(?) ) ) AND ( ( UPPER(e) != UPPER(?) ) AND ( UPPER(e) != UPPER(?) ) ) AND UPPER(q) NOT IN ( UPPER(?), UPPER(?), UPPER(?), UPPER(?), UPPER(?), UPPER(?), UPPER(?) ) ) )',
+              stmt => 'SELECT * FROM test WHERE ( ( UPPER(hostname) IN ( UPPER(?), UPPER(?), UPPER(?), UPPER(?) ) AND ( ( UPPER(ticket) = UPPER(?) ) OR ( UPPER(ticket) = UPPER(?) ) OR ( UPPER(ticket) = UPPER(?) ) ) ) OR ( UPPER(tack) BETWEEN UPPER(?) AND UPPER(?) ) OR ( ( ( UPPER(a) = UPPER(?) ) OR ( UPPER(a) = UPPER(?) ) OR ( UPPER(a) = UPPER(?) ) ) AND ( ( UPPER(e) != UPPER(?) ) OR ( UPPER(e) != UPPER(?) ) ) AND UPPER(q) NOT IN ( UPPER(?), UPPER(?), UPPER(?), UPPER(?), UPPER(?), UPPER(?), UPPER(?) ) ) )',
               where => [ { ticket => [11, 12, 13], 
                            hostname => { in => ['ntf', 'avd', 'bvd', '123'] } },
                         { tack => { between => [qw/tick tock/] } },
