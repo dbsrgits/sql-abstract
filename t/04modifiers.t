@@ -25,7 +25,8 @@ Test -and -or and -nest/-nestX modifiers, assuming the following:
 
 my @handle_tests = ();
 
-plan tests => @handle_tests * 2;
+plan tests => @handle_tests * 2 + 1;
+ok (1);
 
 for my $case (@handle_tests) {
     local $Data::Dumper::Terse = 1;
