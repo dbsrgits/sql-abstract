@@ -200,6 +200,13 @@ my @sql_tests = (
           q/SELECT foo FROM bar WHERE a = 1 OR (b = 1 AND c = 1)/,
         ]
       },
+      {
+        equal => 0,
+        statements => [
+          q/SELECT foo FROM bar WHERE ( completion_date BETWEEN ? AND ? AND status = ? )/,
+          q/SELECT foo FROM bar WHERE ( (completion_date BETWEEN ? AND ?) AND status = ? )/,
+        ]
+      },
 
       # JOIN condition - equal
       {

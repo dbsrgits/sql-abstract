@@ -38,6 +38,7 @@ my @expression_terminator_sql_keywords = (
   )',
   'ON',
   'WHERE',
+  '[\`\w]+ \s+ BETWEEN',
   'GROUP \s+ BY',
   'HAVING',
   'ORDER \s+ BY',
@@ -342,7 +343,7 @@ sub _recurse_parse {
     }
     # expression terminator keywords (as they start a new expression)
     elsif (grep { $token =~ /^ $_ $/xi } @expression_terminator_sql_keywords ) {
-      my $op = uc $token;
+      my $op = $token;
       my $right = _recurse_parse($tokens, PARSE_IN_EXPR);
       $left = $left ? [@$left,  [$op => [$right] ]]
                     : [ [$op => [$right] ] ];
