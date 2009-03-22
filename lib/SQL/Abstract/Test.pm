@@ -49,7 +49,7 @@ my @expression_terminator_sql_keywords = (
   'EXCEPT',
 );
 
-# All of these keywords allow their parameters to be wrapped in parenthesis without changing any semantics
+# All of these keywords allow their parameters to be specified with or without parenthesis without changing the semantics
 my @unrollable_sql_keywords = (
   'ON',
   'WHERE',
