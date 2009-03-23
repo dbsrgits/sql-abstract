@@ -1313,7 +1313,8 @@ By default these are C<1=1> and C<1=0>.
 =item logic
 
 This determines the default logical operator for multiple WHERE
-statements in arrays. By default it is "or", meaning that a WHERE
+statements in arrays or hashes. If absent, the default logic is "or"
+for arrays, and "and" for hashes. This means that a WHERE
 array of the form:
 
     @where = (
@@ -1321,7 +1322,7 @@ array of the form:
         event_date => {'<=', '4/24/03'}, 
     );
 
-Will generate SQL like this:
+will generate SQL like this:
 
     WHERE event_date >= '2/13/99' OR event_date <= '4/24/03'
 
@@ -1335,10 +1336,10 @@ Which will change the above C<WHERE> to:
     WHERE event_date >= '2/13/99' AND event_date <= '4/24/03'
 
 The logic can also be changed locally by inserting
-an extra first element in the array :
+a modifier in front of an arrayref :
 
-    @where = (-and => event_date => {'>=', '2/13/99'}, 
-                      event_date => {'<=', '4/24/03'} );
+    @where = (-and => [event_date => {'>=', '2/13/99'}, 
+                       event_date => {'<=', '4/24/03'} ]);
 
 See the L</"WHERE CLAUSES"> section for explanations.
 
@@ -1623,8 +1624,8 @@ This simple code will create the following:
     $stmt = "WHERE user = ? AND ( status = ? OR status = ? OR status = ? )";
     @bind = ('nwiger', 'assigned', 'in-progress', 'pending');
 
-An empty arrayref will be considered a logical false and
-will generate 0=1.
+A field associated to an empty arrayref will be considered a 
+logical false and will generate 0=1.
 
 =head2 Key-value pairs
 
@@ -1817,14 +1818,16 @@ This data structure would create the following:
     @bind = ('nwiger', 'pending', 'dispatched', 'robot', 'unassigned');
 
 This can be combined with the C<-nest> operator to properly group
-SQL statements:
+SQL statements. Furthermore, hashrefs or arrayrefs can be
+prefixed with an C<-and> or C<-or> to change the logic
+inside :
 
     my @where = (
          -and => [
             user => 'nwiger',
             -nest => [
-                ["-and", workhrs => {'>', 20}, geo => 'ASIA' ],
-                ["-and", workhrs => {'<', 50}, geo => 'EURO' ]
+                -and => [workhrs => {'>', 20}, geo => 'ASIA' ],
+                -and => [workhrs => {'<', 50}, geo => 'EURO' ]
             ],
         ],
     );
@@ -1834,6 +1837,24 @@ That would yield:
     WHERE ( user = ? AND 
           ( ( workhrs > ? AND geo = ? )
          OR ( workhrs < ? AND geo = ? ) ) )
+
+C<Important note>: when connecting several conditions, the C<-and->|C<-or>
+operator goes C<outside> of the nested structure; whereas when connecting
+several constraints on one column, the C<-and> operator goes
+C<inside> the arrayref. Here is an example combining both features :
+
+   my @where = (
+     -and => [a => 1, b => 2],
+     -or  => [c => 3, d => 4],
+      e   => [-and => {-like => 'foo%'}, {-like => '%bar'} ]
+   )
+
+yielding
+
+  WHERE ( (    ( a = ? AND b = ? ) 
+            OR ( c = ? OR d = ? ) 
+            OR ( e LIKE ? AND e LIKE ? ) ) )
+
 
 =head2 Literal SQL
 
@@ -2178,7 +2199,8 @@ support for the { operator => \["...", @bind] } construct (to embed literal SQL 
 
 =item *
 
-added -nest1, -nest2 or -nest_1, -nest_2, ...
+added official support for -nest1, -nest2 or -nest_1, -nest_2, ...
+(undocumented in previous versions)
 
 =item *
 
@@ -2191,21 +2213,12 @@ defensive programming : check arguments
 =item *
 
 fixed bug with global logic, which was previously implemented
-through global variables yielding side-effects. Prior versons would
+through global variables yielding side-effects. Prior versions would
 interpret C<< [ {cond1, cond2}, [cond3, cond4] ] >>
 as C<< "(cond1 AND cond2) OR (cond3 AND cond4)" >>.
 Now this is interpreted
 as C<< "(cond1 AND cond2) OR (cond3 OR cond4)" >>.
 
-=item *
-
-C<-and> / C<-or> operators are no longer accepted
-in the middle of an arrayref : they are
-only admitted if in first position.
-
-=item *
-
-changed logic for distributing an op over arrayrefs
 
 =item *
 
