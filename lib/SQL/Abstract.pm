@@ -452,15 +452,11 @@ sub _where_op_in_hash {
   $self->_SWITCH_refkind($v, {
 
     ARRAYREF => sub {
-      # LDNOTE : should deprecate {-or => [...]} and {-and => [...]}
-      # because they are misleading; the only proper way would be
-      # -nest => [-or => ...], -nest => [-and ...]
       return $self->_where_ARRAYREF($v, $op eq 'NEST' ? '' : $op);
     },
 
     HASHREF => sub {
       if ($op eq 'OR') {
-        belch "-or => {...} should be -nest => [...]";
         return $self->_where_ARRAYREF([%$v], 'OR');
       } 
       else {                  # NEST | AND
@@ -594,18 +590,17 @@ sub _where_field_op_ARRAYREF {
   if(@$vals) {
     $self->_debug("ARRAY($vals) means multiple elements: [ @$vals ]");
 
-
-
-    # LDNOTE : change the distribution logic when 
+    # LDNOTE : had planned to change the distribution logic when 
     # $op =~ $self->{inequality_op}, because of Morgan laws : 
     # with {field => {'!=' => [22, 33]}}, it would be ridiculous to generate
     # WHERE field != 22 OR  field != 33 : the user probably means 
     # WHERE field != 22 AND field != 33.
-    my $logic = ($op =~ $self->{inequality_op}) ? 'AND' : 'OR';
+    # To do this, replace the line below by :
+    # my $logic = ($op =~ $self->{inequality_op}) ? 'AND' : 'OR';
+    # return $self->_recurse_where([map { {$k => {$op, $_}} } @$vals], $logic);
 
     # distribute $op over each member of @$vals
-    return $self->_recurse_where([map { {$k => {$op, $_}} } @$vals], $logic);
-
+    return $self->_recurse_where([map { {$k => {$op, $_}} } @$vals]);
   } 
   else {
     # try to DWIM on equality operators 
@@ -1648,19 +1643,9 @@ Which would generate:
 
 To test against multiple values, just enclose the values in an arrayref:
 
-    status => { '!=', ['assigned', 'in-progress', 'pending'] };
-
-Which would give you:
-
-    "WHERE status != ? AND status != ? AND status != ?"
-
-Notice that since the operator was recognized as being a 'negative' 
-operator, the arrayref was interpreted with 'AND' logic (because
-of Morgan's laws). By contrast, the reverse
-
     status => { '=', ['assigned', 'in-progress', 'pending'] };
 
-would generate :
+Which would give you:
 
     "WHERE status = ? OR status = ? OR status = ?"
 

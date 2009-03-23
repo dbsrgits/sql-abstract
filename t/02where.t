@@ -156,6 +156,7 @@ my @handle_tests = (
     },
 
     {
+# LDNOTE 23.03.09 : modified test below, just parentheses differ
         where => { foo => {-not_like => [7,8,9]},
                    fum => {'like' => [qw/a b/]},
                    nix => {'between' => [100,200] },
@@ -163,7 +164,7 @@ my @handle_tests = (
                    wix => {'in' => [qw/zz yy/]},
                    wux => {'not_in'  => [qw/30 40/]}
                  },
-        stmt => " WHERE ( ( ( foo NOT LIKE ? ) OR ( foo NOT LIKE ? ) OR ( foo NOT LIKE ? ) ) AND ( ( fum LIKE ? ) OR ( fum LIKE ? ) ) AND nix BETWEEN ? AND ? AND nox NOT BETWEEN ? AND ? AND wix IN ( ?, ? ) AND wux NOT IN ( ?, ? ) )",
+        stmt => " WHERE ( ( ( foo NOT LIKE ? ) OR ( foo NOT LIKE ? ) OR ( foo NOT LIKE ? ) ) AND ( ( fum LIKE ? ) OR ( fum LIKE ? ) ) AND ( nix BETWEEN ? AND ? ) AND ( nox NOT BETWEEN ? AND ? ) AND wix IN ( ?, ? ) AND wux NOT IN ( ?, ? ) )",
         bind => [7,8,9,'a','b',100,200,150,160,'zz','yy','30','40'],
     },
 
