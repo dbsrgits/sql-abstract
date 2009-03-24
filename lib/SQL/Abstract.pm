@@ -499,11 +499,17 @@ sub _where_hashpair_ARRAYREF {
     $self->_debug("ARRAY($k) means distribute over elements");
 
     # put apart first element if it is an operator (-and, -or)
-    my $op = $v[0] =~ /^-/ ? shift @v : undef;
-    $self->_debug("OP($op) reinjected into the distributed array") if $op;
-
+    my $op = ($v[0] =~ /^ - (?: AND|OR ) $/ix
+      ? shift @v
+      : ''
+    );
     my @distributed = map { {$k =>  $_} } @v;
-    unshift @distributed, $op if $op;
+
+    if ($op) {
+      $self->_debug("OP($op) reinjected into the distributed array");
+      unshift @distributed, $op;
+    }
+
     my $logic = $op ? substr($op, 1) : '';
 
     return $self->_recurse_where(\@distributed, $logic);
