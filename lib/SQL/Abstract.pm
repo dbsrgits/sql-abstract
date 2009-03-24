@@ -1740,29 +1740,6 @@ Here is a quick list of equivalencies, since there is some overlap:
     status => [ -or => {'=', 'assigned'}, {'=', 'in-progress'}]
     status => [ {'=', 'assigned'}, {'=', 'in-progress'} ]
 
-In addition to C<-and> and C<-or>, there is also a special C<-nest>
-operator which adds an additional set of parens, to create a subquery.
-For example, to get something like this:
-
-    $stmt = "WHERE user = ? AND ( workhrs > ? OR geo = ? )";
-    @bind = ('nwiger', '20', 'ASIA');
-
-You would do:
-
-    my %where = (
-         user => 'nwiger',
-        -nest => [ workhrs => {'>', 20}, geo => 'ASIA' ],
-    );
-
-If you need several nested subexpressions, you can number
-the C<-nest> branches :
-
-    my %where = (
-         user => 'nwiger',
-        -nest1 => ...,
-        -nest2 => ...,
-        ...
-    );
 
 
 =head2 Special operators : IN, BETWEEN, etc.
@@ -1800,7 +1777,7 @@ Would give you:
 These are the two builtin "special operators"; but the 
 list can be expanded : see section L</"SPECIAL OPERATORS"> below.
 
-=head2 Nested conditions
+=head2 Nested conditions, -and/-or prefixes
 
 So far, we've seen how multiple conditions are joined with a top-level
 C<AND>.  We can change this by putting the different conditions we want in
@@ -1823,8 +1800,23 @@ This data structure would create the following:
                 OR ( user = ? AND status = ? ) )";
     @bind = ('nwiger', 'pending', 'dispatched', 'robot', 'unassigned');
 
-This can be combined with the C<-nest> operator to properly group
-SQL statements. Furthermore, hashrefs or arrayrefs can be
+
+There is also a special C<-nest>
+operator which adds an additional set of parens, to create a subquery.
+For example, to get something like this:
+
+    $stmt = "WHERE user = ? AND ( workhrs > ? OR geo = ? )";
+    @bind = ('nwiger', '20', 'ASIA');
+
+You would do:
+
+    my %where = (
+         user => 'nwiger',
+        -nest => [ workhrs => {'>', 20}, geo => 'ASIA' ],
+    );
+
+
+Finally, clauses in hashrefs or arrayrefs can be
 prefixed with an C<-and> or C<-or> to change the logic
 inside :
 
@@ -1844,6 +1836,9 @@ That would yield:
           ( ( workhrs > ? AND geo = ? )
          OR ( workhrs < ? AND geo = ? ) ) )
 
+
+=head2 Algebraic inconsistency, for historical reasons
+
 C<Important note>: when connecting several conditions, the C<-and->|C<-or>
 operator goes C<outside> of the nested structure; whereas when connecting
 several constraints on one column, the C<-and> operator goes
@@ -1860,6 +1855,16 @@ yielding
   WHERE ( (    ( a = ? AND b = ? ) 
             OR ( c = ? OR d = ? ) 
             OR ( e LIKE ? AND e LIKE ? ) ) )
+
+This difference in syntax is unfortunate but must be preserved for
+historical reasons. So be careful : the two examples below would
+seem algebraically equivalent, but they are not
+
+  {col => [-and => {-like => 'foo%'}, {-like => '%bar'}]} 
+  # yields : WHERE ( ( col LIKE ? AND col LIKE ? ) )
+
+  [-and => {col => {-like => 'foo%'}, {col => {-like => '%bar'}}]] 
+  # yields : WHERE ( ( col LIKE ? OR col LIKE ? ) )
 
 
 =head2 Literal SQL
