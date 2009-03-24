@@ -207,11 +207,50 @@ my @and_or_tests = (
   },
 );
 
-my @nest_tests = ();      #can not be verified via is_same_sql_bind - need exact matching (parenthesis and all)
+# modN and mod_N were a bad design decision - they go away in SQLA2, warn now
+my @numbered_mods = (
+  {
+    backcompat => {
+      -and => [a => 10, b => 11],
+      -and2 => [ c => 20, d => 21 ],
+      -nest => [ x => 1 ],
+      -nest2 => [ y => 2 ],
+      -or => { m => 7, n => 8 },
+      -or2 => { m => 17, n => 18 },
+    },
+    correct => { -and => [
+      -and => [a => 10, b => 11],
+      -and => [ c => 20, d => 21 ],
+      -nest => [ x => 1 ],
+      -nest => [ y => 2 ],
+      -or => { m => 7, n => 8 },
+      -or => { m => 17, n => 18 },
+    ] },
+  },
+  {
+    backcompat => {
+      -and2 => [a => 10, b => 11],
+      -and_3 => [ c => 20, d => 21 ],
+      -nest2 => [ x => 1 ],
+      -nest_3 => [ y => 2 ],
+      -or2 => { m => 7, n => 8 },
+      -or_3 => { m => 17, n => 18 },
+    },
+    correct => [ -and => [
+      -and => [a => 10, b => 11],
+      -and => [ c => 20, d => 21 ],
+      -nest => [ x => 1 ],
+      -nest => [ y => 2 ],
+      -or => { m => 7, n => 8 },
+      -or => { m => 17, n => 18 },
+    ] ],
+  },
+);
 
-my @numbered_tests = ();  #need tests making sure warnings are emitted for modifierN (will go away in SQLA2)
+#can not be verified via is_same_sql_bind - need exact matching (parenthesis and all)
+my @nest_tests = ();
 
-plan tests => @and_or_tests * 3;
+plan tests => @and_or_tests*3 + @numbered_mods*4;
 
 for my $case (@and_or_tests) {
     local $Data::Dumper::Terse = 1;
@@ -221,9 +260,49 @@ for my $case (@and_or_tests) {
     my $sql = SQL::Abstract->new ($case->{args} || {});
     lives_ok (sub { 
       my ($stmt, @bind) = $sql->where($case->{where});
-      is_same_sql_bind($stmt, \@bind, $case->{stmt}, $case->{bind})
+      is_same_sql_bind(
+        $stmt,
+        \@bind,
+        $case->{stmt},
+        $case->{bind},
+      )
         || diag "Search term:\n" . Dumper $case->{where};
     });
     is (@w, 0, 'No warnings within and-or tests')
       || diag join "\n", 'Emitted warnings:', @w;
 }
+
+for my $case (@numbered_mods) {
+    local $Data::Dumper::Terse = 1;
+
+    my @w;
+    local $SIG{__WARN__} = sub { push @w, @_ };
+    my $sql = SQL::Abstract->new ($case->{args} || {});
+    lives_ok (sub {
+      my ($old_s, @old_b) = $sql->where($case->{backcompat});
+      my ($new_s, @new_b) = $sql->where($case->{correct});
+      is_same_sql_bind(
+        $old_s, \@old_b,
+        $new_s, \@new_b,
+        'Backcompat and the correct(tm) syntax result in identical statements',
+      ) || diag "Search terms:\n" . Dumper {
+          backcompat => $case->{backcompat},
+          correct => $case->{correct},
+        };
+    });
+
+    ok (@w, 'Warnings were emitted about a mod_N construct');
+
+    my @non_match;
+    for (@w) {
+      push @non_match, $_
+        if ($_ !~ /\Q
+          Use of [and|or|nest]_N modifiers deprecated,
+          instead use ...-and => [ mod => { }, mod => [] ... ]
+        \E/x);
+    }
+
+    is (@non_match, 0, 'All warnings match the deprecation message')
+      || diag join "\n", 'Rogue warnings:', @non_match;
+}
+
