@@ -516,7 +516,7 @@ my @tests = (
               stmt   => 'SELECT * FROM test WHERE ( a < to_date(?, \'MM/DD/YY\') AND b = ? )',
               stmt_q => 'SELECT * FROM `test` WHERE ( `a` < to_date(?, \'MM/DD/YY\') AND `b` = ? )',
               bind   => [[{dummy => 1} => '02/02/02'], [b => 8]],
-      },             
+      },
       #57
       {
               func   => 'select',
@@ -525,8 +525,25 @@ my @tests = (
               stmt   => 'SELECT * FROM test WHERE ( a = ? AND b = ? ) OR ( c = ? AND d = ?  )',
               stmt_q => 'SELECT * FROM `test` WHERE ( `a` = ? AND `b` = ?  ) OR ( `c` = ? AND `d` = ? )',
               bind   => [[a => 'a'], [b => 'b'], [ c => 'c'],[ d => 'd']],
-      },          
-      
+      },
+      #58
+      {
+              func   => 'select',
+              new    => {bindtype => 'columns'},
+              args   => ['test', '*', [ { a => 1, b => 1}, [ a => 2, b => 2] ] ],
+              stmt   => 'SELECT * FROM test WHERE ( a = ? AND b = ? ) OR ( a = ? OR b = ? )',
+              stmt_q => 'SELECT * FROM `test` WHERE ( `a` = ? AND `b` = ? ) OR ( `a` = ? OR `b` = ? )',
+              bind   => [[a => 1], [b => 1], [ a => 2], [ b => 2]],
+      },
+      #59
+      {
+              func   => 'select',
+              new    => {bindtype => 'columns'},
+              args   => ['test', '*', [ [ a => 1, b => 1], { a => 2, b => 2 } ] ],
+              stmt   => 'SELECT * FROM test WHERE ( a = ? OR b = ? ) OR ( a = ? AND b = ? )',
+              stmt_q => 'SELECT * FROM `test` WHERE ( `a` = ? OR `b` = ? ) OR ( `a` = ? AND `b` = ? )',
+              bind   => [[a => 1], [b => 1], [ a => 2], [ b => 2]],
+      },
 );
 
 

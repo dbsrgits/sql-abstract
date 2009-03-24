@@ -22,27 +22,113 @@ Test -and -or and -nest modifiers, assuming the following:
 
 =cut
 
-# no warnings
+# no warnings (the -or/-and => { } warning is silly, there is nothing wrong with such usage)
+my $and_or_args = {
+  and => { stmt => 'WHERE a = ? AND b = ?', bind => [qw/1 2/] },
+  or => { stmt => 'WHERE a = ? OR b = ?', bind => [qw/1 2/] },
+  or_and => { stmt => 'WHERE ( foo = ? OR bar = ? ) AND baz = ? ', bind => [qw/1 2 3/] },
+  or_or => { stmt => 'WHERE foo = ? OR bar = ? OR baz = ?', bind => [qw/1 2 3/] },
+  and_or => { stmt => 'WHERE ( foo = ? AND bar = ? ) OR baz = ?', bind => [qw/1 2 3/] },
+};
+
 my @and_or_tests = (
+  # basic tests
   {
     where => { -and => [a => 1, b => 2] },
-    stmt => 'WHERE a = ? AND b = ?',
-    bind => [qw/1 2/],
+    %{$and_or_args->{and}},
   },
   {
     where => [ -and => [a => 1, b => 2] ],
-    stmt => 'WHERE a = ? AND b = ?',
-    bind => [qw/1 2/],
+    %{$and_or_args->{and}},
   },
   {
     where => { -or => [a => 1, b => 2] },
-    stmt => 'WHERE a = ? OR b = ?',
-    bind => [qw/1 2/],
+    %{$and_or_args->{or}},
   },
   {
     where => [ -or => [a => 1, b => 2] ],
-    stmt => 'WHERE a = ? OR b = ?',
-    bind => [qw/1 2/],
+    %{$and_or_args->{or}},
+  },
+
+  # test modifiers within hashrefs 
+  {
+    where => { -or => [
+      [ foo => 1, bar => 2 ],
+      baz => 3,
+    ]},
+    %{$and_or_args->{or_or}},
+  },
+  {
+    where => { -and => [
+      [ foo => 1, bar => 2 ],
+      baz => 3,
+    ]},
+    %{$and_or_args->{or_and}},
+  },
+
+  # test modifiers within arrayrefs 
+  {
+    where => [ -or => [
+      [ foo => 1, bar => 2 ],
+      baz => 3,
+    ]],
+    %{$and_or_args->{or_or}},
+  },
+  {
+    where => [ -and => [
+      [ foo => 1, bar => 2 ],
+      baz => 3,
+    ]],
+    %{$and_or_args->{or_and}},
+  },
+
+  # test ambiguous modifiers within hashrefs (op extends to to immediate RHS only)
+  {
+    where => { -and => [ -or =>
+      [ foo => 1, bar => 2 ],
+      baz => 3,
+    ]},
+    %{$and_or_args->{or_and}},
+  },
+  {
+    where => { -or => [ -and =>
+      [ foo => 1, bar => 2 ],
+      baz => 3,
+    ]},
+    %{$and_or_args->{and_or}},
+  },
+
+  # test ambiguous modifiers within arrayrefs (op extends to to immediate RHS only)
+  {
+    where => [ -and => [ -or =>
+      [ foo => 1, bar => 2 ],
+      baz => 3,
+    ]],
+    %{$and_or_args->{or_and}},
+  },
+  {
+    where => [ -or => [ -and =>
+      [ foo => 1, bar => 2 ],
+      baz => 3
+    ]],
+    %{$and_or_args->{and_or}},
+  },
+
+  # the -or should affect only the next element
+  {
+    where => { x => {
+      -or => { '!=', 1, '>=', 2 }, -like => 'x%'
+    }},
+    stmt => 'WHERE (x != ? OR x >= ?) AND x LIKE ?',
+    bind => [qw/1 2 x%/],
+  },
+  # the -and should affect only the next element
+  {
+    where => { x => [ 
+      -and => [ 1, 2 ], { -like => 'x%' } 
+    ]},
+    stmt => 'WHERE (x = ? AND x = ?) OR x LIKE ?',
+    bind => [qw/1 2 x%/],
   },
   {
     where => { -and => [a => 1, b => 2], x => 9, -or => { c => 3, d => 4 } },
@@ -61,7 +147,7 @@ my @and_or_tests = (
   },
 
   {
-    # things should remain the same as above, hashrefs not affected
+    # flip logic except where excplicitly requested otherwise
     args => { logic => 'or' },
     where => { -or => [a => 1, b => 2, k => [11, 12] ], x => 9, -and => { c => 3, d => 4, l => { '=' => [21, 22] } } },
     stmt => 'WHERE c = ? AND d = ? AND ( l = ? OR l = ?) AND (a = ? OR b = ? OR k = ? OR k = ?) AND x = ?',
@@ -74,11 +160,50 @@ my @and_or_tests = (
     bind => [1 .. 13],
   },
   {
-    # while the arrayref logic should flip, except when requested otherwise
+    # flip logic except where excplicitly requested otherwise
     args => { logic => 'and' },
     where => [ -or => [a => 1, b => 2], -or => { c => 3, d => 4}, e => 5, -and => [ f => 6, g => 7], [ h => 8, i => 9, -and => [ k => 10, l => 11] ], { m => 12, n => 13 }],
     stmt => 'WHERE (a = ? OR b = ?) AND (c = ? OR d = ?) AND e = ? AND f = ? AND g = ? AND h = ? AND i = ? AND k = ? AND l = ? AND m = ? AND n = ?',
     bind => [1 .. 13],
+  },
+
+  ##########
+  # some corner cases by ldami (some produce useless SQL, just for clarification on 1.5 direction)
+  #
+
+  {
+    where => { foo => [
+      -and => [ { -like => 'foo%'}, {'>' => 'moo'} ],
+      { -like => '%bar', '<' => 'baz'},
+      [ {-like => '%alpha'}, {-like => '%beta'} ],
+      -or => { '!=' => 'toto', '=' => 'koko' }
+    ] },
+    stmt => 'WHERE (foo LIKE ? AND foo > ?) OR (foo LIKE ? AND foo < ?) OR (foo LIKE ? OR foo LIKE ?) OR (foo != ? OR foo = ?)',
+    bind => [qw/foo% moo %bar baz %alpha %beta toto koko/],
+  },
+  {
+    where => [-and => [{foo => 1}, {bar => 2}, -or => {baz => 3 }] ],
+    stmt => 'WHERE foo = ? AND bar = ? AND baz = ?',
+    bind => [qw/1 2 3/],
+  },
+  {
+    where => [-and => [{foo => 1}, {bar => 2}, -or => {baz => 3, boz => 4} ] ],
+    stmt => 'WHERE foo = ? AND bar = ? AND (baz = ? OR boz = ?)',
+    bind => [1 .. 4],
+  },
+
+  # -and affects only the first {} thus a noop
+  {
+    where => { col => [ -and => {'<' => 123}, {'>' => 456 }, {'!=' => 789} ] },
+    stmt => 'WHERE col < ? OR col > ? OR col != ?',
+    bind => [qw/123 456 789/],
+  },
+
+  # -and affects the entire inner [], thus 3 ANDs
+  {
+    where => { col => [ -and => [{'<' => 123}, {'>' => 456 }, {'!=' => 789}] ] },
+    stmt => 'WHERE col < ? AND col > ? AND col != ?',
+    bind => [qw/123 456 789/],
   },
 );
 
