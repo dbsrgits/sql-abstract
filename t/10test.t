@@ -203,8 +203,15 @@ my @sql_tests = (
       {
         equal => 0,
         statements => [
+          # BETWEEN with/without parenthesis around itself/RHS is a sticky business
+          # if I made a mistake here, simply rewrite the special BETWEEN handling in
+          # _recurse_parse()
+          #
+          # by RIBASUSHI
           q/SELECT foo FROM bar WHERE ( completion_date BETWEEN ? AND ? AND status = ? )/,
-          q/SELECT foo FROM bar WHERE ( (completion_date BETWEEN ? AND ?) AND status = ? )/,
+          q/SELECT foo FROM bar WHERE completion_date BETWEEN (? AND ?) AND status = ?/,
+          q/SELECT foo FROM bar WHERE ( (completion_date BETWEEN (? AND ?) ) AND status = ? )/,
+          q/SELECT foo FROM bar WHERE ( (completion_date BETWEEN (? AND ? AND status = ?) ) )/,
         ]
       },
 

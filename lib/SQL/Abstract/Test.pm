@@ -17,9 +17,10 @@ our $sql_differ; # keeps track of differing portion between SQLs
 our $tb = __PACKAGE__->builder;
 
 # Parser states for _recurse_parse()
+use constant PARSE_TOP_LEVEL => 0;
 use constant PARSE_IN_EXPR => 1;
 use constant PARSE_IN_PARENS => 2;
-use constant PARSE_TOP_LEVEL => 3;
+use constant PARSE_RHS => 3;
 
 # These SQL keywords always signal end of the current expression (except inside
 # of a parenthesized subexpression).
@@ -38,7 +39,6 @@ my @expression_terminator_sql_keywords = (
   )',
   'ON',
   'WHERE',
-  '[\`\w]+ \s+ BETWEEN',
   'GROUP \s+ BY',
   'HAVING',
   'ORDER \s+ BY',
@@ -50,35 +50,32 @@ my @expression_terminator_sql_keywords = (
   'EXCEPT',
 );
 
+# These are binary operator keywords always a single LHS and RHS
+# * AND/OR are handled separately as they are N-ary
+# * BETWEEN without paranthesis around the ANDed arguments (which
+#   makes it a non-binary op) is detected and accomodated in 
+#   _recurse_parse()
+my @binary_op_keywords = (
+  (map { "\Q$_\E" } (qw/< > != = <= >=/)),
+  '(?: NOT \s+)? LIKE',
+  '(?: NOT \s+)? BETWEEN',
+);
+
+my $tokenizer_re_str = join("\n\t|\n",
+  ( map { '\b' . $_ . '\b' } @expression_terminator_sql_keywords, 'AND', 'OR' ),
+  ( map { q! (?<= [\w\s\`\'\)] ) ! . $_ . q! (?= [\w\s\`\'\(] ) ! } @binary_op_keywords ),
+);
+
+my $tokenizer_re = qr/ \s* ( \( | \) | \? | $tokenizer_re_str ) \s* /xi;
+
 # All of these keywords allow their parameters to be specified with or without parenthesis without changing the semantics
-my @unrollable_sql_keywords = (
+my @unrollable_ops = (
   'ON',
   'WHERE',
   'GROUP \s+ BY',
   'HAVING',
   'ORDER \s+ BY',
 );
-
-my $tokenizer_re_str = join('|',
-  map { '\b' . $_ . '\b' }
-    @expression_terminator_sql_keywords, 'AND', 'OR'
-);
-
-my $tokenizer_re = qr/
-  \s*
-  (
-      \(
-    |
-      \)
-    |
-      $tokenizer_re_str
-  )
-  \s*
-/xi;
-
-my $unrollable_re_str = join ('|', map { $_ } @unrollable_sql_keywords);
-my $unrollable_re = qr/^ (?: $unrollable_re_str ) $/ix;
-
 
 sub is_same_sql_bind {
   my ($sql1, $bind_ref1, $sql2, $bind_ref2, $msg) = @_;
@@ -206,9 +203,9 @@ sub _eq_sql {
   # both are an op-list combo
   else {
 
-    for ($left, $right) {
+    for my $ast ($left, $right) {
 
-      next unless (ref $_->[1]);
+      next unless (ref $ast->[1]);
 
       # unroll parenthesis in an elaborate loop
       my $changes;
@@ -217,7 +214,7 @@ sub _eq_sql {
         my @children;
         $changes = 0;
 
-        for my $child (@{$_->[1]}) {
+        for my $child (@{$ast->[1]}) {
           if (not ref $child or not $child->[0] eq 'PAREN') {
             push @children, $child;
             next;
@@ -229,29 +226,43 @@ sub _eq_sql {
             $changes++;
           }
 
-          # if the parens are wrapped around an AND/OR matching the parent AND/OR - open the parens up and merge the list
+          # if the parenthesis are wrapped around an AND/OR matching the parent AND/OR - open the parenthesis up and merge the list
           if (
-            ( $_->[0] eq 'AND' or $_->[0] eq 'OR')
+            ( $ast->[0] eq 'AND' or $ast->[0] eq 'OR')
               and
-            $child->[1][0][0] eq $_->[0]
+            $child->[1][0][0] eq $ast->[0]
           ) {
             push @children, @{$child->[1][0][1]};
             $changes++;
           }
 
-          # if the parent operator explcitly allows it, or if parents are wrapped around an expression just nuke them
-          elsif ( $child->[1][0][0] eq 'EXPR' or $_->[0] =~ $unrollable_re ) {
+          # if the parent operator explcitly allows it nuke the parenthesis
+          elsif ( grep { $ast->[0] =~ /^ $_ $/xi } @unrollable_ops ) {
             push @children, $child->[1][0];
             $changes++;
           }
 
-          # otherwise no more mucking
+          # only one element in the parenthesis which is a binary op with two EXPR sub-children
+          elsif (
+            @{$child->[1]} == 1
+              and
+            grep { $child->[1][0][0] =~ /^ $_ $/xi } (@binary_op_keywords)
+              and
+            $child->[1][0][1][0][0] eq 'EXPR'
+              and
+            $child->[1][0][1][1][0] eq 'EXPR'
+          ) {
+            push @children, $child->[1][0];
+            $changes++;
+          }
+
+          # otherwise no more mucking for this pass
           else {
             push @children, $child;
           }
         }
 
-        $_->[1] = \@children;
+        $ast->[1] = \@children;
       } while ($changes);
     }
 
@@ -265,10 +276,10 @@ sub _eq_sql {
     # elsif operators are identical, compare operands
     else { 
       if ($left->[0] eq 'EXPR' ) { # unary operator
-        (my $l = " $left->[1] " ) =~ s/\s+/ /g;
-        (my $r = " $right->[1] ") =~ s/\s+/ /g;
+        (my $l = " $left->[1][0] " ) =~ s/\s+/ /g;
+        (my $r = " $right->[1][0] ") =~ s/\s+/ /g;
         my $eq = $case_sensitive ? $l eq $r : uc($l) eq uc($r);
-        $sql_differ = "[$left->[1]] != [$right->[1]]\n" if not $eq;
+        $sql_differ = "[$l] != [$r]\n" if not $eq;
         return $eq;
       }
       else {
@@ -290,7 +301,7 @@ sub parse {
     $token =~ s/\s+/ /g;
     $token =~ s/\s+([^\w\s])/$1/g;
     $token =~ s/([^\w\s])\s+/$1/g;
-    push @$tokens, $token if $token !~ /^$/;
+    push @$tokens, $token if length $token;
   }
 
   my $tree = _recurse_parse($tokens, PARSE_TOP_LEVEL);
@@ -308,14 +319,11 @@ sub _recurse_parse {
           or
         ($state == PARSE_IN_PARENS && $lookahead eq ')')
           or
-        ($state == PARSE_IN_EXPR && grep { $lookahead =~ /^ $_ $/xi } ('\)', @expression_terminator_sql_keywords) )
+        ($state == PARSE_IN_EXPR && grep { $lookahead =~ /^ $_ $/xi } ('\)', @expression_terminator_sql_keywords ) )
+          or
+        ($state == PARSE_RHS && grep { $lookahead =~ /^ $_ $/xi } ('\)', @expression_terminator_sql_keywords, @binary_op_keywords, 'AND', 'OR' ) )
     ) {
-
       return $left;
-      return ($state == PARSE_TOP_LEVEL
-        ? $left->[0]
-        : $left
-      );
     }
 
     my $token = shift @$tokens;
@@ -328,7 +336,7 @@ sub _recurse_parse {
       $left = $left ? [@$left, [PAREN => [$right] ]]
                     : [PAREN  => [$right] ];
     }
-     # AND/OR
+    # AND/OR
     elsif ($token =~ /^ (?: OR | AND ) $/xi )  {
       my $op = uc $token;
       my $right = _recurse_parse($tokens, PARSE_IN_EXPR);
@@ -341,17 +349,31 @@ sub _recurse_parse {
        $left = [$op => [$left, $right]];
       }
     }
+    # binary operator keywords
+    elsif (grep { $token =~ /^ $_ $/xi } @binary_op_keywords ) {
+      my $op = uc $token;
+      my $right = _recurse_parse($tokens, PARSE_RHS);
+
+      # A between with a simple EXPR for a 1st RHS argument needs a
+      # rerun of the search to (hopefully) find the proper AND construct
+      if ($op eq 'BETWEEN' and $right->[0] eq 'EXPR') {
+        unshift @$tokens, $right->[1][0];
+        $right = _recurse_parse($tokens, PARSE_IN_EXPR);
+      }
+
+      $left = [$op => [$left, $right] ];
+    }
     # expression terminator keywords (as they start a new expression)
     elsif (grep { $token =~ /^ $_ $/xi } @expression_terminator_sql_keywords ) {
-      my $op = $token;
+      my $op = uc $token;
       my $right = _recurse_parse($tokens, PARSE_IN_EXPR);
       $left = $left ? [@$left,  [$op => [$right] ]]
-                    : [ [$op => [$right] ] ];
+                    : [[ $op => [$right] ]];
     }
     # leaf expression
     else {
-      $left = $left ? [@$left, [EXPR => $token] ]
-                    : [ EXPR => $token ];
+      $left = $left ? [@$left, [EXPR => [$token] ] ]
+                    : [ EXPR => [$token] ];
     }
   }
 }
@@ -368,12 +390,12 @@ sub unparse {
     return join (" ", map { unparse ($_) } @$tree);
   }
   elsif ($tree->[0] eq 'EXPR') {
-    return $tree->[1];
+    return $tree->[1][0];
   }
   elsif ($tree->[0] eq 'PAREN') {
-    return sprintf '( %s )', join (" ", map {unparse($_)} @{$tree->[1]});
+    return sprintf '(%s)', join (" ", map {unparse($_)} @{$tree->[1]});
   }
-  elsif ($tree->[0] eq 'OR' or $tree->[0] eq 'AND') {
+  elsif ($tree->[0] eq 'OR' or $tree->[0] eq 'AND' or (grep { $tree->[0] =~ /^ $_ $/xi } @binary_op_keywords ) ) {
     return join (" $tree->[0] ", map {unparse($_)} @{$tree->[1]});
   }
   else {
