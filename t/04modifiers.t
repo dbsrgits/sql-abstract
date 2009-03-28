@@ -338,9 +338,6 @@ my @numbered_mods = (
   },
 );
 
-#can not be verified via is_same_sql_bind - need exact matching (parenthesis and all)
-my @nest_tests = ();
-
 plan tests => @and_or_tests*3 + @numbered_mods*4;
 
 for my $case (@and_or_tests) {
