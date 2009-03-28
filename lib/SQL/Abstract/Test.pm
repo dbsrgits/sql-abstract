@@ -331,8 +331,8 @@ sub _recurse_parse {
     # nested expression in ()
     if ($token eq '(') {
       my $right = _recurse_parse($tokens, PARSE_IN_PARENS);
-      $token = shift @$tokens   or croak "missing ')'";
-      $token eq ')'             or croak "unexpected token : $token";
+      $token = shift @$tokens   or croak "missing closing ')' around block " . unparse ($right);
+      $token eq ')'             or croak "unexpected token '$token' terminating block " . unparse ($right);
       $left = $left ? [@$left, [PAREN => [$right] ]]
                     : [PAREN  => [$right] ];
     }
