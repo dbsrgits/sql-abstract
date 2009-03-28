@@ -15,7 +15,7 @@ use Scalar::Util qw/blessed/;
 # GLOBALS
 #======================================================================
 
-our $VERSION  = '1.50';
+our $VERSION  = '1.51';
 
 # This would confuse some packagers
 #$VERSION      = eval $VERSION; # numify for warning-free dev releases
@@ -2213,11 +2213,6 @@ support for the { operator => \"..." } construct (to embed literal SQL)
 =item *
 
 support for the { operator => \["...", @bind] } construct (to embed literal SQL with bind values)
-
-=item *
-
-added official support for -nest1, -nest2 or -nest_1, -nest_2, ...
-(undocumented in previous versions)
 
 =item *
 

@@ -341,6 +341,9 @@ my @numbered_mods = (
 plan tests => @and_or_tests*3 + @numbered_mods*4;
 
 for my $case (@and_or_tests) {
+  TODO: {
+    local $TODO = $case->{todo} if $case->{todo};
+
     local $Data::Dumper::Terse = 1;
 
     my @w;
@@ -358,6 +361,7 @@ for my $case (@and_or_tests) {
     });
     is (@w, 0, 'No warnings within and-or tests')
       || diag join "\n", 'Emitted warnings:', @w;
+  }
 }
 
 my $w_str = "\QUse of [and|or|nest]_N modifiers is deprecated and will be removed in SQLA v2.0\E";

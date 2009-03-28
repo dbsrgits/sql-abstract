@@ -1,6 +1,11 @@
 Revision history for SQL::Abstract
 
 ----------------------------
+revision 1.51  2009-03-28 10:00 (UTC)
+    - fixed behavior of [-and => ... ] depending on the current 
+      condition scope. This introduces backwards comp with 1.24
+
+----------------------------
 revision 1.50  2009-03-10 12:30 (UTC)
     - fixed the problem with values() not behaving the same as the rest of the code (RT#43483)
     - fixed interjecting arrayrefref into a where clause
