@@ -442,11 +442,17 @@ sub _where_HASHREF {
 
 
 sub _where_op_in_hash {
-  my ($self, $op, $v) = @_; 
+  my ($self, $op_str, $v) = @_; 
 
-  $op =~ /^(AND|OR|NEST)[_\d]*/i
-    or puke "unknown operator: -$op";
-  $op = uc($1); # uppercase, remove trailing digits
+  $op_str =~ /^ (AND|OR|NEST) ( \_? \d* ) $/xi
+    or puke "unknown operator: -$op_str";
+
+  my $op = uc($1); # uppercase, remove trailing digits
+  if ($2) {
+    belch 'Use of [and|or|nest]_N modifiers is deprecated and will be removed in SQLA v2.0. '
+          . "You probably wanted ...-and => [ $op_str => COND1, $op_str => COND2 ... ]";
+  }
+
   $self->_debug("OP(-$op) within hashref, recursing...");
 
   $self->_SWITCH_refkind($v, {
