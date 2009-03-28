@@ -170,10 +170,17 @@ my @handle_tests = (
 
     {
         where => {
-            id  => [],
             bar => {'!=' => []},
         },
-        stmt => " WHERE ( 1=1 AND 0=1 )",
+        stmt => " WHERE ( 1=1 )",
+        bind => [],
+    },
+
+    {
+        where => {
+            id  => [],
+        },
+        stmt => " WHERE ( 0=1 )",
         bind => [],
     },
 
