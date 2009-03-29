@@ -145,6 +145,7 @@ my @and_or_tests = (
   },
   # test column multi-cond in arrayref (even more useful)
   {
+#    todo => 'Clarify semantics in 1.52',
     where => { x => { '!=' => [ -and => (1 .. 3) ] } },
     stmt => 'WHERE x != ? AND x != ? AND x != ?',
     bind => [1..3],
@@ -152,6 +153,7 @@ my @and_or_tests = (
 
   # the -or should affect only the inner hashref, as we are not in an outer arrayref
   {
+#    todo => 'Clarify semantics in 1.52',
     where => { x => {
       -or => { '!=', 1, '>=', 2 }, -like => 'x%'
     }},
