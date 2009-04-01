@@ -1320,7 +1320,9 @@ the huge section on L</"WHERE CLAUSES"> at the bottom.
 =item sqltrue, sqlfalse
 
 Expressions for inserting boolean values within SQL statements.
-By default these are C<1=1> and C<1=0>.
+By default these are C<1=1> and C<1=0>. They are used
+by the special operators C<-in> and C<-not_in> for generating
+correct SQL even when the argument is an empty array (see below).
 
 =item logic
 
@@ -1639,7 +1641,7 @@ This simple code will create the following:
 A field associated to an empty arrayref will be considered a 
 logical false and will generate 0=1.
 
-=head2 Key-value pairs
+=head2 Specific comparison operators
 
 If you want to specify a different type of operator for your comparison,
 you can use a hashref for a given column:
@@ -1765,6 +1767,12 @@ Which would generate:
 
 The reverse operator C<-not_in> generates SQL C<NOT IN> and is used in 
 the same way.
+
+If the argument to C<-in> is an empty array, 'sqlfalse' is generated
+(by default : C<1=0>). Similarly, C<< -not_in => [] >> generates
+'sqltrue' (by default : C<1=1>).
+
+
 
 Another pair of operators is C<-between> and C<-not_between>, 
 used with an arrayref of two values:
