@@ -63,7 +63,7 @@ sub new {
   delete $opt{case} if $opt{case} && $opt{case} ne 'lower';
 
   # default logic for interpreting arrayrefs
-  $opt{logic} = uc $opt{logic} || 'OR';
+  $opt{logic} = $opt{logic} ? uc $opt{logic} : 'OR';
 
   # how to return bind vars
   # LDNOTE: changed nwiger code : why this 'delete' ??
