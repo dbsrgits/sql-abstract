@@ -699,16 +699,39 @@ sub _where_UNDEF {
 sub _where_field_BETWEEN {
   my ($self, $k, $op, $vals) = @_;
 
-  ref $vals eq 'ARRAY' && @$vals == 2 
-    or puke "special op 'between' requires an arrayref of two values";
+  (ref $vals eq 'ARRAY' && @$vals == 2) or 
+  (ref $vals eq 'REF' && (@$$vals == 1 || @$$vals == 2 || @$$vals == 3))
+    or puke "special op 'between' requires an arrayref of two values (or a scalarref or arrayrefref for literal SQL)";
 
-  my ($label)       = $self->_convert($self->_quote($k));
-  my ($placeholder) = $self->_convert('?');
-  my $and           = $self->_sqlcase('and');
+  my ($clause, @bind, $label, $and, $placeholder);
+  $label       = $self->_convert($self->_quote($k));
+  $and         = ' ' . $self->_sqlcase('and') . ' ';
+  $placeholder = $self->_convert('?');
   $op               = $self->_sqlcase($op);
 
-  my $sql  = "( $label $op $placeholder $and $placeholder )";
-  my @bind = $self->_bindtype($k, @$vals);
+  if (ref $vals eq 'REF') {
+    ($clause, @bind) = @$$vals;
+  }
+  else {
+    my (@all_sql, @all_bind);
+
+    foreach my $val (@$vals) {
+      my ($sql, @bind) = $self->_SWITCH_refkind($val, {
+         SCALAR => sub {
+           return ($placeholder, ($val));
+         },
+         SCALARREF => sub {
+           return ($self->_convert($$val), ());
+         },
+      });
+      push @all_sql, $sql;
+      push @all_bind, @bind;
+    }
+
+    $clause = (join $and, @all_sql);
+    @bind = $self->_bindtype($k, @all_bind);
+  }
+  my $sql = "( $label $op $clause )";
   return ($sql, @bind)
 }
 
