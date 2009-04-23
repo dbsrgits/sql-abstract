@@ -155,7 +155,7 @@ my @and_or_tests = (
     where => { x => {
       -or => { '!=', 1, '>=', 2 }, -like => 'x%'
     }},
-    stmt => 'WHERE ( ( x LIKE ? AND ( x != ? OR x >= ? ) ) )',
+    stmt => 'WHERE x LIKE ? AND ( x != ? OR x >= ? )',
     bind => [qw/x% 1 2/],
   },
 
