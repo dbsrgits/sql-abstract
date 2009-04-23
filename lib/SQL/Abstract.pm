@@ -528,9 +528,10 @@ sub _where_hashpair_ARRAYREF {
 }
 
 sub _where_hashpair_HASHREF {
-  my ($self, $k, $v) = @_;
+  my ($self, $k, $v, $logic) = @_;
+  $logic ||= 'and';
 
-  my (@all_sql, @all_bind);
+  my ($all_sql, @all_bind);
 
   for my $op (sort keys %$v) {
     my $val = $v->{$op};
@@ -571,6 +572,10 @@ sub _where_hashpair_HASHREF {
           @bind = @sub_bind;
         },
 
+        HASHREF => sub {
+          ($sql, @bind) = $self->_where_hashpair_HASHREF($k, $val, $op);
+        },
+
         UNDEF => sub {          # CASE: col => {op => undef} : sql "IS (NOT)? NULL"
           my $is = ($op =~ $self->{equality_op})   ? 'is'     :
                    ($op =~ $self->{inequality_op}) ? 'is not' :
@@ -587,11 +592,10 @@ sub _where_hashpair_HASHREF {
       });
     }
 
-    push @all_sql, $sql;
+    ($all_sql) = (defined $all_sql and $all_sql) ? $self->_join_sql_clauses($logic, [$all_sql, $sql], []) : $sql;
     push @all_bind, @bind;
   }
-
-  return $self->_join_sql_clauses('and', \@all_sql, \@all_bind);
+  return ($all_sql, @all_bind);
 }
 
 
