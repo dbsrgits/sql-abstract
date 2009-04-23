@@ -144,12 +144,11 @@ my @and_or_tests = (
     bind => [1..3],
   },
   # test column multi-cond in arrayref (even more useful)
-#  {
-#    todo => 'Clarify semantics in 1.52',
-#    where => { x => { '!=' => [ -and => (1 .. 3) ] } },
-#    stmt => 'WHERE x != ? AND x != ? AND x != ?',
-#    bind => [1..3],
-#  },
+  {
+    where => { x => { '!=' => [ -and => (1 .. 3) ] } },
+    stmt => 'WHERE x != ? AND x != ? AND x != ?',
+    bind => [1..3],
+  },
 
   # the -or should affect only the inner hashref, as we are not in an outer arrayref
   {
