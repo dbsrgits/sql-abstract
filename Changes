@@ -1,5 +1,8 @@
 Revision history for SQL::Abstract
 
+    - allow -between to handle [\"", \""] and \["", @bind] 
+    - allow order_by to handle -asc|desc => [qw/colA colB/]
+
 ----------------------------
 revision 1.51  2009-03-28 10:00 (UTC)
     - fixed behavior of [-and => ... ] depending on the current 
