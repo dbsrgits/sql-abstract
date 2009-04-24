@@ -80,6 +80,11 @@ my @cases =
     expects => ' ORDER BY colA DESC, colB DESC, colC DESC',
     expects_quoted => ' ORDER BY `colA` DESC, `colB` DESC, `colC` DESC',
    },
+   {
+    given => [{-desc => [ qw/colA colB/ ], -asc => [ qw/colC colD/ ] }],
+    expects => ' ORDER BY colA DESC, colB DESC, colC ASC, colD ASC',
+    expects_quoted => ' ORDER BY `colA` DESC, `colB` DESC, `colC` ASC, `colD` ASC',
+   },
 
   );
 

@@ -2086,21 +2086,32 @@ Some functions take an order by clause. This can either be a scalar (just a
 column name,) a hash of C<< { -desc => 'col' } >> or C<< { -asc => 'col' } >>,
 or an array of either of the two previous forms. Examples:
 
-             Given             |    Will Generate
-    ----------------------------------------------------------
+               Given           |         Will Generate
+    ---------------------------------------------------------
+                               |
     \'colA DESC'               | ORDER BY colA DESC
+                               |
     'colA'                     | ORDER BY colA
+                               |
     [qw/colA colB/]            | ORDER BY colA, colB
+                               |
     {-asc  => 'colA'}          | ORDER BY colA ASC
+                               |
     {-desc => 'colB'}          | ORDER BY colB DESC
-    [                          |
-      {-asc  => 'colA'},       | ORDER BY colA ASC, colB DESC
+                               |
+    [                          | ORDER BY colA ASC, colB DESC
+      {-asc  => 'colA'},       |
       {-desc => 'colB'}        |
     ]                          |
-    [colA => {-asc => 'colB'}] | ORDER BY colA, colB ASC
+                               |
+    ['colA', {-asc => 'colB'}] | ORDER BY colA, colB ASC
+                               |
     { -asc => [qw/colA colB] } | ORDER BY colA ASC, colB ASC
-    { -asc => [qw/colA colB] },|
-     -desc => [qw/colC colD] } | ORDER BY colA ASC, colB ASC, colC DESC, colD DESC
+                               |
+    {                          |
+      -asc => [qw/colA colB/], | ORDER BY colA ASC, colB ASC,
+      -desc => [qw/colC colD/],|          colC DESC, colD DESC
+    }                          |
     ==========================================================
 
 
