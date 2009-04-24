@@ -829,7 +829,8 @@ sub _order_by_hash {
   my ($order) = ($key =~ /^-(desc|asc)/i)
     or puke "invalid key in _order_by hash : $key";
 
-  return $self->_quote($val) ." ". $self->_sqlcase($order);
+  $val = ref $val eq 'ARRAY' ? $val : [$val];
+  return join ', ', map { $self->_quote($_) . ' ' . $self->_sqlcase($order) } @$val;
 }
 
 
@@ -2097,6 +2098,9 @@ or an array of either of the two previous forms. Examples:
       {-desc => 'colB'}        |
     ]                          |
     [colA => {-asc => 'colB'}] | ORDER BY colA, colB ASC
+    { -asc => [qw/colA colB] } | ORDER BY colA ASC, colB ASC
+    { -asc => [qw/colA colB] },|
+     -desc => [qw/colC colD] } | ORDER BY colA ASC, colB ASC, colC DESC, colD DESC
     ==========================================================
 
 

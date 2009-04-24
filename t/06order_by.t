@@ -59,6 +59,28 @@ my @cases =
     expects => '',
     expects_quoted => '',
    },
+
+   {
+    given => [{-desc => [ qw/colA colB/ ] }],
+    expects => ' ORDER BY colA DESC, colB DESC',
+    expects_quoted => ' ORDER BY `colA` DESC, `colB` DESC',
+   },
+   {
+    given => [{-desc => [ qw/colA colB/ ] }, {-asc => 'colC'}],
+    expects => ' ORDER BY colA DESC, colB DESC, colC ASC',
+    expects_quoted => ' ORDER BY `colA` DESC, `colB` DESC, `colC` ASC',
+   },
+   {
+    given => [{-desc => [ qw/colA colB/ ] }, {-asc => [ qw/colC colD/ ] }],
+    expects => ' ORDER BY colA DESC, colB DESC, colC ASC, colD ASC',
+    expects_quoted => ' ORDER BY `colA` DESC, `colB` DESC, `colC` ASC, `colD` ASC',
+   },
+   {
+    given => [{-desc => [ qw/colA colB/ ] }, {-desc => 'colC' }],
+    expects => ' ORDER BY colA DESC, colB DESC, colC DESC',
+    expects_quoted => ' ORDER BY `colA` DESC, `colB` DESC, `colC` DESC',
+   },
+
   );
 
 
