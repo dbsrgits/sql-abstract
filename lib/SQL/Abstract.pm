@@ -2086,33 +2086,29 @@ Some functions take an order by clause. This can either be a scalar (just a
 column name,) a hash of C<< { -desc => 'col' } >> or C<< { -asc => 'col' } >>,
 or an array of either of the two previous forms. Examples:
 
-               Given           |         Will Generate
-    ---------------------------------------------------------
-                               |
-    \'colA DESC'               | ORDER BY colA DESC
-                               |
-    'colA'                     | ORDER BY colA
-                               |
-    [qw/colA colB/]            | ORDER BY colA, colB
-                               |
-    {-asc  => 'colA'}          | ORDER BY colA ASC
-                               |
-    {-desc => 'colB'}          | ORDER BY colB DESC
-                               |
-    [                          | ORDER BY colA ASC, colB DESC
-      {-asc  => 'colA'},       |
-      {-desc => 'colB'}        |
-    ]                          |
-                               |
-    ['colA', {-asc => 'colB'}] | ORDER BY colA, colB ASC
-                               |
-    { -asc => [qw/colA colB] } | ORDER BY colA ASC, colB ASC
-                               |
-    {                          |
-      -asc => [qw/colA colB/], | ORDER BY colA ASC, colB ASC,
-      -desc => [qw/colC colD/],|          colC DESC, colD DESC
-    }                          |
-    ==========================================================
+               Given            |         Will Generate
+    ----------------------------------------------------------
+                                |
+    \'colA DESC'                | ORDER BY colA DESC
+                                |
+    'colA'                      | ORDER BY colA
+                                |
+    [qw/colA colB/]             | ORDER BY colA, colB
+                                |
+    {-asc  => 'colA'}           | ORDER BY colA ASC
+                                |
+    {-desc => 'colB'}           | ORDER BY colB DESC
+                                |
+    ['colA', {-asc => 'colB'}]  | ORDER BY colA, colB ASC
+                                |
+    { -asc => [qw/colA colB] }  | ORDER BY colA ASC, colB ASC
+                                |
+    [                           |
+      { -asc => 'colA' },       | ORDER BY colA ASC, colB DESC,
+      { -desc => [qw/colB/],    |          colC ASC, colD ASC
+      { -asc => [qw/colC colD/],|
+    ]                           |
+    ===========================================================
 
 
 
