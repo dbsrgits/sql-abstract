@@ -146,7 +146,7 @@ my @and_or_tests = (
   # test column multi-cond in arrayref (even more useful)
   {
     where => { x => { '!=' => [ -and => (1 .. 3) ] } },
-    stmt => 'WHERE x != ? AND x != ? AND x != ?',
+    stmt => 'WHERE ( ( x != ? AND x != ? AND x != ? ) )',
     bind => [1..3],
   },
 
