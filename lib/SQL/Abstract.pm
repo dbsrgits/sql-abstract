@@ -360,12 +360,10 @@ sub _recurse_where {
 
 
 sub _where_ARRAYREF {
-  my ($self, $where, $_logic) = @_;
+  my ($self, $where, $logic) = @_;
 
-  my $logic = uc($_logic || $self->{logic});
+  $logic = uc($logic || $self->{logic});
   $logic eq 'AND' or $logic eq 'OR' or puke "unknown logic: $logic";
-
-  my $orig_logic = $self->{logic};
 
   my @clauses = @$where;
 
@@ -401,7 +399,6 @@ sub _where_ARRAYREF {
       push @all_bind, @bind;
     }
   }
-  $logic = $self->{logic} if $orig_logic ne $self->{logic} and !$_logic;
 
   return $self->_join_sql_clauses($logic, \@sql_clauses, \@all_bind);
 }
@@ -587,11 +584,6 @@ sub _where_hashpair_HASHREF {
         },
         
         FALLBACK => sub {       # CASE: col => {op => $scalar}
-          if ($val =~ /^ - ( AND|OR ) $/ix) {
-            $self->{logic} = uc $1;
-            delete $v->{$op};
-            return '', ();
-          }
           $sql  = join ' ', $self->_convert($self->_quote($k)),
                             $self->_sqlcase($op),
                             $self->_convert('?');
