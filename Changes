@@ -1,11 +1,15 @@
 Revision history for SQL::Abstract
 
+revision 1.52  2009-04-28 23:14 (UTC)
+----------------------------
     - allow -between to handle [\"", \""] and \["", @bind] 
-    - allow order_by to handle -asc|desc => [qw/colA colB/]
+    - allow order_by to handle -asc|desc => [qw/colA colB/] (artifact from DBIx::Class)
+    - more tests and clearing up of some corner cases
+    - t/10test.t does not run by default (developer only, too cpu intensive)
 
 ----------------------------
 revision 1.51  2009-03-28 10:00 (UTC)
-    - fixed behavior of [-and => ... ] depending on the current 
+    - fixed behavior of [-and => ... ] depending on the current
       condition scope. This introduces backwards comp with 1.24
 
 ----------------------------
