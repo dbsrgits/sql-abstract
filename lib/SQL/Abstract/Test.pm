@@ -545,6 +545,8 @@ Laurent Dami, E<lt>laurent.dami AT etat  geneve  chE<gt>
 
 Norbert Buchmuller <norbi@nix.hu>
 
+Peter Rabbitson <ribasushi@cpan.org>
+
 =head1 COPYRIGHT AND LICENSE
 
 Copyright 2008 by Laurent Dami.
