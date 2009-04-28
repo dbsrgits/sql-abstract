@@ -364,6 +364,11 @@ my @nest_tests = (
    stmt  => 'WHERE ( ( (c = ? OR b = ?) AND a = ? ) )',
    bind  => [qw/3 2 1/],
  },
+ {
+   where => [a => 1, -nest => {b => 2, c => 3}, -nest => [d => 4, e => 5]],
+   stmt  => 'WHERE ( a = ? OR ( b = ? AND c = ? ) OR ( d = ? OR e = ? ) )',
+   bind  => [qw/1 2 3 4 5/],
+ },
 );
 
 plan tests => @and_or_tests*3 + @numbered_mods*4 + @nest_tests*2;
