@@ -607,17 +607,25 @@ sub _where_field_op_ARRAYREF {
   if(@$vals) {
     $self->_debug("ARRAY($vals) means multiple elements: [ @$vals ]");
 
+    # see if the first element is an -and/-or op
+    my $logic;
+    if ($vals->[0] =~ /^ - ( AND|OR ) $/ix) {
+      $logic = uc $1;
+      shift @$vals;
+    }
+
+    # distribute $op over each remaining member of @$vals, append logic if exists
+    return $self->_recurse_where([map { {$k => {$op, $_}} } @$vals], $logic);
+
     # LDNOTE : had planned to change the distribution logic when 
     # $op =~ $self->{inequality_op}, because of Morgan laws : 
     # with {field => {'!=' => [22, 33]}}, it would be ridiculous to generate
     # WHERE field != 22 OR  field != 33 : the user probably means 
     # WHERE field != 22 AND field != 33.
-    # To do this, replace the line below by :
+    # To do this, replace the above to roughly :
     # my $logic = ($op =~ $self->{inequality_op}) ? 'AND' : 'OR';
     # return $self->_recurse_where([map { {$k => {$op, $_}} } @$vals], $logic);
 
-    # distribute $op over each member of @$vals
-    return $self->_recurse_where([map { {$k => {$op, $_}} } @$vals]);
   } 
   else {
     # try to DWIM on equality operators 
