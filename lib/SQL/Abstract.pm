@@ -505,9 +505,10 @@ sub _where_hashpair_ARRAYREF {
     $self->_debug("ARRAY($k) means distribute over elements");
 
     # put apart first element if it is an operator (-and, -or)
-    my $op = ($v[0] =~ /^ - (?: AND|OR ) $/ix
-      ? shift @v
-      : ''
+    my $op = (
+       (defined $v[0] && $v[0] =~ /^ - (?: AND|OR ) $/ix)
+         ? shift @v
+         : ''
     );
     my @distributed = map { {$k =>  $_} } @v;
 
