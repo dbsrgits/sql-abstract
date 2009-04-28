@@ -101,6 +101,7 @@ my @sql_tests = (
         equal => 1,
         statements => [
           q/SELECT foo FROM bar WHERE a = 1 AND b = 1 AND c = 1/,
+          q/SELECT foo FROM bar WHERE (a = 1 AND b = 1 AND c = 1)/,
           q/SELECT foo FROM bar WHERE (a = 1 AND b = 1) AND c = 1/,
           q/SELECT foo FROM bar WHERE a = 1 AND (b = 1 AND c = 1)/,
           q/SELECT foo FROM bar WHERE ((((a = 1))) AND (b = 1 AND c = 1))/,
@@ -117,6 +118,36 @@ my @sql_tests = (
       },
       {
         equal => 1,
+        statements => [
+          q/SELECT foo FROM bar WHERE (a = 1) AND (b = 1 OR c = 1 OR d = 1) AND (e = 1 AND f = 1)/,
+          q/SELECT foo FROM bar WHERE a = 1 AND (b = 1 OR c = 1 OR d = 1) AND e = 1 AND (f = 1)/,
+          q/SELECT foo FROM bar WHERE ( ((a = 1) AND ( b = 1 OR (c = 1 OR d = 1) )) AND ((e = 1)) AND f = 1) /,
+        ]
+      },
+      {
+        equal => 0,
+        parenthesis_significant => 1,
+        statements => [
+          q/SELECT foo FROM bar WHERE a = 1 AND b = 1 AND c = 1/,
+          q/SELECT foo FROM bar WHERE (a = 1 AND b = 1 AND c = 1)/,
+          q/SELECT foo FROM bar WHERE (a = 1 AND b = 1) AND c = 1/,
+          q/SELECT foo FROM bar WHERE a = 1 AND (b = 1 AND c = 1)/,
+          q/SELECT foo FROM bar WHERE ((((a = 1))) AND (b = 1 AND c = 1))/,
+        ]
+      },
+      {
+        equal => 0,
+        parenthesis_significant => 1,
+        statements => [
+          q/SELECT foo FROM bar WHERE a = 1 OR b = 1 OR c = 1/,
+          q/SELECT foo FROM bar WHERE (a = 1 OR b = 1) OR c = 1/,
+          q/SELECT foo FROM bar WHERE a = 1 OR (b = 1 OR c = 1)/,
+          q/SELECT foo FROM bar WHERE a = 1 OR ((b = 1 OR (c = 1)))/,
+        ]
+      },
+      {
+        equal => 0,
+        parenthesis_significant => 1,
         statements => [
           q/SELECT foo FROM bar WHERE (a = 1) AND (b = 1 OR c = 1 OR d = 1) AND (e = 1 AND f = 1)/,
           q/SELECT foo FROM bar WHERE a = 1 AND (b = 1 OR c = 1 OR d = 1) AND e = 1 AND (f = 1)/,
@@ -722,7 +753,12 @@ for my $test (@sql_tests) {
   while (@$statements) {
     my $sql1 = shift @$statements;
     foreach my $sql2 (@$statements) {
+
+      no warnings qw/once/; # perl 5.10 is dumb
+      local $SQL::Abstract::Test::parenthesis_significant = $test->{parenthesis_significant}
+        if $test->{parenthesis_significant};
       my $equal = eq_sql($sql1, $sql2);
+
       TODO: {
         local $TODO = $test->{todo} if $test->{todo};
 

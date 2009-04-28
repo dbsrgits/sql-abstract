@@ -13,6 +13,7 @@ our @EXPORT_OK = qw/&is_same_sql_bind &is_same_sql &is_same_bind
                     $case_sensitive $sql_differ/;
 
 our $case_sensitive = 0;
+our $parenthesis_significant = 0;
 our $sql_differ; # keeps track of differing portion between SQLs
 our $tb = __PACKAGE__->builder;
 
@@ -203,68 +204,8 @@ sub _eq_sql {
   # both are an op-list combo
   else {
 
-    for my $ast ($left, $right) {
-
-      next unless (ref $ast->[1]);
-
-      # unroll parenthesis in an elaborate loop
-      my $changes;
-      do {
-
-        my @children;
-        $changes = 0;
-
-        for my $child (@{$ast->[1]}) {
-          if (not ref $child or not $child->[0] eq 'PAREN') {
-            push @children, $child;
-            next;
-          }
-
-          # unroll nested parenthesis
-          while ($child->[1][0][0] eq 'PAREN') {
-            $child = $child->[1][0];
-            $changes++;
-          }
-
-          # if the parenthesis are wrapped around an AND/OR matching the parent AND/OR - open the parenthesis up and merge the list
-          if (
-            ( $ast->[0] eq 'AND' or $ast->[0] eq 'OR')
-              and
-            $child->[1][0][0] eq $ast->[0]
-          ) {
-            push @children, @{$child->[1][0][1]};
-            $changes++;
-          }
-
-          # if the parent operator explcitly allows it nuke the parenthesis
-          elsif ( grep { $ast->[0] =~ /^ $_ $/xi } @unrollable_ops ) {
-            push @children, $child->[1][0];
-            $changes++;
-          }
-
-          # only one element in the parenthesis which is a binary op with two EXPR sub-children
-          elsif (
-            @{$child->[1]} == 1
-              and
-            grep { $child->[1][0][0] =~ /^ $_ $/xi } (@binary_op_keywords)
-              and
-            $child->[1][0][1][0][0] eq 'EXPR'
-              and
-            $child->[1][0][1][1][0] eq 'EXPR'
-          ) {
-            push @children, $child->[1][0];
-            $changes++;
-          }
-
-          # otherwise no more mucking for this pass
-          else {
-            push @children, $child;
-          }
-        }
-
-        $ast->[1] = \@children;
-      } while ($changes);
-    }
+    # unroll parenthesis if possible/allowed
+    _parenthesis_unroll ($_) for ($left, $right);
 
     # if operators are different
     if ($left->[0] ne $right->[0]) {
@@ -290,7 +231,6 @@ sub _eq_sql {
     }
   }
 }
-
 
 sub parse {
   my $s = shift;
@@ -378,7 +318,70 @@ sub _recurse_parse {
   }
 }
 
+sub _parenthesis_unroll {
+  my $ast = shift;
 
+  return if $parenthesis_significant;
+  return unless (ref $ast and ref $ast->[1]);
+
+  my $changes;
+  do {
+    my @children;
+    $changes = 0;
+
+    for my $child (@{$ast->[1]}) {
+      if (not ref $child or not $child->[0] eq 'PAREN') {
+        push @children, $child;
+        next;
+      }
+
+      # unroll nested parenthesis
+      while ($child->[1][0][0] eq 'PAREN') {
+        $child = $child->[1][0];
+        $changes++;
+      }
+
+      # if the parenthesis are wrapped around an AND/OR matching the parent AND/OR - open the parenthesis up and merge the list
+      if (
+        ( $ast->[0] eq 'AND' or $ast->[0] eq 'OR')
+            and
+          $child->[1][0][0] eq $ast->[0]
+      ) {
+        push @children, @{$child->[1][0][1]};
+        $changes++;
+      }
+
+      # if the parent operator explcitly allows it nuke the parenthesis
+      elsif ( grep { $ast->[0] =~ /^ $_ $/xi } @unrollable_ops ) {
+        push @children, $child->[1][0];
+        $changes++;
+      }
+
+      # only one element in the parenthesis which is a binary op with two EXPR sub-children
+      elsif (
+        @{$child->[1]} == 1
+          and
+        grep { $child->[1][0][0] =~ /^ $_ $/xi } (@binary_op_keywords)
+          and
+        $child->[1][0][1][0][0] eq 'EXPR'
+          and
+        $child->[1][0][1][1][0] eq 'EXPR'
+      ) {
+        push @children, $child->[1][0];
+        $changes++;
+      }
+
+      # otherwise no more mucking for this pass
+      else {
+        push @children, $child;
+      }
+    }
+
+    $ast->[1] = \@children;
+
+  } while ($changes);
+
+}
 
 sub unparse {
   my $tree = shift;
@@ -519,6 +522,11 @@ diagnostics or talk to L<Test::Builder>.
 =head2 $case_sensitive
 
 If true, SQL comparisons will be case-sensitive. Default is false;
+
+=head2 $parenthesis_significant
+
+If true, SQL comparison will preserve and report difference in nested
+parenthesis. Useful for testing the C<-nest> modifier. Defaults to false;
 
 =head2 $sql_differ
 
