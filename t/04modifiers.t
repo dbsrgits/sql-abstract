@@ -366,7 +366,7 @@ my @nest_tests = (
  },
  {
    where => [a => 1, -nest => {b => 2, c => 3}, -nest => [d => 4, e => 5]],
-   stmt  => 'WHERE ( a = ? OR ( b = ? AND c = ? ) OR ( d = ? OR e = ? ) )',
+   stmt  => 'WHERE ( ( a = ? OR ( b = ? AND c = ? ) OR ( d = ? OR e = ? ) ) )',
    bind  => [qw/1 2 3 4 5/],
  },
 );
