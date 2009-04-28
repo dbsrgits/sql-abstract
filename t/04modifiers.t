@@ -338,7 +338,40 @@ my @numbered_mods = (
   },
 );
 
-plan tests => @and_or_tests*3 + @numbered_mods*4;
+my @nest_tests = (
+ {
+   where => {a => 1, -nest => [b => 2, c => 3]},
+   stmt  => 'WHERE ( ( (b = ? OR c = ?) AND a = ? ) )',
+   bind  => [qw/2 3 1/],
+ },
+ {
+   where => {a => 1, -nest => {b => 2, c => 3}},
+   stmt  => 'WHERE ( ( (b = ? AND c = ?) AND a = ? ) )',
+   bind  => [qw/2 3 1/],
+ },
+ {
+   where => {a => 1, -or => {-nest => {b => 2, c => 3}}},
+   stmt  => 'WHERE ( ( (b = ? AND c = ?) AND a = ? ) )',
+   bind  => [qw/2 3 1/],
+ },
+ {
+   where => {a => 1, -or => {-nest => [b => 2, c => 3]}},
+   stmt  => 'WHERE ( ( (b = ? OR c = ?) AND a = ? ) )',
+   bind  => [qw/2 3 1/],
+ },
+ {
+   where => {a => 1, -nest => {-or => {b => 2, c => 3}}},
+   stmt  => 'WHERE ( ( (c = ? OR b = ?) AND a = ? ) )',
+   bind  => [qw/3 2 1/],
+ },
+ {
+   where => [a => 1, -nest => {b => 2, c => 3}, -nest => [d => 4, e => 5]],
+   stmt  => 'WHERE ( ( a = ? OR ( b = ? AND c = ? ) OR ( d = ? OR e = ? ) ) )',
+   bind  => [qw/1 2 3 4 5/],
+ },
+);
+
+plan tests => @and_or_tests*3 + @numbered_mods*4 + @nest_tests*2;
 
 for my $case (@and_or_tests) {
   TODO: {
@@ -364,8 +397,34 @@ for my $case (@and_or_tests) {
   }
 }
 
+for my $case (@nest_tests) {
+  TODO: {
+    local $TODO = $case->{todo} if $case->{todo};
+
+    local $SQL::Abstract::Test::parenthesis_significant = 1;
+    local $Data::Dumper::Terse = 1;
+
+    my $sql = SQL::Abstract->new ($case->{args} || {});
+    lives_ok (sub {
+      my ($stmt, @bind) = $sql->where($case->{where});
+      is_same_sql_bind(
+        $stmt,
+        \@bind,
+        $case->{stmt},
+        $case->{bind},
+      )
+        || diag "Search term:\n" . Dumper $case->{where};
+    });
+  }
+}
+
+
+
 my $w_str = "\QUse of [and|or|nest]_N modifiers is deprecated and will be removed in SQLA v2.0\E";
 for my $case (@numbered_mods) {
+  TODO: {
+    local $TODO = $case->{todo} if $case->{todo};
+
     local $Data::Dumper::Terse = 1;
 
     my @w;
@@ -393,5 +452,6 @@ for my $case (@numbered_mods) {
 
     is (@non_match, 0, 'All warnings match the deprecation message')
       || diag join "\n", 'Rogue warnings:', @non_match;
+  }
 }
 

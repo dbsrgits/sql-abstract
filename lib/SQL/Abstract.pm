@@ -63,7 +63,7 @@ sub new {
   delete $opt{case} if $opt{case} && $opt{case} ne 'lower';
 
   # default logic for interpreting arrayrefs
-  $opt{logic} = uc $opt{logic} || 'OR';
+  $opt{logic} = $opt{logic} ? uc $opt{logic} : 'OR';
 
   # how to return bind vars
   # LDNOTE: changed nwiger code : why this 'delete' ??
@@ -505,9 +505,10 @@ sub _where_hashpair_ARRAYREF {
     $self->_debug("ARRAY($k) means distribute over elements");
 
     # put apart first element if it is an operator (-and, -or)
-    my $op = ($v[0] =~ /^ - (?: AND|OR ) $/ix
-      ? shift @v
-      : ''
+    my $op = (
+       (defined $v[0] && $v[0] =~ /^ - (?: AND|OR ) $/ix)
+         ? shift @v
+         : ''
     );
     my @distributed = map { {$k =>  $_} } @v;
 
@@ -711,16 +712,39 @@ sub _where_UNDEF {
 sub _where_field_BETWEEN {
   my ($self, $k, $op, $vals) = @_;
 
-  ref $vals eq 'ARRAY' && @$vals == 2 
-    or puke "special op 'between' requires an arrayref of two values";
+  (ref $vals eq 'ARRAY' && @$vals == 2) or 
+  (ref $vals eq 'REF' && (@$$vals == 1 || @$$vals == 2 || @$$vals == 3))
+    or puke "special op 'between' requires an arrayref of two values (or a scalarref or arrayrefref for literal SQL)";
 
-  my ($label)       = $self->_convert($self->_quote($k));
-  my ($placeholder) = $self->_convert('?');
-  my $and           = $self->_sqlcase('and');
+  my ($clause, @bind, $label, $and, $placeholder);
+  $label       = $self->_convert($self->_quote($k));
+  $and         = ' ' . $self->_sqlcase('and') . ' ';
+  $placeholder = $self->_convert('?');
   $op               = $self->_sqlcase($op);
 
-  my $sql  = "( $label $op $placeholder $and $placeholder )";
-  my @bind = $self->_bindtype($k, @$vals);
+  if (ref $vals eq 'REF') {
+    ($clause, @bind) = @$$vals;
+  }
+  else {
+    my (@all_sql, @all_bind);
+
+    foreach my $val (@$vals) {
+      my ($sql, @bind) = $self->_SWITCH_refkind($val, {
+         SCALAR => sub {
+           return ($placeholder, ($val));
+         },
+         SCALARREF => sub {
+           return ($self->_convert($$val), ());
+         },
+      });
+      push @all_sql, $sql;
+      push @all_bind, @bind;
+    }
+
+    $clause = (join $and, @all_sql);
+    @bind = $self->_bindtype($k, @all_bind);
+  }
+  my $sql = "( $label $op $clause )";
   return ($sql, @bind)
 }
 
@@ -814,7 +838,8 @@ sub _order_by_hash {
   my ($order) = ($key =~ /^-(desc|asc)/i)
     or puke "invalid key in _order_by hash : $key";
 
-  return $self->_quote($val) ." ". $self->_sqlcase($order);
+  $val = ref $val eq 'ARRAY' ? $val : [$val];
+  return join ', ', map { $self->_quote($_) . ' ' . $self->_sqlcase($order) } @$val;
 }
 
 
@@ -2070,19 +2095,29 @@ Some functions take an order by clause. This can either be a scalar (just a
 column name,) a hash of C<< { -desc => 'col' } >> or C<< { -asc => 'col' } >>,
 or an array of either of the two previous forms. Examples:
 
-             Given             |    Will Generate
+               Given            |         Will Generate
     ----------------------------------------------------------
-    \'colA DESC'               | ORDER BY colA DESC
-    'colA'                     | ORDER BY colA
-    [qw/colA colB/]            | ORDER BY colA, colB
-    {-asc  => 'colA'}          | ORDER BY colA ASC
-    {-desc => 'colB'}          | ORDER BY colB DESC
-    [                          |
-      {-asc  => 'colA'},       | ORDER BY colA ASC, colB DESC
-      {-desc => 'colB'}        |
-    ]                          |
-    [colA => {-asc => 'colB'}] | ORDER BY colA, colB ASC
-    ==========================================================
+                                |
+    \'colA DESC'                | ORDER BY colA DESC
+                                |
+    'colA'                      | ORDER BY colA
+                                |
+    [qw/colA colB/]             | ORDER BY colA, colB
+                                |
+    {-asc  => 'colA'}           | ORDER BY colA ASC
+                                |
+    {-desc => 'colB'}           | ORDER BY colB DESC
+                                |
+    ['colA', {-asc => 'colB'}]  | ORDER BY colA, colB ASC
+                                |
+    { -asc => [qw/colA colB] }  | ORDER BY colA ASC, colB ASC
+                                |
+    [                           |
+      { -asc => 'colA' },       | ORDER BY colA ASC, colB DESC,
+      { -desc => [qw/colB/],    |          colC ASC, colD ASC
+      { -asc => [qw/colC colD/],|
+    ]                           |
+    ===========================================================
 
 
 

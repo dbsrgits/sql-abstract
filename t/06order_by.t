@@ -3,6 +3,7 @@
 use strict;
 use warnings;
 use Test::More;
+use Test::Exception;
 
 use SQL::Abstract;
 
@@ -59,10 +60,36 @@ my @cases =
     expects => '',
     expects_quoted => '',
    },
+
+   {
+    given => [{-desc => [ qw/colA colB/ ] }],
+    expects => ' ORDER BY colA DESC, colB DESC',
+    expects_quoted => ' ORDER BY `colA` DESC, `colB` DESC',
+   },
+   {
+    given => [{-desc => [ qw/colA colB/ ] }, {-asc => 'colC'}],
+    expects => ' ORDER BY colA DESC, colB DESC, colC ASC',
+    expects_quoted => ' ORDER BY `colA` DESC, `colB` DESC, `colC` ASC',
+   },
+   {
+    given => [{-desc => [ qw/colA colB/ ] }, {-asc => [ qw/colC colD/ ] }],
+    expects => ' ORDER BY colA DESC, colB DESC, colC ASC, colD ASC',
+    expects_quoted => ' ORDER BY `colA` DESC, `colB` DESC, `colC` ASC, `colD` ASC',
+   },
+   {
+    given => [{-desc => [ qw/colA colB/ ] }, {-desc => 'colC' }],
+    expects => ' ORDER BY colA DESC, colB DESC, colC DESC',
+    expects_quoted => ' ORDER BY `colA` DESC, `colB` DESC, `colC` DESC',
+   },
+   {
+    given => [{ -asc => 'colA' }, { -desc => [qw/colB/] }, { -asc => [qw/colC colD/] }],
+    expects => ' ORDER BY colA ASC, colB DESC, colC ASC, colD ASC',
+    expects_quoted => ' ORDER BY `colA` ASC, `colB` DESC, `colC` ASC, `colD` ASC',
+   },
   );
 
 
-plan tests => (scalar(@cases) * 2);
+plan tests => (scalar(@cases) * 2) + 2;
 
 my $sql  = SQL::Abstract->new;
 my $sqlq = SQL::Abstract->new({quote_char => '`'});
@@ -71,3 +98,15 @@ for my $case( @cases){
   is($sql->_order_by($case->{given}), $case->{expects});
   is($sqlq->_order_by($case->{given}), $case->{expects_quoted});
 }
+
+throws_ok (
+  sub { $sql->_order_by({-desc => 'colA', -asc => 'colB' }) },
+  qr/hash passed .+ must have exactly one key/,
+  'Undeterministic order exception',
+);
+
+throws_ok (
+  sub { $sql->_order_by({-desc => [ qw/colA colB/ ], -asc => [ qw/colC colD/ ] }) },
+  qr/hash passed .+ must have exactly one key/,
+  'Undeterministic order exception',
+);
