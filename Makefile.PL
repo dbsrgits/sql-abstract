@@ -1,20 +1,24 @@
-use 5.006;
-use ExtUtils::MakeMaker;
-# See lib/ExtUtils/MakeMaker.pm for details of how to influence
-# the contents of the Makefile that is written.
-WriteMakefile(
-    NAME           => 'SQL::Abstract',
-    VERSION_FROM   => 'lib/SQL/Abstract.pm', # finds $VERSION
-    PREREQ_PM      => {
-      "List::Util" => 0,
-      "Scalar::Util" => 0,
-      "Test::Builder" => 0,
-      "Test::More" => 0,
-      "Test::Exception" => 0,
-      "Test::Warn" => 0,
-      "Test::Deep" => 0,
-      "Data::Dumper" => 0,
-     }, # e.g., Module::Name => 1.1
-    ABSTRACT_FROM  => 'lib/SQL/Abstract.pm', # retrieve abstract from module
-    AUTHOR         => 'Matt Trout <mst@shadowcat.co.uk>, but see the POD',
-);
+use inc::Module::Install 0.79;
+use strict;
+use warnings;
+
+use 5.006001;
+
+perl_version '5.006001';
+name 'SQL-Abstract';
+author 'Matt Trout <mst@shadowcat.co.uk>, but see the POD';
+
+all_from 'lib/SQL/Abstract.pm';
+
+requires "List::Util"   => 0;
+requires "Scalar::Util" => 0;
+
+test_requires "Test::Builder"   => 0;
+test_requires "Test::Deep"      => 0;
+test_requires "Test::More"      => 0;
+test_requires "Test::Exception" => 0;
+test_requires "Test::Warn"      => 0;
+
+tests_recursive 't';
+
+WriteAll();
