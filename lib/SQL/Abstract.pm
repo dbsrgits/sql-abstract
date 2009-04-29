@@ -422,7 +422,6 @@ sub _where_HASHREF {
   my ($self, $where) = @_;
   my (@sql_clauses, @all_bind);
 
-  # LDNOTE : don't really know why we need to sort keys
   for my $k (sort keys %$where) { 
     my $v = $where->{$k};
 
@@ -463,7 +462,7 @@ sub _where_op_in_hash {
 
     HASHREF => sub {
       if ($op eq 'OR') {
-        return $self->_where_ARRAYREF([%$v], 'OR');
+        return $self->_where_ARRAYREF([ map { $_ => $v->{$_} } (sort keys %$v) ], 'OR');
       } 
       else {                  # NEST | AND
         return $self->_where_HASHREF($v);

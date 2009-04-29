@@ -176,8 +176,8 @@ my @and_or_tests = (
 
   {
     where => { -and => [a => 1, b => 2, k => [11, 12] ], x => 9, -or => { c => 3, d => 4, l => { '=' => [21, 22] } } },
-    stmt => 'WHERE a = ? AND b = ? AND (k = ? OR k = ?) AND ((l = ? OR l = ?) OR c = ? OR d = ? ) AND x = ?',
-    bind => [qw/1 2 11 12 21 22 3 4 9/],
+    stmt => 'WHERE a = ? AND b = ? AND (k = ? OR k = ?) AND (c = ? OR d = ? OR (l = ? OR l = ?) ) AND x = ?',
+    bind => [qw/1 2 11 12 3 4 21 22 9/],
   },
 
   {
@@ -196,8 +196,8 @@ my @and_or_tests = (
     # explicit OR logic in arrays should leave everything intact
     args => { logic => 'or' },
     where => { -and => [a => 1, b => 2, k => [11, 12] ], x => 9, -or => { c => 3, d => 4, l => { '=' => [21, 22] } }  },
-    stmt => 'WHERE a = ? AND b = ? AND (k = ? OR k = ?) AND ( l = ? OR l = ? OR c = ? OR d = ? ) AND x = ? ',
-    bind => [qw/1 2 11 12 21 22 3 4 9/],
+    stmt => 'WHERE a = ? AND b = ? AND (k = ? OR k = ?) AND ( c = ? OR d = ? OR l = ? OR l = ? ) AND x = ? ',
+    bind => [qw/1 2 11 12 3 4 21 22 9/],
   },
 
   {
@@ -361,8 +361,8 @@ my @nest_tests = (
  },
  {
    where => {a => 1, -nest => {-or => {b => 2, c => 3}}},
-   stmt  => 'WHERE ( ( (c = ? OR b = ?) AND a = ? ) )',
-   bind  => [qw/3 2 1/],
+   stmt  => 'WHERE ( ( (b = ? OR c = ?) AND a = ? ) )',
+   bind  => [qw/2 3 1/],
  },
  {
    where => [a => 1, -nest => {b => 2, c => 3}, -nest => [d => 4, e => 5]],
