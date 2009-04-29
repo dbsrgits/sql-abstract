@@ -2339,6 +2339,8 @@ While not an official support venue, C<DBIx::Class> makes heavy use of
 C<SQL::Abstract>, and as such list members there are very familiar with
 how to create queries.
 
+=head1 LICENSE
+
 This module is free software; you may copy this under the terms of
 the GNU General Public License, or the Artistic License, copies of
 which should have accompanied your Perl kit.
