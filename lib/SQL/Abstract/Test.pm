@@ -424,7 +424,7 @@ SQL::Abstract::Test - Helper function for testing SQL::Abstract
     is_same_sql_bind is_same_sql is_same_bind
     eq_sql_bind eq_sql eq_bind
   /];
-  
+
   my ($sql, @bind) = SQL::Abstract->new->select(%args);
 
   is_same_sql_bind($given_sql,    \@given_bind, 
@@ -451,10 +451,14 @@ ignoring differences in spaces or in levels of parentheses.
 Therefore the tests will pass as long as the semantics
 is preserved, even if the surface syntax has changed.
 
-B<Disclaimer> : this is only a half-cooked semantic equivalence;
-parsing is simple-minded, and comparison of SQL abstract syntax trees
-ignores commutativity or associativity of AND/OR operators, Morgan
-laws, etc.
+B<Disclaimer> : the semantic equivalence handling is pretty limited.
+A lot of effort goes into distinguishing significant from
+non-significant parenthesis, including AND/OR operator associativity.
+Currently this module does not support commutativity and more
+intelligent transformations like Morgan laws, etc.
+
+For a good overview of what this test framework is capable of refer 
+to C<t/10test.t>
 
 =head1 FUNCTIONS
 
