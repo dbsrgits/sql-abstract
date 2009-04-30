@@ -1,5 +1,10 @@
 Revision history for SQL::Abstract
 
+revision 1.53  2009-04-30 14:58 (UTC)
+----------------------------
+    - make sure hash keys are sorted in all search sub-conditions
+    - switch installer from EU::MM to M::I
+
 revision 1.52  2009-04-28 23:14 (UTC)
 ----------------------------
     - allow -between to handle [\"", \""] and \["", @bind] 

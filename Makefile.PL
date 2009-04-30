@@ -6,7 +6,7 @@ use 5.006001;
 
 perl_version '5.006001';
 name 'SQL-Abstract';
-author 'Matt Trout <mst@shadowcat.co.uk>, but see the POD';
+author 'Nathan Wiger <nate@wiger.org>';
 
 all_from 'lib/SQL/Abstract.pm';
 
