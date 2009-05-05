@@ -443,18 +443,13 @@ sub _where_HASHREF {
 sub _where_op_in_hash {
   my ($self, $op_str, $v) = @_; 
 
-  $op_str =~ /^ (AND|OR|PAREN|NEST) ( \_? \d* ) $/xi
+  $op_str =~ /^ (AND|OR|NEST) ( \_? \d* ) $/xi
     or puke "unknown operator: -$op_str";
 
   my $op = uc($1); # uppercase, remove trailing digits
   if ($2) {
-    belch 'Use of op_N modifiers is deprecated and will be removed in SQLA v2.0. '
+    belch 'Use of [and|or|nest]_N modifiers is deprecated and will be removed in SQLA v2.0. '
           . "You probably wanted ...-and => [ $op_str => COND1, $op_str => COND2 ... ]";
-  }
-
-  if ($op eq 'NEST') {
-    belch 'The -nest modifier is deprecated in favor of -paren and will be removed in SQLA v2.0';
-    $op = 'PAREN';
   }
 
   $self->_debug("OP(-$op) within hashref, recursing...");
@@ -462,35 +457,35 @@ sub _where_op_in_hash {
   $self->_SWITCH_refkind($v, {
 
     ARRAYREF => sub {
-      return $self->_where_ARRAYREF($v, $op eq 'PAREN' ? '' : $op);
+      return $self->_where_ARRAYREF($v, $op eq 'NEST' ? '' : $op);
     },
 
     HASHREF => sub {
       if ($op eq 'OR') {
         return $self->_where_ARRAYREF([ map { $_ => $v->{$_} } (sort keys %$v) ], 'OR');
       } 
-      else {                  # PAREN | AND
+      else {                  # NEST | AND
         return $self->_where_HASHREF($v);
       }
     },
 
     SCALARREF  => sub {         # literal SQL
-      $op eq 'PAREN' 
-        or puke "-$op => \\\$scalar not supported, use -paren => ...";
+      $op eq 'NEST' 
+        or puke "-$op => \\\$scalar not supported, use -nest => ...";
       return ($$v); 
     },
 
     ARRAYREFREF => sub {        # literal SQL
-      $op eq 'PAREN' 
-        or puke "-$op => \\[..] not supported, use -paren => ...";
+      $op eq 'NEST' 
+        or puke "-$op => \\[..] not supported, use -nest => ...";
       return @{${$v}};
     },
 
     SCALAR => sub { # permissively interpreted as SQL
-      $op eq 'PAREN' 
-        or puke "-$op => 'scalar' not supported, use -paren => \\'scalar'";
-      belch "literal SQL should be -paren => \\'scalar' "
-          . "instead of -paren => 'scalar' ";
+      $op eq 'NEST' 
+        or puke "-$op => 'scalar' not supported, use -nest => \\'scalar'";
+      belch "literal SQL should be -nest => \\'scalar' "
+          . "instead of -nest => 'scalar' ";
       return ($v); 
     },
 
@@ -1856,7 +1851,7 @@ This data structure would create the following:
     @bind = ('nwiger', 'pending', 'dispatched', 'robot', 'unassigned');
 
 
-There is also a special C<-paren>
+There is also a special C<-nest>
 operator which adds an additional set of parens, to create a subquery.
 For example, to get something like this:
 
@@ -1867,7 +1862,7 @@ You would do:
 
     my %where = (
          user => 'nwiger',
-        -paren => [ workhrs => {'>', 20}, geo => 'ASIA' ],
+        -nest => [ workhrs => {'>', 20}, geo => 'ASIA' ],
     );
 
 
@@ -1878,7 +1873,7 @@ inside :
     my @where = (
          -and => [
             user => 'nwiger',
-            -paren => [
+            -nest => [
                 -and => [workhrs => {'>', 20}, geo => 'ASIA' ],
                 -and => [workhrs => {'<', 50}, geo => 'EURO' ]
             ],
@@ -2031,7 +2026,7 @@ hash, like an EXISTS subquery :
      = $sql->select("t1", "*", {c1 => 1, c2 => \"> t0.c0"});
   my %where = (
     foo   => 1234,
-    -paren => \["EXISTS ($sub_stmt)" => @sub_bind],
+    -nest => \["EXISTS ($sub_stmt)" => @sub_bind],
   );
 
 which yields
@@ -2054,7 +2049,7 @@ like for example fulltext expressions, geospatial expressions,
 NATIVE clauses, etc. Here is an example of a fulltext query in MySQL :
 
   my %where = (
-    -paren => \["MATCH (col1, col2) AGAINST (?)" => qw/apples/]
+    -nest => \["MATCH (col1, col2) AGAINST (?)" => qw/apples/]
   );
 
 Finally, here is an example where a subquery is used
@@ -2065,7 +2060,7 @@ for expressing unary negation:
   $sub_stmt =~ s/^ where //i; # don't want "WHERE" in the subclause
   my %where = (
         lname  => {like => '%son%'},
-        -paren  => \["NOT ($sub_stmt)" => @sub_bind],
+        -nest  => \["NOT ($sub_stmt)" => @sub_bind],
     );
 
 This yields
@@ -2323,7 +2318,7 @@ so I have no idea who they are! But the people I do know are:
     Mike Fragassi (enhancements to "BETWEEN" and "LIKE")
     Dan Kubb (support for "quote_char" and "name_sep")
     Guillermo Roditi (patch to cleanup "IN" and "BETWEEN", fix and tests for _order_by)
-    Laurent Dami (internal refactoring, multiple -paren, extensible list of special operators, literal SQL)
+    Laurent Dami (internal refactoring, multiple -nest, extensible list of special operators, literal SQL)
     Norbert Buchmuller (support for literal SQL in hashpair, misc. fixes & tests)
     Peter Rabbitson (rewrite of SQLA::Test, misc. fixes & tests)
 
