@@ -5,6 +5,7 @@ use warnings;
 use Test::More;
 
 use SQL::Abstract::Test import => ['is_same_sql_bind'];
+$SQL::Abstract::Test::parenthesis_significant = 1;
 
 use SQL::Abstract;
 
@@ -21,7 +22,7 @@ $where = {
   };
 push @tests, {
   where => $where,
-  stmt => " WHERE ( bar IN (SELECT c1 FROM t1 WHERE c2 < ? AND c3 LIKE ?) AND foo = ? )",
+  stmt => " WHERE ( ( bar IN (SELECT c1 FROM t1 WHERE c2 < ? AND c3 LIKE ?) AND foo = ? ) )",
   bind => [100, "foo%", 1234],
 };
 
@@ -35,7 +36,7 @@ $where = {
   };
 push @tests, {
   where => $where,
-  stmt => " WHERE ( bar > ALL (SELECT c1 FROM t1 WHERE ( c2 < ? AND c3 LIKE ? )) AND foo = ? )",
+  stmt => " WHERE ( ( bar > ALL (SELECT c1 FROM t1 WHERE ( c2 < ? AND c3 LIKE ? )) AND foo = ? ) )",
   bind => [100, "foo%", 1234],
 };
 
@@ -44,17 +45,17 @@ push @tests, {
      = $sql->select("t1", "*", {c1 => 1, c2 => \"> t0.c0"});
 $where = {
     foo                  => 1234,
-    -nest => \["EXISTS ($sub_stmt)" => @sub_bind],
+    -paren => \["EXISTS ($sub_stmt)" => @sub_bind],
   };
 push @tests, {
   where => $where,
-  stmt => " WHERE ( EXISTS (SELECT * FROM t1 WHERE ( c1 = ? AND c2 > t0.c0 )) AND foo = ? )",
+  stmt => " WHERE ( ( EXISTS (SELECT * FROM t1 WHERE ( c1 = ? AND c2 > t0.c0 )) AND foo = ? ) )",
   bind => [1, 1234],
 };
 
 #4
 $where = {
-    -nest => \["MATCH (col1, col2) AGAINST (?)" => "apples"],
+    -paren => \["MATCH (col1, col2) AGAINST (?)" => "apples"],
   };
 push @tests, {
   where => $where,
@@ -69,11 +70,11 @@ push @tests, {
 $sub_stmt =~ s/^ where //i; # don't want "WHERE" in the subclause
 $where = {
     lname  => {-like => '%son%'},
-    -nest  => \["NOT ( $sub_stmt )" => @sub_bind],
+    -paren  => \["NOT ( $sub_stmt )" => @sub_bind],
   };
 push @tests, {
   where => $where,
-  stmt => " WHERE ( NOT ( ( ( ( age < ? ) OR ( age > ? ) ) ) ) AND lname LIKE ? )",
+  stmt => " WHERE ( ( NOT ( ( ( ( age < ? ) OR ( age > ? ) ) ) ) AND lname LIKE ? ) )",
   bind => [10, 20, '%son%'],
 };
 
@@ -86,7 +87,7 @@ $where = {
   };
 push @tests, {
   where => $where,
-  stmt => " WHERE ( bar IN (SELECT c1 FROM t1 WHERE c2 < ? AND c3 LIKE ?) AND foo = ? )",
+  stmt => " WHERE ( ( bar IN (SELECT c1 FROM t1 WHERE c2 < ? AND c3 LIKE ?) AND foo = ? ) )",
   bind => [100, "foo%", 1234],
 };
 
@@ -98,8 +99,3 @@ for (@tests) {
   my($stmt, @bind) = $sql->where($_->{where}, $_->{order});
   is_same_sql_bind($stmt, \@bind, $_->{stmt}, $_->{bind});
 }
-
-
-
-
-

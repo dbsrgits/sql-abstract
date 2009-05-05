@@ -240,10 +240,11 @@ my @tests = (
       {              
               func   => 'select',
               args   => ['Yo Momma', '*', { user => 'nwiger', 
-                                       -nest => [ workhrs => {'>', 20}, geo => 'ASIA' ] }],
-              stmt   => 'SELECT * FROM Yo Momma WHERE ( ( ( workhrs > ? ) OR ( geo = ? ) ) AND user = ? )',
-              stmt_q => 'SELECT * FROM `Yo Momma` WHERE ( ( ( `workhrs` > ? ) OR ( `geo` = ? ) ) AND `user` = ? )',
+                                       -paren => [ workhrs => {'>', 20}, geo => 'ASIA' ] }],
+              stmt   => 'SELECT * FROM Yo Momma WHERE ( ( (  workhrs > ? OR geo = ? ) AND user = ? ) )',
+              stmt_q => 'SELECT * FROM `Yo Momma` WHERE ( ( ( `workhrs` > ? OR `geo` = ? ) AND `user` = ? ) )',
               bind   => [qw(20 ASIA nwiger)],
+              keep_paren => 1,
       },             
       #28            
       {              
@@ -251,25 +252,27 @@ my @tests = (
               args   => ['taco_punches', { one => 2, three => 4 },
                                          { bland => [ -and => {'!=', 'yes'}, {'!=', 'YES'} ],
                                            tasty => { '!=', [qw(yes YES)] },
-                                           -nest => [ face => [ -or => {'=', 'mr.happy'}, {'=', undef} ] ] },
+                                           -paren => [ face => [ -or => {'=', 'mr.happy'}, {'=', undef} ] ] },
                         ],
               stmt   => 'UPDATE taco_punches SET one = ?, three = ? WHERE ( ( ( ( ( face = ? ) OR ( face IS NULL ) ) ) )'
                       . ' AND ( ( bland != ? ) AND ( bland != ? ) ) AND ( ( tasty != ? ) OR ( tasty != ? ) ) )',
               stmt_q => 'UPDATE `taco_punches` SET `one` = ?, `three` = ? WHERE ( ( ( ( ( `face` = ? ) OR ( `face` IS NULL ) ) ) )'
                       . ' AND ( ( `bland` != ? ) AND ( `bland` != ? ) ) AND ( ( `tasty` != ? ) OR ( `tasty` != ? ) ) )',
               bind   => [qw(2 4 mr.happy yes YES yes YES)],
+              keep_paren => 1,
       },             
       #29            
       {              
               func   => 'select',
               args   => ['jeff', '*', { name => {'like', '%smith%', -not_in => ['Nate','Jim','Bob','Sally']},
-                                       -nest => [ -or => [ -and => [age => { -between => [20,30] }, age => {'!=', 25} ],
+                                       -paren => [ -or => [ -and => [age => { -between => [20,30] }, age => {'!=', 25} ],
                                                                    yob => {'<', 1976} ] ] } ],
-              stmt   => 'SELECT * FROM jeff WHERE ( ( ( ( ( ( ( age BETWEEN ? AND ? ) AND ( age != ? ) ) ) OR ( yob < ? ) ) ) )'
-                      . ' AND name NOT IN ( ?, ?, ?, ? ) AND name LIKE ? )',
-              stmt_q => 'SELECT * FROM `jeff` WHERE ( ( ( ( ( ( ( `age` BETWEEN ? AND ? ) AND ( `age` != ? ) ) ) OR ( `yob` < ? ) ) ) )'
-                      . ' AND `name` NOT IN ( ?, ?, ?, ? ) AND `name` LIKE ? )',
-              bind   => [qw(20 30 25 1976 Nate Jim Bob Sally %smith%)]
+              stmt   => 'SELECT * FROM jeff WHERE ( ( ( ( ( age BETWEEN ? AND ? ) AND age != ? ) OR yob < ? )'
+                      . ' AND ( name NOT IN ( ?, ?, ?, ? ) AND name LIKE ? ) ) )',
+              stmt_q => 'SELECT * FROM `jeff` WHERE ( ( ( ( ( `age` BETWEEN ? AND ? ) AND  `age` != ?) OR  `yob` < ? )'
+                      . ' AND ( `name` NOT IN ( ?, ?, ?, ? ) AND `name` LIKE ? ) ) )',
+              bind   => [qw(20 30 25 1976 Nate Jim Bob Sally %smith%)],
+              keep_paren => 1,
       },             
       #30            
       {              
@@ -279,13 +282,15 @@ my @tests = (
 # acked by RIBASUSHI
 #              args   => ['fhole', {fpoles => 4}, [-maybe => {race => [-and => [qw(black white asian)]]},
               args   => ['fhole', {fpoles => 4}, [          {race => [-and => [qw(black white asian)]]},
-                                                            {-nest => {firsttime => [-or => {'=','yes'}, undef]}},
+                                                            {-paren => {firsttime => [-or => {'=','yes'}, undef]}},
                                                             [ -and => {firstname => {-not_like => 'candace'}}, {lastname => {-in => [qw(jugs canyon towers)]}} ] ] ],
-              stmt   => 'UPDATE fhole SET fpoles = ? WHERE ( ( ( ( ( ( ( race = ? ) OR ( race = ? ) OR ( race = ? ) ) ) ) ) )'
+              stmt   => 'UPDATE fhole SET fpoles = ? WHERE ( ( ( ( ( (  race = ?  OR ( race = ? ) OR ( race = ? ) ) ) ) ) )'
                       . ' OR ( ( ( ( firsttime = ? ) OR ( firsttime IS NULL ) ) ) ) OR ( ( ( firstname NOT LIKE ? ) ) AND ( lastname IN ( ?, ?, ? ) ) ) )',
               stmt_q => 'UPDATE `fhole` SET `fpoles` = ? WHERE ( ( ( ( ( ( ( `race` = ? ) OR ( `race` = ? ) OR ( `race` = ? ) ) ) ) ) )'
                       . ' OR ( ( ( ( `firsttime` = ? ) OR ( `firsttime` IS NULL ) ) ) ) OR ( ( ( `firstname` NOT LIKE ? ) ) AND ( `lastname` IN ( ?, ?, ? ) ) ) )',
-              bind   => [qw(4 black white asian yes candace jugs canyon towers)]
+              bind   => [qw(4 black white asian yes candace jugs canyon towers)],
+              keep_paren => 1,
+
       },
       #31
       {
@@ -555,6 +560,8 @@ for (@tests) {
 
   my $new = $_->{new} || {};
   $new->{debug} = $ENV{DEBUG} || 0;
+
+  local $SQL::Abstract::Test::parenthesis_significant = $_->{keep_paren};
 
   # test without quoting labels
   {
