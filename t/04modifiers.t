@@ -10,7 +10,7 @@ use Data::Dumper;
 use SQL::Abstract;
 
 =begin
-Test -and -or and -nest modifiers, assuming the following:
+Test -and -or modifiers, assuming the following:
 
   * Modifiers are respected in both hashrefs and arrayrefs (with the obvious
     limitation of one modifier type per hahsref)
@@ -299,29 +299,30 @@ my @and_or_tests = (
 );
 
 # modN and mod_N were a bad design decision - they go away in SQLA2, warn now
-my @numbered_mods = (
+# -nest is renamed to -paren
+my @backcompat_mods = (
   {
     backcompat => {
-      -and => [a => 10, b => 11],
-      -and2 => [ c => 20, d => 21 ],
+      -and5 => [a => 10, b => 11],
+      -and_2 => [ c => 20, d => 21 ],
       -nest => [ x => 1 ],
       -nest2 => [ y => 2 ],
-      -or => { m => 7, n => 8 },
-      -or2 => { m => 17, n => 18 },
+      -or7 => { m => 7, n => 8 },
+      -or_2 => { m => 17, n => 18 },
     },
     correct => { -and => [
       -and => [a => 10, b => 11],
       -and => [ c => 20, d => 21 ],
-      -nest => [ x => 1 ],
-      -nest => [ y => 2 ],
+      -paren => [ x => 1 ],
+      -paren => [ y => 2 ],
       -or => { m => 7, n => 8 },
       -or => { m => 17, n => 18 },
     ] },
   },
   {
     backcompat => {
-      -and2 => [a => 10, b => 11],
-      -and_3 => [ c => 20, d => 21 ],
+      -and => [a => 10, b => 11],
+      -and2 => [ c => 20, d => 21 ],
       -nest2 => [ x => 1 ],
       -nest_3 => [ y => 2 ],
       -or2 => { m => 7, n => 8 },
@@ -330,48 +331,48 @@ my @numbered_mods = (
     correct => [ -and => [
       -and => [a => 10, b => 11],
       -and => [ c => 20, d => 21 ],
-      -nest => [ x => 1 ],
-      -nest => [ y => 2 ],
+      -paren => [ x => 1 ],
+      -paren => [ y => 2 ],
       -or => { m => 7, n => 8 },
       -or => { m => 17, n => 18 },
     ] ],
   },
 );
 
-my @nest_tests = (
+my @paren_tests = (
  {
-   where => {a => 1, -nest => [b => 2, c => 3]},
+   where => {a => 1, -paren => [b => 2, c => 3]},
    stmt  => 'WHERE ( ( (b = ? OR c = ?) AND a = ? ) )',
    bind  => [qw/2 3 1/],
  },
  {
-   where => {a => 1, -nest => {b => 2, c => 3}},
+   where => {a => 1, -paren => {b => 2, c => 3}},
    stmt  => 'WHERE ( ( (b = ? AND c = ?) AND a = ? ) )',
    bind  => [qw/2 3 1/],
  },
  {
-   where => {a => 1, -or => {-nest => {b => 2, c => 3}}},
+   where => {a => 1, -or => {-paren => {b => 2, c => 3}}},
    stmt  => 'WHERE ( ( (b = ? AND c = ?) AND a = ? ) )',
    bind  => [qw/2 3 1/],
  },
  {
-   where => {a => 1, -or => {-nest => [b => 2, c => 3]}},
+   where => {a => 1, -or => {-paren => [b => 2, c => 3]}},
    stmt  => 'WHERE ( ( (b = ? OR c = ?) AND a = ? ) )',
    bind  => [qw/2 3 1/],
  },
  {
-   where => {a => 1, -nest => {-or => {b => 2, c => 3}}},
+   where => {a => 1, -paren => {-or => {b => 2, c => 3}}},
    stmt  => 'WHERE ( ( (b = ? OR c = ?) AND a = ? ) )',
    bind  => [qw/2 3 1/],
  },
  {
-   where => [a => 1, -nest => {b => 2, c => 3}, -nest => [d => 4, e => 5]],
+   where => [a => 1, -paren => {b => 2, c => 3}, -paren => [d => 4, e => 5]],
    stmt  => 'WHERE ( ( a = ? OR ( b = ? AND c = ? ) OR ( d = ? OR e = ? ) ) )',
    bind  => [qw/1 2 3 4 5/],
  },
 );
 
-plan tests => @and_or_tests*3 + @numbered_mods*4 + @nest_tests*2;
+plan tests => @and_or_tests*3 + @backcompat_mods*4 + @paren_tests*2;
 
 for my $case (@and_or_tests) {
   TODO: {
@@ -397,7 +398,7 @@ for my $case (@and_or_tests) {
   }
 }
 
-for my $case (@nest_tests) {
+for my $case (@paren_tests) {
   TODO: {
     local $TODO = $case->{todo} if $case->{todo};
 
@@ -418,17 +419,26 @@ for my $case (@nest_tests) {
   }
 }
 
-
-
-my $w_str = "\QUse of [and|or|nest]_N modifiers is deprecated and will be removed in SQLA v2.0\E";
-for my $case (@numbered_mods) {
+my $numw_str = "\QUse of op_N modifiers is deprecated and will be removed in SQLA v2.0\E";
+my $nestw_str = "\QThe -nest modifier is deprecated in favor of -paren and will be removed in SQLA v2.0\E";
+for my $case (@backcompat_mods) {
   TODO: {
     local $TODO = $case->{todo} if $case->{todo};
 
     local $Data::Dumper::Terse = 1;
 
-    my @w;
-    local $SIG{__WARN__} = sub { push @w, @_ };
+    my $w;
+    local $SIG{__WARN__} = sub {
+      if ($_[0] =~ /$numw_str/) {
+        push @{$w->{num}}, $_[0];
+      }
+      elsif ($_[0] =~ /$nestw_str/) {
+        push @{$w->{nest}}, $_[0];
+      }
+      else {
+        warn $_[0];
+      }
+    };
     my $sql = SQL::Abstract->new ($case->{args} || {});
     lives_ok (sub {
       my ($old_s, @old_b) = $sql->where($case->{backcompat});
@@ -443,15 +453,8 @@ for my $case (@numbered_mods) {
         };
     });
 
-    ok (@w, 'Warnings were emitted about a mod_N construct');
-
-    my @non_match;
-    for (@w) {
-      push @non_match, $_ if ($_ !~ /$w_str/);
-    }
-
-    is (@non_match, 0, 'All warnings match the deprecation message')
-      || diag join "\n", 'Rogue warnings:', @non_match;
+    is (@{$w->{num} || []}, 5, 'Correct number of warnings were emitted about a mod_N operator');
+    is (@{$w->{nest} || []}, 2, 'Correct number of warnings were emitted about a -nest operator');
   }
 }
 
