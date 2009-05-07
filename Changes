@@ -1,5 +1,10 @@
 Revision history for SQL::Abstract
 
+revision 1.54  2009-05-07 17:23 (UTC)
+----------------------------
+    - allow special_operators to take both code refs and method names
+      (makes it possible to properly subclass the builtin ones)
+
 revision 1.53  2009-04-30 14:58 (UTC)
 ----------------------------
     - make sure hash keys are sorted in all search sub-conditions
