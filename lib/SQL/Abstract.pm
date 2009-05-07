@@ -25,8 +25,8 @@ our $AUTOLOAD;
 # special operators (-in, -between). May be extended/overridden by user.
 # See section WHERE: BUILTIN SPECIAL OPERATORS below for implementation
 my @BUILTIN_SPECIAL_OPS = (
-  {regex => qr/^(not )?between$/i, handler => \&_where_field_BETWEEN},
-  {regex => qr/^(not )?in$/i,      handler => \&_where_field_IN},
+  {regex => qr/^(not )?between$/i, handler => '_where_field_BETWEEN'},
+  {regex => qr/^(not )?in$/i,      handler => '_where_field_IN'},
 );
 
 #======================================================================
@@ -548,7 +548,19 @@ sub _where_hashpair_HASHREF {
     # CASE: special operators like -in or -between
     my $special_op = first {$op =~ $_->{regex}} @{$self->{special_ops}};
     if ($special_op) {
-      ($sql, @bind) = $special_op->{handler}->($self, $k, $op, $val);
+      my $handler = $special_op->{handler};
+      if (! $handler) {
+        puke "No handler supplied for special operator matching $special_op->{regex}";
+      }
+      elsif (not ref $handler) {
+        ($sql, @bind) = $self->$handler ($k, $op, $val);
+      }
+      elsif (ref $handler eq 'CODE') {
+        ($sql, @bind) = $handler->($self, $k, $op, $val);
+      }
+      else {
+        puke "Illegal handler for special operator matching $special_op->{regex} - expecting a method name or a coderef";
+      }
     }
     else {
       $self->_SWITCH_refkind($val, {
@@ -2123,11 +2135,16 @@ or an array of either of the two previous forms. Examples:
 =head1 SPECIAL OPERATORS
 
   my $sqlmaker = SQL::Abstract->new(special_ops => [
-     {regex => qr/.../,
+     {
+      regex => qr/.../,
       handler => sub {
         my ($self, $field, $op, $arg) = @_;
         ...
-        },
+      },
+     },
+     {
+      regex => qr/.../,
+      handler => 'method_name',
      },
    ]);
 
@@ -2140,12 +2157,13 @@ For example :
    WHERE MATCH(field) AGAINST (?, ?)
 
 Special operators IN and BETWEEN are fairly standard and therefore
-are builtin within C<SQL::Abstract>. For other operators,
-like the MATCH .. AGAINST example above which is 
-specific to MySQL, you can write your own operator handlers :
-supply a C<special_ops> argument to the C<new> method. 
-That argument takes an arrayref of operator definitions;
-each operator definition is a hashref with two entries
+are builtin within C<SQL::Abstract> (as the overridable methods
+C<_where_field_IN> and C<_where_field_BETWEEN>). For other operators,
+like the MATCH .. AGAINST example above which is specific to MySQL,
+you can write your own operator handlers - supply a C<special_ops>
+argument to the C<new> method. That argument takes an arrayref of
+operator definitions; each operator definition is a hashref with two
+entries:
 
 =over
 
@@ -2155,10 +2173,24 @@ the regular expression to match the operator
 
 =item handler
 
-coderef that will be called when meeting that operator
-in the input tree. The coderef will be called with 
-arguments  C<< ($self, $field, $op, $arg) >>, and 
-should return a C<< ($sql, @bind) >> structure.
+Either a coderef or a plain scalar method name. In both cases
+the expected return is C<< ($sql, @bind) >>.
+
+When supplied with a method name, it is simply called on the
+L<SQL::Abstract/> object as:
+
+ $self->$method_name ($field, $op, $arg)
+
+ Where:
+
+  $op is the part that matched the handler regex
+  $field is the LHS of the operator
+  $arg is the RHS
+
+When supplied with a coderef, it is called as:
+
+ $coderef->($self, $field, $op, $arg)
+
 
 =back
 
