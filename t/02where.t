@@ -216,6 +216,55 @@ my @handle_tests = (
        stmt => " WHERE (foo = ?)",
        bind => [ "bar" ],
    },
+
+   {
+       where => { -bool => \'function(x)' },
+       stmt => " WHERE function(x)",
+       bind => [],
+   },
+
+   {
+       where => { -bool => 'foo' },
+       stmt => " WHERE foo",
+       bind => [],
+   },
+
+   {
+       where => { -and => [-bool => 'foo', -bool => 'bar'] },
+       stmt => " WHERE foo AND bar",
+       bind => [],
+   },
+
+   {
+       where => { -or => [-bool => 'foo', -bool => 'bar'] },
+       stmt => " WHERE foo OR bar",
+       bind => [],
+   },
+
+   {
+       where => { -not_bool => \'function(x)' },
+       stmt => " WHERE NOT function(x)",
+       bind => [],
+   },
+
+   {
+       where => { -not_bool => 'foo' },
+       stmt => " WHERE NOT foo",
+       bind => [],
+   },
+
+   {
+       where => { -and => [-not_bool => 'foo', -not_bool => 'bar'] },
+       stmt => " WHERE NOT foo AND NOT bar",
+       bind => [],
+   },
+
+   {
+       where => { -or => [-not_bool => 'foo', -not_bool => 'bar'] },
+       stmt => " WHERE NOT foo OR NOT bar",
+       bind => [],
+   },
+
 );
 
 plan tests => ( @handle_tests * 2 ) + 1;

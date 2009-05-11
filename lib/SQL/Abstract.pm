@@ -29,6 +29,15 @@ my @BUILTIN_SPECIAL_OPS = (
   {regex => qr/^(not )?in$/i,      handler => '_where_field_IN'},
 );
 
+# unaryish operators - key maps to handler
+my $BUILTIN_UNARY_OPS = {
+    'AND'      => '_where_op_ANDOR',
+    'OR'       => '_where_op_ANDOR',
+    'NEST'     => '_where_op_NEST',
+    'BOOL'     => '_where_op_BOOL',
+    'NOT_BOOL' => '_where_op_BOOL',
+};
+
 #======================================================================
 # DEBUGGING AND ERROR REPORTING
 #======================================================================
@@ -443,8 +452,8 @@ sub _where_HASHREF {
 sub _where_op_in_hash {
   my ($self, $op_str, $v) = @_; 
 
-  $op_str =~ /^ (AND|OR|NEST) ( \_? \d* ) $/xi
-    or puke "unknown operator: -$op_str";
+  $op_str =~ /^ ([A-Z_]+[A-Z]) ( \_? \d* ) $/xi
+    or puke "unknown or malstructured operator: -$op_str";
 
   my $op = uc($1); # uppercase, remove trailing digits
   if ($2) {
@@ -454,36 +463,75 @@ sub _where_op_in_hash {
 
   $self->_debug("OP(-$op) within hashref, recursing...");
 
-  $self->_SWITCH_refkind($v, {
+  my $handler = $BUILTIN_UNARY_OPS->{$op};
+  if (! $handler) {
+    puke "unknown operator: -$op_str";
+  }
+  elsif (not ref $handler) {
+    return $self->$handler ($op, $v);
+  }
+  elsif (ref $handler eq 'CODE') {
+    return $handler->($self, $op, $v);
+  }
+  else {
+    puke "Illegal handler for operator $op - expecting a method name or a coderef";
+  }
+}
 
+sub _where_op_ANDOR {
+  my ($self, $op, $v) = @_; 
+
+  $self->_SWITCH_refkind($v, {
     ARRAYREF => sub {
-      return $self->_where_ARRAYREF($v, $op eq 'NEST' ? '' : $op);
+      return $self->_where_ARRAYREF($v, $op);
     },
 
     HASHREF => sub {
-      if ($op eq 'OR') {
-        return $self->_where_ARRAYREF([ map { $_ => $v->{$_} } (sort keys %$v) ], 'OR');
-      } 
-      else {                  # NEST | AND
-        return $self->_where_HASHREF($v);
-      }
+      return ( $op eq 'OR' )
+        ? $self->_where_ARRAYREF( [ map { $_ => $v->{$_} } ( sort keys %$v ) ], $op )
+        : $self->_where_HASHREF($v);
+    },
+
+    SCALARREF  => sub { 
+      puke "-$op => \\\$scalar not supported, use -nest => ...";
+    },
+
+    ARRAYREFREF => sub {
+      puke "-$op => \\[..] not supported, use -nest => ...";
+    },
+
+    SCALAR => sub { # permissively interpreted as SQL
+      puke "-$op => 'scalar' not supported, use -nest => \\'scalar'";
+    },
+
+    UNDEF => sub {
+      puke "-$op => undef not supported";
+    },
+   });
+}
+
+sub _where_op_NEST {
+  my ($self, $op, $v) = @_; 
+
+  $self->_SWITCH_refkind($v, {
+
+    ARRAYREF => sub {
+      return $self->_where_ARRAYREF($v, '');
+    },
+
+    HASHREF => sub {
+      return $self->_where_HASHREF($v);
     },
 
     SCALARREF  => sub {         # literal SQL
-      $op eq 'NEST' 
-        or puke "-$op => \\\$scalar not supported, use -nest => ...";
       return ($$v); 
     },
 
     ARRAYREFREF => sub {        # literal SQL
-      $op eq 'NEST' 
-        or puke "-$op => \\[..] not supported, use -nest => ...";
       return @{${$v}};
     },
 
     SCALAR => sub { # permissively interpreted as SQL
-      $op eq 'NEST' 
-        or puke "-$op => 'scalar' not supported, use -nest => \\'scalar'";
       belch "literal SQL should be -nest => \\'scalar' "
           . "instead of -nest => 'scalar' ";
       return ($v); 
@@ -491,6 +539,22 @@ sub _where_op_in_hash {
 
     UNDEF => sub {
       puke "-$op => undef not supported";
+    },
+   });
+}
+
+
+sub _where_op_BOOL {
+  my ($self, $op, $v) = @_; 
+
+  my $prefix = $op eq 'BOOL' ? '' : 'NOT ';
+  $self->_SWITCH_refkind($v, {
+    SCALARREF  => sub {         # literal SQL
+      return ($prefix . $$v); 
+    },
+
+    SCALAR => sub { # interpreted as SQL column
+      return ($prefix . $self->_convert($self->_quote($v))); 
     },
    });
 }
@@ -798,8 +862,6 @@ sub _where_field_IN {
 
   return ($sql, @bind);
 }
-
-
 
 
 
@@ -1838,6 +1900,24 @@ Would give you:
 
 These are the two builtin "special operators"; but the 
 list can be expanded : see section L</"SPECIAL OPERATORS"> below.
+
+=head2 Boolean operators
+
+If you wish to test against boolean columns or functions within your
+database you can use the C<-bool> and C<-not_bool> operators. For
+example to test the column C<is_user> being true and the column
+<is_enabled> being false you would use:-
+
+    my %where  = (
+        -bool       => 'is_user',
+        -not_bool   => 'is_enabled',
+    );
+
+Would give you:
+
+    WHERE is_user AND NOT is_enabledmv 
+
+
 
 =head2 Nested conditions, -and/-or prefixes
 
