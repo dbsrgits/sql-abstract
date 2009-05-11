@@ -30,13 +30,12 @@ my @BUILTIN_SPECIAL_OPS = (
 );
 
 # unaryish operators - key maps to handler
-my $BUILTIN_UNARY_OPS = {
-    'AND'      => '_where_op_ANDOR',
-    'OR'       => '_where_op_ANDOR',
-    'NEST'     => '_where_op_NEST',
-    'BOOL'     => '_where_op_BOOL',
-    'NOT_BOOL' => '_where_op_BOOL',
-};
+my @BUILTIN_UNARY_OPS = (
+  { regex => qr/^and (\s? \d+)?$/xi,   handler => '_where_op_ANDOR' },
+  { regex => qr/^or (\s? \d+)?$/xi,    handler => '_where_op_ANDOR' },
+  { regex => qr/^nest (\s? \d+)?$/xi,  handler => '_where_op_NEST' },
+  { regex => qr/^(not \s?)? bool$/xi,  handler => '_where_op_BOOL' },
+);
 
 #======================================================================
 # DEBUGGING AND ERROR REPORTING
@@ -94,6 +93,10 @@ sub new {
   # special operators 
   $opt{special_ops} ||= [];
   push @{$opt{special_ops}}, @BUILTIN_SPECIAL_OPS;
+
+  # unary operators 
+  $opt{unary_ops} ||= [];
+  push @{$opt{unary_ops}}, @BUILTIN_UNARY_OPS;
 
   return bless \%opt, $class;
 }
@@ -450,22 +453,21 @@ sub _where_HASHREF {
 
 
 sub _where_op_in_hash {
-  my ($self, $op_str, $v) = @_; 
+  my ($self, $op, $v) = @_; 
 
-  $op_str =~ /^ ([A-Z_]+[A-Z]) ( \_? \d* ) $/xi
-    or puke "unknown or malstructured operator: -$op_str";
-
-  my $op = uc($1); # uppercase, remove trailing digits
-  if ($2) {
-    belch 'Use of [and|or|nest]_N modifiers is deprecated and will be removed in SQLA v2.0. '
-          . "You probably wanted ...-and => [ $op_str => COND1, $op_str => COND2 ... ]";
-  }
+  # put the operator in canonical form
+  $op =~ s/^-//;       # remove initial dash
+  $op =~ tr/_/ /;      # underscores become spaces
+  $op =~ s/^\s+//;     # no initial space
+  $op =~ s/\s+$//;     # no final space
+  $op =~ s/\s+/ /;     # multiple spaces become one
 
   $self->_debug("OP(-$op) within hashref, recursing...");
 
-  my $handler = $BUILTIN_UNARY_OPS->{$op};
+  my $op_entry = first {$op =~ $_->{regex}} @{$self->{unary_ops}};
+  my $handler = $op_entry->{handler};
   if (! $handler) {
-    puke "unknown operator: -$op_str";
+    puke "unknown operator: -$op";
   }
   elsif (not ref $handler) {
     return $self->$handler ($op, $v);
@@ -481,13 +483,18 @@ sub _where_op_in_hash {
 sub _where_op_ANDOR {
   my ($self, $op, $v) = @_; 
 
+  if ($op =~ s/\s?\d+$//) {
+    belch 'Use of [and|or|nest]_N modifiers is deprecated and will be removed in SQLA v2.0. '
+          . "You probably wanted ...-and => [ $op => COND1, $op => COND2 ... ]";
+  }
+
   $self->_SWITCH_refkind($v, {
     ARRAYREF => sub {
       return $self->_where_ARRAYREF($v, $op);
     },
 
     HASHREF => sub {
-      return ( $op eq 'OR' )
+      return ( $op =~ /^or/i )
         ? $self->_where_ARRAYREF( [ map { $_ => $v->{$_} } ( sort keys %$v ) ], $op )
         : $self->_where_HASHREF($v);
     },
@@ -512,6 +519,12 @@ sub _where_op_ANDOR {
 
 sub _where_op_NEST {
   my ($self, $op, $v) = @_; 
+
+  if ($op =~ s/\s?\d+$//) {
+    belch 'Use of [and|or|nest]_N modifiers is deprecated and will be removed in SQLA v2.0. '
+          . "You probably wanted ...-and => [ $op => COND1, $op => COND2 ... ]";
+  }
+
 
   $self->_SWITCH_refkind($v, {
 
@@ -547,7 +560,7 @@ sub _where_op_NEST {
 sub _where_op_BOOL {
   my ($self, $op, $v) = @_; 
 
-  my $prefix = $op eq 'BOOL' ? '' : 'NOT ';
+  my $prefix = ($op =~ /\bnot\b/i) ? 'NOT ' : '';
   $self->_SWITCH_refkind($v, {
     SCALARREF  => sub {         # literal SQL
       return ($prefix . $$v); 
@@ -1581,6 +1594,12 @@ Takes a reference to a list of "special operators"
 to extend the syntax understood by L<SQL::Abstract>.
 See section L</"SPECIAL OPERATORS"> for details.
 
+=item unary_ops
+
+Takes a reference to a list of "unary operators" 
+to extend the syntax understood by L<SQL::Abstract>.
+See section L</"UNARY OPERATORS"> for details.
+
 
 
 =back
@@ -1901,7 +1920,7 @@ Would give you:
 These are the two builtin "special operators"; but the 
 list can be expanded : see section L</"SPECIAL OPERATORS"> below.
 
-=head2 Boolean operators
+=head2 Unary operators: bool
 
 If you wish to test against boolean columns or functions within your
 database you can use the C<-bool> and C<-not_bool> operators. For
@@ -2295,6 +2314,59 @@ of the MATCH .. AGAINST syntax for MySQL
      },
   
   ]);
+
+
+=head1 UNARY OPERATORS
+
+  my $sqlmaker = SQL::Abstract->new(special_ops => [
+     {
+      regex => qr/.../,
+      handler => sub {
+        my ($self, $op, $arg) = @_;
+        ...
+      },
+     },
+     {
+      regex => qr/.../,
+      handler => 'method_name',
+     },
+   ]);
+
+A "unary operator" is a SQL syntactic clause that can be 
+applied to a field - the operator goes before the field
+
+You can write your own operator handlers - supply a C<unary_ops>
+argument to the C<new> method. That argument takes an arrayref of
+operator definitions; each operator definition is a hashref with two
+entries:
+
+=over
+
+=item regex
+
+the regular expression to match the operator
+
+=item handler
+
+Either a coderef or a plain scalar method name. In both cases
+the expected return is C<< $sql >>.
+
+When supplied with a method name, it is simply called on the
+L<SQL::Abstract/> object as:
+
+ $self->$method_name ($op, $arg)
+
+ Where:
+
+  $op is the part that matched the handler regex
+  $arg is the RHS or argument of the operator
+
+When supplied with a coderef, it is called as:
+
+ $coderef->($self, $op, $arg)
+
+
+=back
 
 
 =head1 PERFORMANCE
