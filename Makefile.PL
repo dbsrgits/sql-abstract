@@ -18,6 +18,7 @@ test_requires "Test::Deep"      => 0;
 test_requires "Test::More"      => 0;
 test_requires "Test::Exception" => 0;
 test_requires "Test::Warn"      => 0;
+test_requires "Clone"           => 0.31;
 
 tests_recursive 't';
 

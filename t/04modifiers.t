@@ -8,6 +8,7 @@ use SQL::Abstract::Test import => ['is_same_sql_bind'];
 
 use Data::Dumper;
 use SQL::Abstract;
+use Clone;
 
 =begin
 Test -and -or and -nest modifiers, assuming the following:
@@ -371,7 +372,7 @@ my @nest_tests = (
  },
 );
 
-plan tests => @and_or_tests*3 + @numbered_mods*4 + @nest_tests*2;
+plan tests => @and_or_tests*4 + @numbered_mods*4 + @nest_tests*2;
 
 for my $case (@and_or_tests) {
   TODO: {
@@ -381,7 +382,10 @@ for my $case (@and_or_tests) {
 
     my @w;
     local $SIG{__WARN__} = sub { push @w, @_ };
+
     my $sql = SQL::Abstract->new ($case->{args} || {});
+    my $where_copy = Clone::clone ($case->{where});
+
     lives_ok (sub { 
       my ($stmt, @bind) = $sql->where($case->{where});
       is_same_sql_bind(
@@ -394,6 +398,8 @@ for my $case (@and_or_tests) {
     });
     is (@w, 0, 'No warnings within and-or tests')
       || diag join "\n", 'Emitted warnings:', @w;
+
+    is_deeply ($case->{where}, $where_copy, 'Where conditions unchanged');
   }
 }
 

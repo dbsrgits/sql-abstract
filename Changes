@@ -1,5 +1,8 @@
 Revision history for SQL::Abstract
 
+    - make sure that sql generation does not mutate the supplied
+      where condition structure
+
 revision 1.54  2009-05-07 17:23 (UTC)
 ----------------------------
     - allow special_operators to take both code refs and method names
