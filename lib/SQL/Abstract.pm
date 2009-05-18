@@ -2318,7 +2318,7 @@ of the MATCH .. AGAINST syntax for MySQL
 
 =head1 UNARY OPERATORS
 
-  my $sqlmaker = SQL::Abstract->new(special_ops => [
+  my $sqlmaker = SQL::Abstract->new(unary_ops => [
      {
       regex => qr/.../,
       handler => sub {
