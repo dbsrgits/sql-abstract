@@ -93,6 +93,12 @@ my @cases =
     bind => ['test'],
    },
    {
+    given => \['colA LIKE ? DESC', 'test'],
+    expects => ' ORDER BY colA LIKE ? DESC',
+    expects_quoted => ' ORDER BY colA LIKE ? DESC',
+    bind => ['test'],
+   },
+   {
     given => [ { -asc => \['colA'] }, { -desc => \['colB LIKE ?', 'test'] }, { -asc => \['colC LIKE ?', 'tost'] }],
     expects => ' ORDER BY colA ASC, colB LIKE ? DESC, colC LIKE ? ASC',
     expects_quoted => ' ORDER BY colA ASC, colB LIKE ? DESC, colC LIKE ? ASC',
