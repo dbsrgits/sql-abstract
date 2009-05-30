@@ -1,5 +1,10 @@
 Revision history for SQL::Abstract
 
+revision 1.56  2009-05-30 16:31 (UTC)
+----------------------------
+    - support for \[$sql, @bind] in order_by clauses e.g.:
+      { -desc => \['colA LIKE ?', 'somestring'] }
+
 revision 1.55  2009-05-17 22:54 (UTC)
 ----------------------------
     - make sure that sql generation does not mutate the supplied
