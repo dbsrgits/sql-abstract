@@ -861,26 +861,25 @@ sub _order_by_chunks {
 
       my $direction = $1;
 
-      my (@sql, @bind);
+      my @ret;
       for my $c ($self->_order_by_chunks ($val)) {
-
-
+        my ($sql, @bind);
 
         $self->_SWITCH_refkind ($c, {
           SCALAR => sub {
-            push @sql, $c
+            $sql = $c;
           },
           ARRAYREF => sub {
-            my ($s, @b) = @$c;
-            push @sql, $s;
-            push @bind, @b;
+            ($sql, @bind) = @$c;
           },
         });
+
+        $sql = $sql . ' ' . $self->_sqlcase($direction);
+
+        push @ret, [ $sql, @bind];
       }
 
-      my $sql = join ', ', map { $_ . ' ' . $self->_sqlcase($direction) } @sql;
-
-      return [$sql, @bind];
+      return @ret;
     },
   });
 }
