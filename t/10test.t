@@ -548,6 +548,28 @@ my @sql_tests = (
           q/SELECT * FROM (SELECT * FROM bar WHERE ((b = 1) AND (c = 10))) AS foo WHERE (a = 2)/,
         ]
       },
+      {
+	 equal => 0,
+	 statements => [
+	    'SELECT a,b,c FROM foo',
+	    'SELECT a,c,b FROM foo',
+	    'SELECT b,a,c FROM foo',
+	    'SELECT b,c,a FROM foo',
+	    'SELECT c,a,b FROM foo',
+	    'SELECT c,b,a FROM foo',
+	 ]
+      },
+      {
+	 equal => 0,
+	 statements => [
+	    'SELECT * FROM foo WHERE a IN (1,2,3)',
+	    'SELECT * FROM foo WHERE a IN (1,3,2)',
+	    'SELECT * FROM foo WHERE a IN (2,1,3)',
+	    'SELECT * FROM foo WHERE a IN (2,3,1)',
+	    'SELECT * FROM foo WHERE a IN (3,1,2)',
+	    'SELECT * FROM foo WHERE a IN (3,2,1)',
+	 ]
+      },
 );
 
 my @bind_tests = (
