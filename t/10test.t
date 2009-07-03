@@ -562,6 +562,14 @@ my @sql_tests = (
       {
 	 equal => 0,
 	 statements => [
+	    'SELECT count(*) FROM foo',
+	    'SELECT count(a) FROM foo',
+	    'SELECT count(1) FROM foo',
+	 ]
+      },
+      {
+	 equal => 0,
+	 statements => [
 	    'SELECT * FROM foo WHERE a IN (1,2,3)',
 	    'SELECT * FROM foo WHERE a IN (1,3,2)',
 	    'SELECT * FROM foo WHERE a IN (2,1,3)',
