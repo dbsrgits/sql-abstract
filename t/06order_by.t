@@ -86,6 +86,24 @@ my @cases =
     expects => ' ORDER BY colA ASC, colB DESC, colC ASC, colD ASC',
     expects_quoted => ' ORDER BY `colA` ASC, `colB` DESC, `colC` ASC, `colD` ASC',
    },
+   {
+    given => { -desc => \['colA LIKE ?', 'test'] },
+    expects => ' ORDER BY colA LIKE ? DESC',
+    expects_quoted => ' ORDER BY colA LIKE ? DESC',
+    bind => ['test'],
+   },
+   {
+    given => \['colA LIKE ? DESC', 'test'],
+    expects => ' ORDER BY colA LIKE ? DESC',
+    expects_quoted => ' ORDER BY colA LIKE ? DESC',
+    bind => ['test'],
+   },
+   {
+    given => [ { -asc => \['colA'] }, { -desc => \['colB LIKE ?', 'test'] }, { -asc => \['colC LIKE ?', 'tost'] }],
+    expects => ' ORDER BY colA ASC, colB LIKE ? DESC, colC LIKE ? ASC',
+    expects_quoted => ' ORDER BY colA ASC, colB LIKE ? DESC, colC LIKE ? ASC',
+    bind => [qw/test tost/],
+   },
   );
 
 
@@ -94,9 +112,24 @@ plan tests => (scalar(@cases) * 2) + 2;
 my $sql  = SQL::Abstract->new;
 my $sqlq = SQL::Abstract->new({quote_char => '`'});
 
-for my $case( @cases){
-  is($sql->_order_by($case->{given}), $case->{expects});
-  is($sqlq->_order_by($case->{given}), $case->{expects_quoted});
+for my $case( @cases) {
+  my ($stat, @bind);
+
+  ($stat, @bind) = $sql->_order_by($case->{given});
+  is_same_sql_bind (
+    $stat,
+    \@bind,
+    $case->{expects},
+    $case->{bind} || [],
+  );
+
+  ($stat, @bind) = $sqlq->_order_by($case->{given});
+  is_same_sql_bind (
+    $stat,
+    \@bind,
+    $case->{expects_quoted},
+    $case->{bind} || [],
+  );
 }
 
 throws_ok (

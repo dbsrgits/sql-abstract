@@ -15,7 +15,7 @@ use Scalar::Util qw/blessed/;
 # GLOBALS
 #======================================================================
 
-our $VERSION  = '1.54';
+our $VERSION  = '1.56';
 
 # This would confuse some packagers
 #$VERSION      = eval $VERSION; # numify for warning-free dev releases
@@ -692,18 +692,20 @@ sub _where_hashpair_HASHREF {
 sub _where_field_op_ARRAYREF {
   my ($self, $k, $op, $vals) = @_;
 
-  if(@$vals) {
-    $self->_debug("ARRAY($vals) means multiple elements: [ @$vals ]");
+  my @vals = @$vals;  #always work on a copy
+
+  if(@vals) {
+    $self->_debug("ARRAY($vals) means multiple elements: [ @vals ]");
 
     # see if the first element is an -and/-or op
     my $logic;
-    if ($vals->[0] =~ /^ - ( AND|OR ) $/ix) {
+    if ($vals[0] =~ /^ - ( AND|OR ) $/ix) {
       $logic = uc $1;
-      shift @$vals;
+      shift @vals;
     }
 
-    # distribute $op over each remaining member of @$vals, append logic if exists
-    return $self->_recurse_where([map { {$k => {$op, $_}} } @$vals], $logic);
+    # distribute $op over each remaining member of @vals, append logic if exists
+    return $self->_recurse_where([map { {$k => {$op, $_}} } @vals], $logic);
 
     # LDNOTE : had planned to change the distribution logic when 
     # $op =~ $self->{inequality_op}, because of Morgan laws : 
@@ -712,7 +714,7 @@ sub _where_field_op_ARRAYREF {
     # WHERE field != 22 AND field != 33.
     # To do this, replace the above to roughly :
     # my $logic = ($op =~ $self->{inequality_op}) ? 'AND' : 'OR';
-    # return $self->_recurse_where([map { {$k => {$op, $_}} } @$vals], $logic);
+    # return $self->_recurse_where([map { {$k => {$op, $_}} } @vals], $logic);
 
   } 
   else {
@@ -886,48 +888,76 @@ sub _where_field_IN {
 sub _order_by {
   my ($self, $arg) = @_;
 
-  # construct list of ordering instructions
-  my @order = $self->_SWITCH_refkind($arg, {
+  my (@sql, @bind);
+  for my $c ($self->_order_by_chunks ($arg) ) {
+    $self->_SWITCH_refkind ($c, {
+      SCALAR => sub { push @sql, $c },
+      ARRAYREF => sub { push @sql, shift @$c; push @bind, @$c },
+    });
+  }
+
+  my $sql = @sql
+    ? sprintf ('%s %s',
+        $self->_sqlcase(' order by'),
+        join (', ', @sql)
+      )
+    : ''
+  ;
+
+  return wantarray ? ($sql, @bind) : $sql;
+}
+
+sub _order_by_chunks {
+  my ($self, $arg) = @_;
+
+  return $self->_SWITCH_refkind($arg, {
 
     ARRAYREF => sub {
-      map {$self->_SWITCH_refkind($_, {
-              SCALAR    => sub {$self->_quote($_)},
-              UNDEF     => sub {},
-              SCALARREF => sub {$$_}, # literal SQL, no quoting
-              HASHREF   => sub {$self->_order_by_hash($_)}
-             }) } @$arg;
+      map { $self->_order_by_chunks ($_ ) } @$arg;
     },
 
+    ARRAYREFREF => sub { [ @$$arg ] },
+
     SCALAR    => sub {$self->_quote($arg)},
-    UNDEF     => sub {},
+
+    UNDEF     => sub {return () },
+
     SCALARREF => sub {$$arg}, # literal SQL, no quoting
-    HASHREF   => sub {$self->_order_by_hash($arg)},
 
+    HASHREF   => sub {
+      # get first pair in hash
+      my ($key, $val) = each %$arg;
+
+      return () unless $key;
+
+      if ( (keys %$arg) > 1 or not $key =~ /^-(desc|asc)/i ) {
+        puke "hash passed to _order_by must have exactly one key (-desc or -asc)";
+      }
+
+      my $direction = $1;
+
+      my @ret;
+      for my $c ($self->_order_by_chunks ($val)) {
+        my ($sql, @bind);
+
+        $self->_SWITCH_refkind ($c, {
+          SCALAR => sub {
+            $sql = $c;
+          },
+          ARRAYREF => sub {
+            ($sql, @bind) = @$c;
+          },
+        });
+
+        $sql = $sql . ' ' . $self->_sqlcase($direction);
+
+        push @ret, [ $sql, @bind];
+      }
+
+      return @ret;
+    },
   });
-
-  # build SQL
-  my $order = join ', ', @order;
-  return $order ? $self->_sqlcase(' order by')." $order" : '';
 }
-
-
-sub _order_by_hash {
-  my ($self, $hash) = @_;
-
-  # get first pair in hash
-  my ($key, $val) = each %$hash;
-
-  # check if one pair was found and no other pair in hash
-  $key && !(each %$hash)
-    or puke "hash passed to _order_by must have exactly one key (-desc or -asc)";
-
-  my ($order) = ($key =~ /^-(desc|asc)/i)
-    or puke "invalid key in _order_by hash : $key";
-
-  $val = ref $val eq 'ARRAY' ? $val : [$val];
-  return join ', ', map { $self->_quote($_) . ' ' . $self->_sqlcase($order) } @$val;
-}
-
 
 
 #======================================================================
