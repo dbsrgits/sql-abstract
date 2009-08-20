@@ -31,9 +31,9 @@ my @BUILTIN_SPECIAL_OPS = (
 
 # unaryish operators - key maps to handler
 my @BUILTIN_UNARY_OPS = (
-  { regex => qr/^and (\s? \d+)?$/xi,   handler => '_where_op_ANDOR' },
-  { regex => qr/^or (\s? \d+)?$/xi,    handler => '_where_op_ANDOR' },
-  { regex => qr/^nest (\s? \d+)?$/xi,  handler => '_where_op_NEST' },
+  { regex => qr/^and (\s? \d+)?$/xi,   handler => '_where_op_ANDOR', numchk => 1 },
+  { regex => qr/^or (\s? \d+)?$/xi,    handler => '_where_op_ANDOR', numchk => 1 },
+  { regex => qr/^nest (\s? \d+)?$/xi,  handler => '_where_op_NEST',  numchk => 1 },
   { regex => qr/^(not \s?)? bool$/xi,  handler => '_where_op_BOOL' },
 );
 
@@ -457,10 +457,7 @@ sub _where_op_in_hash {
 
   # put the operator in canonical form
   $op =~ s/^-//;       # remove initial dash
-  $op =~ tr/_/ /;      # underscores become spaces
-  $op =~ s/^\s+//;     # no initial space
-  $op =~ s/\s+$//;     # no final space
-  $op =~ s/\s+/ /;     # multiple spaces become one
+  $op =~ tr/_ \t/ /s;  # underscores and whitespace become single spaces
 
   $self->_debug("OP(-$op) within hashref, recursing...");
 
@@ -470,6 +467,10 @@ sub _where_op_in_hash {
     puke "unknown operator: -$op";
   }
   elsif (not ref $handler) {
+    if ($op_entry->{numchk} && ($op =~ s/\s?\d+$//)) {
+      belch 'Use of [and|or|nest]_N modifiers is deprecated and will be removed in SQLA v2.0. '
+          . "You probably wanted ...-and => [ $op => COND1, $op => COND2 ... ]";
+    }
     return $self->$handler ($op, $v);
   }
   elsif (ref $handler eq 'CODE') {
@@ -482,11 +483,6 @@ sub _where_op_in_hash {
 
 sub _where_op_ANDOR {
   my ($self, $op, $v) = @_; 
-
-  if ($op =~ s/\s?\d+$//) {
-    belch 'Use of [and|or|nest]_N modifiers is deprecated and will be removed in SQLA v2.0. '
-          . "You probably wanted ...-and => [ $op => COND1, $op => COND2 ... ]";
-  }
 
   $self->_SWITCH_refkind($v, {
     ARRAYREF => sub {
@@ -519,12 +515,6 @@ sub _where_op_ANDOR {
 
 sub _where_op_NEST {
   my ($self, $op, $v) = @_; 
-
-  if ($op =~ s/\s?\d+$//) {
-    belch 'Use of [and|or|nest]_N modifiers is deprecated and will be removed in SQLA v2.0. '
-          . "You probably wanted ...-and => [ $op => COND1, $op => COND2 ... ]";
-  }
-
 
   $self->_SWITCH_refkind($v, {
 
