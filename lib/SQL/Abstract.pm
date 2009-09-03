@@ -31,10 +31,11 @@ my @BUILTIN_SPECIAL_OPS = (
 
 # unaryish operators - key maps to handler
 my @BUILTIN_UNARY_OPS = (
-  { regex => qr/^and (\s? \d+)?$/xi,   handler => '_where_op_ANDOR', numchk => 1 },
-  { regex => qr/^or (\s? \d+)?$/xi,    handler => '_where_op_ANDOR', numchk => 1 },
-  { regex => qr/^nest (\s? \d+)?$/xi,  handler => '_where_op_NEST',  numchk => 1 },
-  { regex => qr/^(not \s?)? bool$/xi,  handler => '_where_op_BOOL' },
+  # the digits are backcompat stuff
+  { regex => qr/^and  (?: \s? \d+ )? $/xi, handler => '_where_op_ANDOR' },
+  { regex => qr/^or   (?: \s? \d+ )? $/xi, handler => '_where_op_ANDOR' },
+  { regex => qr/^nest (?: \s? \d+ )? $/xi, handler => '_where_op_NEST' },
+  { regex => qr/^ (?: not \s )? bool $/xi, handler => '_where_op_BOOL' },
 );
 
 #======================================================================
@@ -438,7 +439,7 @@ sub _where_HASHREF {
     my $v = $where->{$k};
 
     # ($k => $v) is either a special op or a regular hashpair
-    my ($sql, @bind) = ($k =~ /^-(.+)/) ? $self->_where_op_in_hash($1, $v)
+    my ($sql, @bind) = ($k =~ /^(-.+)/) ? $self->_where_op_in_hash($1, $v)
                                         : do {
          my $method = $self->_METHOD_FOR_refkind("_where_hashpair", $v);
          $self->$method($k, $v);
@@ -453,23 +454,25 @@ sub _where_HASHREF {
 
 
 sub _where_op_in_hash {
-  my ($self, $op, $v) = @_; 
+  my ($self, $orig_op, $v) = @_;
 
   # put the operator in canonical form
-  $op =~ s/^-//;       # remove initial dash
-  $op =~ tr/_ \t/ /s;  # underscores and whitespace become single spaces
+  my $op = $orig_op;
+  $op =~ s/^-//;        # remove initial dash
+  $op =~ s/[_\t ]+/ /g; # underscores and whitespace become single spaces
+  $op =~ s/^\s+|\s+$//g;# remove leading/trailing space
 
   $self->_debug("OP(-$op) within hashref, recursing...");
 
   my $op_entry = first {$op =~ $_->{regex}} @{$self->{unary_ops}};
   my $handler = $op_entry->{handler};
   if (! $handler) {
-    puke "unknown operator: -$op";
+    puke "unknown operator: $orig_op";
   }
   elsif (not ref $handler) {
-    if ($op_entry->{numchk} && ($op =~ s/\s?\d+$//)) {
+    if ($op =~ s/\s?\d+$//) {
       belch 'Use of [and|or|nest]_N modifiers is deprecated and will be removed in SQLA v2.0. '
-          . "You probably wanted ...-and => [ $op => COND1, $op => COND2 ... ]";
+          . "You probably wanted ...-and => [ -$op => COND1, -$op => COND2 ... ]";
     }
     return $self->$handler ($op, $v);
   }
@@ -477,7 +480,7 @@ sub _where_op_in_hash {
     return $handler->($self, $op, $v);
   }
   else {
-    puke "Illegal handler for operator $op - expecting a method name or a coderef";
+    puke "Illegal handler for operator $orig_op - expecting a method name or a coderef";
   }
 }
 
@@ -600,15 +603,14 @@ sub _where_hashpair_HASHREF {
 
   my ($all_sql, @all_bind);
 
-  for my $op (sort keys %$v) {
-    my $val = $v->{$op};
+  for my $orig_op (sort keys %$v) {
+    my $val = $v->{$orig_op};
 
     # put the operator in canonical form
-    $op =~ s/^-//;       # remove initial dash
-    $op =~ tr/_/ /;      # underscores become spaces
-    $op =~ s/^\s+//;     # no initial space
-    $op =~ s/\s+$//;     # no final space
-    $op =~ s/\s+/ /;     # multiple spaces become one
+    my $op = $orig_op;
+    $op =~ s/^-//;        # remove initial dash
+    $op =~ s/[_\t ]+/ /g; # underscores and whitespace become single spaces
+    $op =~ s/^\s+|\s+$//g;# remove leading/trailing space
 
     my ($sql, @bind);
 
@@ -617,7 +619,7 @@ sub _where_hashpair_HASHREF {
     if ($special_op) {
       my $handler = $special_op->{handler};
       if (! $handler) {
-        puke "No handler supplied for special operator matching $special_op->{regex}";
+        puke "No handler supplied for special operator $orig_op";
       }
       elsif (not ref $handler) {
         ($sql, @bind) = $self->$handler ($k, $op, $val);
@@ -626,7 +628,7 @@ sub _where_hashpair_HASHREF {
         ($sql, @bind) = $handler->($self, $k, $op, $val);
       }
       else {
-        puke "Illegal handler for special operator matching $special_op->{regex} - expecting a method name or a coderef";
+        puke "Illegal handler for special operator $orig_op - expecting a method name or a coderef";
       }
     }
     else {
@@ -658,10 +660,10 @@ sub _where_hashpair_HASHREF {
         UNDEF => sub {          # CASE: col => {op => undef} : sql "IS (NOT)? NULL"
           my $is = ($op =~ $self->{equality_op})   ? 'is'     :
                    ($op =~ $self->{inequality_op}) ? 'is not' :
-               puke "unexpected operator '$op' with undef operand";
+               puke "unexpected operator '$orig_op' with undef operand";
           $sql = $self->_quote($k) . $self->_sqlcase(" $is null");
         },
-        
+
         FALLBACK => sub {       # CASE: col => {op => $scalar}
           $sql  = join ' ', $self->_convert($self->_quote($k)),
                             $self->_sqlcase($op),
