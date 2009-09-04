@@ -553,14 +553,35 @@ sub _where_op_NEST {
 sub _where_op_BOOL {
   my ($self, $op, $v) = @_; 
 
-  my $prefix = ($op =~ /\bnot\b/i) ? 'NOT ' : '';
+  my ( $prefix, $suffix ) = ( $op =~ /\bnot\b/i ) 
+    ? ( '(NOT ', ')' ) 
+    : ( '', '' );
   $self->_SWITCH_refkind($v, {
+    ARRAYREF => sub {
+      my ( $sql, @bind ) = $self->_where_ARRAYREF($v, '');
+      return ( ($prefix . $sql . $suffix), @bind );
+    },
+
+    ARRAYREFREF => sub {
+      my ( $sql, @bind ) = @{ ${$v} };
+      return ( ($prefix . $sql . $suffix), @bind );
+    },
+
+    HASHREF => sub {
+      my ( $sql, @bind ) = $self->_where_HASHREF($v);
+      return ( ($prefix . $sql . $suffix), @bind );
+    },
+
     SCALARREF  => sub {         # literal SQL
-      return ($prefix . $$v); 
+      return ($prefix . $$v . $suffix); 
     },
 
     SCALAR => sub { # interpreted as SQL column
-      return ($prefix . $self->_convert($self->_quote($v))); 
+      return ($prefix . $self->_convert($self->_quote($v)) . $suffix); 
+    },
+
+    UNDEF => sub {
+      puke "-$op => undef not supported";
     },
    });
 }

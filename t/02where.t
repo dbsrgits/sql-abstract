@@ -255,14 +255,50 @@ my @handle_tests = (
 
    {
        where => { -and => [-not_bool => 'foo', -not_bool => 'bar'] },
-       stmt => " WHERE NOT foo AND NOT bar",
+       stmt => " WHERE (NOT foo) AND (NOT bar)",
        bind => [],
    },
 
    {
        where => { -or => [-not_bool => 'foo', -not_bool => 'bar'] },
-       stmt => " WHERE NOT foo OR NOT bar",
+       stmt => " WHERE (NOT foo) OR (NOT bar)",
        bind => [],
+   },
+
+   {
+       where => { -bool => \['function(?)', 20]  },
+       stmt => " WHERE function(?)",
+       bind => [20],
+   },
+
+   {
+       where => { -not_bool => \['function(?)', 20]  },
+       stmt => " WHERE NOT function(?)",
+       bind => [20],
+   },
+
+   {
+       where => { -bool => { a => 1, b => 2}  },
+       stmt => " WHERE a = ? AND b = ?",
+       bind => [1, 2],
+   },
+
+   {
+       where => { -bool => [ a => 1, b => 2] },
+       stmt => " WHERE a = ? OR b = ?",
+       bind => [1, 2],
+   },
+
+   {
+       where => { -not_bool => { a => 1, b => 2}  },
+       stmt => " WHERE NOT (a = ? AND b = ?)",
+       bind => [1, 2],
+   },
+
+   {
+       where => { -not_bool => [ a => 1, b => 2] },
+       stmt => " WHERE NOT ( a = ? OR b = ? )",
+       bind => [1, 2],
    },
 
 );
@@ -275,7 +311,7 @@ for my $case (@handle_tests) {
     my($stmt, @bind);
     lives_ok (sub { 
       ($stmt, @bind) = $sql->where($case->{where}, $case->{order});
-      is_same_sql_bind($stmt, \@bind, $case->{stmt}, $case->{bind})
+      is_same_sql_bind($stmt, \@bind, $case->{stmt}, $case->{bind}, $stmt)
         || diag "Search term:\n" . Dumper $case->{where};
     });
 }
