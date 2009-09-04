@@ -145,6 +145,14 @@ my @sql_tests = (
         ]
       },
       {
+        equal => 1,
+        statements => [
+          q/SELECT foo FROM bar WHERE ((NOT a) AND b = 2)/,
+          q/SELECT foo FROM bar WHERE (NOT a) AND (b = 2)/,
+          q/SELECT foo FROM bar WHERE (NOT (a)) AND b = 2/,
+        ],
+      },
+      {
         equal => 0,
         statements => [
           q/SELECT foo FROM bar WHERE NOT a AND (b = 2)/,

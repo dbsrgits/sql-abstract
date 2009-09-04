@@ -15,7 +15,7 @@ use Scalar::Util qw/blessed/;
 # GLOBALS
 #======================================================================
 
-our $VERSION  = '1.56';
+our $VERSION  = '1.58';
 
 # This would confuse some packagers
 #$VERSION      = eval $VERSION; # numify for warning-free dev releases
@@ -1977,7 +1977,7 @@ example to test the column C<is_user> being true and the column
 
 Would give you:
 
-    WHERE is_user AND NOT is_enabledmv 
+    WHERE is_user AND NOT is_enabled
 
 
 
