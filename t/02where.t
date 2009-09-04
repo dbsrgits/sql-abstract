@@ -311,7 +311,7 @@ for my $case (@handle_tests) {
     my($stmt, @bind);
     lives_ok (sub { 
       ($stmt, @bind) = $sql->where($case->{where}, $case->{order});
-      is_same_sql_bind($stmt, \@bind, $case->{stmt}, $case->{bind}, $stmt)
+      is_same_sql_bind($stmt, \@bind, $case->{stmt}, $case->{bind})
         || diag "Search term:\n" . Dumper $case->{where};
     });
 }
