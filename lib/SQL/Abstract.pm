@@ -1979,6 +1979,21 @@ Would give you:
 
     WHERE is_user AND NOT is_enabled
 
+If a more complex combination is required, testing more conditions,
+then you should use the and/or operators:-
+
+    my %where  = (
+        -and           => [
+            -bool      => 'one',
+            -bool      => 'two',
+            -bool      => 'three',
+            -not_bool  => 'four',
+        ],
+    );
+
+Would give you:
+
+    WHERE one AND two AND three AND NOT four
 
 
 =head2 Nested conditions, -and/-or prefixes
@@ -2101,8 +2116,10 @@ with this:
 
 TMTOWTDI.
 
-Conditions on boolean columns can be expressed in the 
-same way, passing a reference to an empty string :
+Conditions on boolean columns can be expressed in the same way, passing
+a reference to an empty string, however using liternal SQL in this way
+is deprecated - the preferred method is to use the boolean operators -
+see L</"Unary operators: bool"> :
 
     my %where = (
         priority  => { '<', 2 },
