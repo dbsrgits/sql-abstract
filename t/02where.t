@@ -117,6 +117,14 @@ my @handle_tests = (
 
     {
         where => {  
+            requestor => { '!=', ['-and', undef, ''] },
+        },
+        stmt => " WHERE ( requestor IS NOT NULL AND requestor != ? )",
+        bind => [''],
+    },
+
+    {
+        where => {  
             priority  => [ {'>', 3}, {'<', 1} ],
             requestor => { '!=', undef }, 
         },

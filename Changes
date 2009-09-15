@@ -1,5 +1,7 @@
 Revision history for SQL::Abstract
 
+    - Fixed a couple of untrapped undefined warnings
+
 revision 1.58  2009-09-04 15:20 (UTC)
 ----------------------------
     - expanded the scope of -bool and -not_bool operators

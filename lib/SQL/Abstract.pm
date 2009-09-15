@@ -708,11 +708,14 @@ sub _where_field_op_ARRAYREF {
   my @vals = @$vals;  #always work on a copy
 
   if(@vals) {
-    $self->_debug("ARRAY($vals) means multiple elements: [ @vals ]");
+    $self->_debug(sprintf '%s means multiple elements: [ %s ]',
+      $vals,
+      join (', ', map { defined $_ ? "'$_'" : 'NULL' } @vals ),
+    );
 
     # see if the first element is an -and/-or op
     my $logic;
-    if ($vals[0] =~ /^ - ( AND|OR ) $/ix) {
+    if (defined $vals[0] && $vals[0] =~ /^ - ( AND|OR ) $/ix) {
       $logic = uc $1;
       shift @vals;
     }
