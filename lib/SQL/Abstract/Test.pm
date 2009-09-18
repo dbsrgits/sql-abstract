@@ -53,6 +53,7 @@ my @expression_terminator_sql_keywords = (
 
 # These are binary operator keywords always a single LHS and RHS
 # * AND/OR are handled separately as they are N-ary
+# * so is NOT as being unary
 # * BETWEEN without paranthesis around the ANDed arguments (which
 #   makes it a non-binary op) is detected and accomodated in 
 #   _recurse_parse()
@@ -63,7 +64,7 @@ my @binary_op_keywords = (
 );
 
 my $tokenizer_re_str = join("\n\t|\n",
-  ( map { '\b' . $_ . '\b' } @expression_terminator_sql_keywords, 'AND', 'OR' ),
+  ( map { '\b' . $_ . '\b' } @expression_terminator_sql_keywords, 'AND', 'OR', 'NOT'),
   ( map { q! (?<= [\w\s\`\'\)] ) ! . $_ . q! (?= [\w\s\`\'\(] ) ! } @binary_op_keywords ),
 );
 
@@ -261,7 +262,7 @@ sub _recurse_parse {
           or
         ($state == PARSE_IN_EXPR && grep { $lookahead =~ /^ $_ $/xi } ('\)', @expression_terminator_sql_keywords ) )
           or
-        ($state == PARSE_RHS && grep { $lookahead =~ /^ $_ $/xi } ('\)', @expression_terminator_sql_keywords, @binary_op_keywords, 'AND', 'OR' ) )
+        ($state == PARSE_RHS && grep { $lookahead =~ /^ $_ $/xi } ('\)', @expression_terminator_sql_keywords, @binary_op_keywords, 'AND', 'OR', 'NOT' ) )
     ) {
       return $left;
     }
@@ -310,6 +311,14 @@ sub _recurse_parse {
       $left = $left ? [@$left,  [$op => [$right] ]]
                     : [[ $op => [$right] ]];
     }
+    # NOT (last as to allow all other NOT X pieces first)
+    elsif ( $token =~ /^ not $/ix ) {
+      my $op = uc $token;
+      my $right = _recurse_parse ($tokens, PARSE_RHS);
+      $left = $left ? [ @$left, [$op => [$right] ]]
+                    : [[ $op => [$right] ]];
+
+    }
     # leaf expression
     else {
       $left = $left ? [@$left, [EXPR => [$token] ] ]
@@ -353,6 +362,14 @@ sub _parenthesis_unroll {
 
       # if the parent operator explcitly allows it nuke the parenthesis
       elsif ( grep { $ast->[0] =~ /^ $_ $/xi } @unrollable_ops ) {
+        push @children, $child->[1][0];
+        $changes++;
+      }
+
+      # only one EXPR element in the parenthesis
+      elsif (
+        @{$child->[1]} == 1 && $child->[1][0][0] eq 'EXPR'
+      ) {
         push @children, $child->[1][0];
         $changes++;
       }

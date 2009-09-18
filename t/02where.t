@@ -117,6 +117,14 @@ my @handle_tests = (
 
     {
         where => {  
+            requestor => { '!=', ['-and', undef, ''] },
+        },
+        stmt => " WHERE ( requestor IS NOT NULL AND requestor != ? )",
+        bind => [''],
+    },
+
+    {
+        where => {  
             priority  => [ {'>', 3}, {'<', 1} ],
             requestor => { '!=', undef }, 
         },
@@ -216,6 +224,91 @@ my @handle_tests = (
        stmt => " WHERE (foo = ?)",
        bind => [ "bar" ],
    },
+
+   {
+       where => { -bool => \'function(x)' },
+       stmt => " WHERE function(x)",
+       bind => [],
+   },
+
+   {
+       where => { -bool => 'foo' },
+       stmt => " WHERE foo",
+       bind => [],
+   },
+
+   {
+       where => { -and => [-bool => 'foo', -bool => 'bar'] },
+       stmt => " WHERE foo AND bar",
+       bind => [],
+   },
+
+   {
+       where => { -or => [-bool => 'foo', -bool => 'bar'] },
+       stmt => " WHERE foo OR bar",
+       bind => [],
+   },
+
+   {
+       where => { -not_bool => \'function(x)' },
+       stmt => " WHERE NOT function(x)",
+       bind => [],
+   },
+
+   {
+       where => { -not_bool => 'foo' },
+       stmt => " WHERE NOT foo",
+       bind => [],
+   },
+
+   {
+       where => { -and => [-not_bool => 'foo', -not_bool => 'bar'] },
+       stmt => " WHERE (NOT foo) AND (NOT bar)",
+       bind => [],
+   },
+
+   {
+       where => { -or => [-not_bool => 'foo', -not_bool => 'bar'] },
+       stmt => " WHERE (NOT foo) OR (NOT bar)",
+       bind => [],
+   },
+
+   {
+       where => { -bool => \['function(?)', 20]  },
+       stmt => " WHERE function(?)",
+       bind => [20],
+   },
+
+   {
+       where => { -not_bool => \['function(?)', 20]  },
+       stmt => " WHERE NOT function(?)",
+       bind => [20],
+   },
+
+   {
+       where => { -bool => { a => 1, b => 2}  },
+       stmt => " WHERE a = ? AND b = ?",
+       bind => [1, 2],
+   },
+
+   {
+       where => { -bool => [ a => 1, b => 2] },
+       stmt => " WHERE a = ? OR b = ?",
+       bind => [1, 2],
+   },
+
+   {
+       where => { -not_bool => { a => 1, b => 2}  },
+       stmt => " WHERE NOT (a = ? AND b = ?)",
+       bind => [1, 2],
+   },
+
+   {
+       where => { -not_bool => [ a => 1, b => 2] },
+       stmt => " WHERE NOT ( a = ? OR b = ? )",
+       bind => [1, 2],
+   },
+
 );
 
 plan tests => ( @handle_tests * 2 ) + 1;

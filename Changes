@@ -1,5 +1,16 @@
 Revision history for SQL::Abstract
 
+    - Fixed a couple of untrapped undefined warnings
+
+revision 1.58  2009-09-04 15:20 (UTC)
+----------------------------
+    - expanded the scope of -bool and -not_bool operators
+    - added proper testing support
+
+revision 1.57  2009-09-03 20:18 (UTC)
+----------------------------
+    - added -bool and -not_bool operators
+
 revision 1.56  2009-05-30 16:31 (UTC)
 ----------------------------
     - support for \[$sql, @bind] in order_by clauses e.g.:
