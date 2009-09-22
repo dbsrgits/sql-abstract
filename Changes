@@ -1,6 +1,10 @@
 Revision history for SQL::Abstract
 
     - Fixed a couple of untrapped undefined warnings
+    - Make -in/-between accept literal sql in all logical
+      variants - see POD for details
+    - Unroll parenthesis around IN arguments to accomodate
+      crappy databases
 
 revision 1.58  2009-09-04 15:20 (UTC)
 ----------------------------

@@ -1972,9 +1972,28 @@ If the argument to C<-in> is an empty array, 'sqlfalse' is generated
 (by default : C<1=0>). Similarly, C<< -not_in => [] >> generates
 'sqltrue' (by default : C<1=1>).
 
+In addition to the array you can supply a chunk of literal sql or
+literal sql with bind:
+
+    my %where = {
+      customer => { -in => \[
+        'SELECT cust_id FROM cust WHERE balance > ?',
+        2000,
+      ],
+      status => { -in => \'SELECT status_codes FROM states' },
+    };
+
+would generate:
+
+    $stmt = "WHERE (
+          customer IN ( SELECT cust_id FROM cust WHERE balance > ? )
+      AND status IN ( SELECT status_codes FROM states )
+    )";
+    @bind = ('2000');
 
 
-Another pair of operators is C<-between> and C<-not_between>, 
+
+Another pair of operators is C<-between> and C<-not_between>,
 used with an arrayref of two values:
 
     my %where  = (
@@ -1987,6 +2006,30 @@ used with an arrayref of two values:
 Would give you:
 
     WHERE user = ? AND completion_date NOT BETWEEN ( ? AND ? )
+
+Just like with C<-in> all plausible combinations of literal SQL
+are possible:
+
+    my %where = {
+      start0 => { -between => [ 1, 2 ] },
+      start1 => { -between => \["? AND ?", 1, 2] },
+      start2 => { -between => \"lower(x) AND upper(y)" },
+      start3 => { -between => [ 
+        \"lower(x)",
+        \["upper(?)", 'stuff' ],
+      ] },
+    };
+
+Would give you:
+
+    $stmt = "WHERE (
+          ( start0 BETWEEN ? AND ?                )
+      AND ( start1 BETWEEN ? AND ?                )
+      AND ( start2 BETWEEN lower(x) AND upper(y)  )
+      AND ( start3 BETWEEN lower(x) AND upper(?)  )
+    )";
+    @bind = (1, 2, 1, 2, 'stuff');
+
 
 These are the two builtin "special operators"; but the 
 list can be expanded : see section L</"SPECIAL OPERATORS"> below.
@@ -2142,7 +2185,7 @@ with this:
     );
 
 
-TMTOWTDI.
+TMTOWTDI
 
 Conditions on boolean columns can be expressed in the same way, passing
 a reference to an empty string, however using liternal SQL in this way

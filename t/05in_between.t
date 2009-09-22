@@ -64,7 +64,25 @@ my @in_between_tests = (
     bind => [],
     test => '-between with literal sql with a literal (\"\'this\' AND \'that\'")',
   },
-
+  {
+    where => {
+      start0 => { -between => [ 1, 2 ] },
+      start1 => { -between => \["? AND ?", 1, 2] },
+      start2 => { -between => \"lower(x) AND upper(y)" },
+      start3 => { -between => [
+        \"lower(x)",
+        \["upper(?)", 'stuff' ],
+      ] },
+    },
+    stmt => "WHERE (
+          ( start0 BETWEEN ? AND ?                )
+      AND ( start1 BETWEEN ? AND ?                )
+      AND ( start2 BETWEEN lower(x) AND upper(y)  )
+      AND ( start3 BETWEEN lower(x) AND upper(?)  )
+    )",
+    bind => [1, 2, 1, 2, 'stuff'],
+    test => '-between POD test',
+  },
 
   {
     parenthesis_significant => 1,
@@ -72,6 +90,13 @@ my @in_between_tests = (
     stmt => "WHERE ( x IN (?, ?, ?) )",
     bind => [ 1 .. 3],
     test => '-in with an array of scalars',
+  },
+  {
+    parenthesis_significant => 1,
+    where => { x => { -in => [] } },
+    stmt => "WHERE ( 0=1 )",
+    bind => [],
+    test => '-in with an empty array',
   },
   {
     parenthesis_significant => 1,
@@ -86,6 +111,24 @@ my @in_between_tests = (
     stmt => "WHERE ( x IN (?, ?, lower(y) ) )",
     bind => [1, 2],
     test => '-in with a literal arrayrefref',
+  },
+  {
+    parenthesis_significant => 1,
+    where => {
+      customer => { -in => \[
+        'SELECT cust_id FROM cust WHERE balance > ?',
+        2000,
+      ]},
+      status => { -in => \'SELECT status_codes FROM states' },
+    },
+    stmt => "
+      WHERE ((
+            customer IN ( SELECT cust_id FROM cust WHERE balance > ? )
+        AND status IN ( SELECT status_codes FROM states )
+      ))
+    ",
+    bind => [2000],
+    test => '-in POD test',
   },
 );
 
