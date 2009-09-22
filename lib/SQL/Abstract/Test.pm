@@ -57,16 +57,21 @@ my @expression_terminator_sql_keywords = (
 # * BETWEEN without paranthesis around the ANDed arguments (which
 #   makes it a non-binary op) is detected and accomodated in 
 #   _recurse_parse()
+my $stuff_around_mathops = qr/[\w\s\`\'\)]/;
 my @binary_op_keywords = (
-  (map { "\Q$_\E" } (qw/< > != = <= >=/)),
-  '(?: NOT \s+)? IN',
-  '(?: NOT \s+)? LIKE',
-  '(?: NOT \s+)? BETWEEN',
+  ( map
+    { " (?<=  $stuff_around_mathops) " . quotemeta $_ . "(?= $stuff_around_mathops )" }
+    (qw/< > != = <= >=/)
+  ),
+  ( map
+    { '\b (?: NOT \s+)?' . $_ . '\b' }
+    (qw/IN BETWEEN LIKE/)
+  ),
 );
 
 my $tokenizer_re_str = join("\n\t|\n",
   ( map { '\b' . $_ . '\b' } @expression_terminator_sql_keywords, 'AND', 'OR', 'NOT'),
-  ( map { q! (?<= [\w\s\`\'\)] ) ! . $_ . q! (?= [\w\s\`\'\(] ) ! } @binary_op_keywords ),
+  @binary_op_keywords,
 );
 
 my $tokenizer_re = qr/ \s* ( \( | \) | \? | $tokenizer_re_str ) \s* /xi;
