@@ -893,18 +893,32 @@ sub _where_field_IN {
       }
     },
 
+    SCALARREF => sub {  # literal SQL
+      my $sql = $self->_open_outer_paren ($$vals);
+      return ("$label $op ( $sql )");
+    },
     ARRAYREFREF => sub {  # literal SQL with bind
       my ($sql, @bind) = @$$vals;
       $self->_assert_bindval_matches_bindtype(@bind);
+      $sql = $self->_open_outer_paren ($sql);
       return ("$label $op ( $sql )", @bind);
     },
 
     FALLBACK => sub {
-      puke "special op 'in' requires an arrayref (or arrayref-ref)";
+      puke "special op 'in' requires an arrayref (or scalarref/arrayref-ref)";
     },
   });
 
   return ($sql, @bind);
+}
+
+# Some databases (SQLite) treat col IN (1, 2) different from
+# col IN ( (1, 2) ). Use this to strip all outer parens while
+# adding them back in the corresponding method
+sub _open_outer_paren {
+  my ($self, $sql) = @_;
+  $sql = $1 while $sql =~ /^ \s* \( (.*) \) \s* $/x;
+  return $sql;
 }
 
 

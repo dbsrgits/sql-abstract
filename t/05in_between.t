@@ -9,20 +9,6 @@ use SQL::Abstract::Test import => ['is_same_sql_bind'];
 use Data::Dumper;
 use SQL::Abstract;
 
-=begin
-Test -between and -in 
-  * between
-    * [scalar, scalar]
-    * [scalarref, scalar]
-    * [scalar, scalarref]
-    * [scalarref, scalarref]
-    * \[]
-      * \["? AND ?", scalar, scalar]
-      * \["1 AND ?", scalar]
-      * \["? AND 2", scalar]
-      * \["1 AND 2"]
-=cut
-
 my @in_between_tests = (
   {
     where => { x => { -between => [1, 2] } },
@@ -78,6 +64,29 @@ my @in_between_tests = (
     bind => [],
     test => '-between with literal sql with a literal (\"\'this\' AND \'that\'")',
   },
+
+
+  {
+    parenthesis_significant => 1,
+    where => { x => { -in => [ 1 .. 3] } },
+    stmt => "WHERE ( x IN (?, ?, ?) )",
+    bind => [ 1 .. 3],
+    test => '-in with an array of scalars',
+  },
+  {
+    parenthesis_significant => 1,
+    where => { x => { -in => \'( 1,2,lower(y) )' } },
+    stmt => "WHERE ( x IN (1, 2, lower(y) ) )",
+    bind => [],
+    test => '-in with a literal scalarref',
+  },
+  {
+    parenthesis_significant => 1,
+    where => { x => { -in => \['( ( ?,?,lower(y) ) )', 1, 2] } },
+    stmt => "WHERE ( x IN (?, ?, lower(y) ) )",
+    bind => [1, 2],
+    test => '-in with a literal arrayrefref',
+  },
 );
 
 plan tests => @in_between_tests*4;
@@ -85,6 +94,7 @@ plan tests => @in_between_tests*4;
 for my $case (@in_between_tests) {
   TODO: {
     local $TODO = $case->{todo} if $case->{todo};
+    local $SQL::Abstract::Test::parenthesis_significant = $case->{parenthesis_significant};
 
     local $Data::Dumper::Terse = 1;
 
