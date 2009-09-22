@@ -59,6 +59,7 @@ my @expression_terminator_sql_keywords = (
 #   _recurse_parse()
 my @binary_op_keywords = (
   (map { "\Q$_\E" } (qw/< > != = <= >=/)),
+  '(?: NOT \s+)? IN',
   '(?: NOT \s+)? LIKE',
   '(?: NOT \s+)? BETWEEN',
 );

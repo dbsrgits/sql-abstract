@@ -268,6 +268,15 @@ my @sql_tests = (
       },
       {
         equal => 0,
+        parenthesis_significant => 1,
+        statements => [
+          q/SELECT foo FROM bar WHERE a IN (1,2,3)/,
+          q/SELECT foo FROM bar WHERE a IN (1,3,2)/,
+          q/SELECT foo FROM bar WHERE a IN ((1,2,3))/,
+        ]
+      },
+      {
+        equal => 0,
         statements => [
           # BETWEEN with/without parenthesis around itself/RHS is a sticky business
           # if I made a mistake here, simply rewrite the special BETWEEN handling in
