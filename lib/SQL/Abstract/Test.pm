@@ -49,6 +49,7 @@ my @expression_terminator_sql_keywords = (
   'UNION',
   'INTERSECT',
   'EXCEPT',
+  'RETURNING',
 );
 
 # These are binary operator keywords always a single LHS and RHS

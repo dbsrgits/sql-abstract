@@ -544,6 +544,46 @@ my @tests = (
               stmt_q => 'SELECT * FROM `test` WHERE ( `a` = ? OR `b` = ? ) OR ( `a` = ? AND `b` = ? )',
               bind   => [[a => 1], [b => 1], [ a => 2], [ b => 2]],
       },
+      #60
+      {
+              func   => 'insert',
+              args   => ['test', [qw/1 2 3 4 5/], { returning => 'id' }],
+              stmt   => 'INSERT INTO test VALUES (?, ?, ?, ?, ?) RETURNING id',
+              stmt_q => 'INSERT INTO `test` VALUES (?, ?, ?, ?, ?) RETURNING `id`',
+              bind   => [qw/1 2 3 4 5/],
+      },
+      #60
+      {
+              func   => 'insert',
+              args   => ['test', [qw/1 2 3 4 5/], { returning => 'id, foo, bar' }],
+              stmt   => 'INSERT INTO test VALUES (?, ?, ?, ?, ?) RETURNING id, foo, bar',
+              stmt_q => 'INSERT INTO `test` VALUES (?, ?, ?, ?, ?) RETURNING `id, foo, bar`',
+              bind   => [qw/1 2 3 4 5/],
+      },
+      #61
+      {
+              func   => 'insert',
+              args   => ['test', [qw/1 2 3 4 5/], { returning => [qw(id  foo  bar) ] }],
+              stmt   => 'INSERT INTO test VALUES (?, ?, ?, ?, ?) RETURNING id, foo, bar',
+              stmt_q => 'INSERT INTO `test` VALUES (?, ?, ?, ?, ?) RETURNING `id`, `foo`, `bar`',
+              bind   => [qw/1 2 3 4 5/],
+      },
+      #62
+      {
+              func   => 'insert',
+              args   => ['test', [qw/1 2 3 4 5/], { returning => \'id, foo, bar' }],
+              stmt   => 'INSERT INTO test VALUES (?, ?, ?, ?, ?) RETURNING id, foo, bar',
+              stmt_q => 'INSERT INTO `test` VALUES (?, ?, ?, ?, ?) RETURNING id, foo, bar',
+              bind   => [qw/1 2 3 4 5/],
+      },
+      #63
+      {
+              func   => 'insert',
+              args   => ['test', [qw/1 2 3 4 5/], { returning => \'id' }],
+              stmt   => 'INSERT INTO test VALUES (?, ?, ?, ?, ?) RETURNING id',
+              stmt_q => 'INSERT INTO `test` VALUES (?, ?, ?, ?, ?) RETURNING id',
+              bind   => [qw/1 2 3 4 5/],
+      },
 );
 
 
