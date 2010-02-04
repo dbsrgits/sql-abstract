@@ -1,5 +1,7 @@
 Revision history for SQL::Abstract
 
+    - Another iteration of SQL::Abstract::Test fixes and improvements
+
 revision 1.60  2009-09-22 11:03 (UTC)
 ----------------------------
     - fix a well masked error in the sql-test tokenizer
