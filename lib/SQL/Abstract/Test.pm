@@ -40,6 +40,7 @@ my @expression_terminator_sql_keywords = (
   )',
   'ON',
   'WHERE',
+  'EXISTS',
   'GROUP \s+ BY',
   'HAVING',
   'ORDER \s+ BY',
@@ -49,6 +50,7 @@ my @expression_terminator_sql_keywords = (
   'UNION',
   'INTERSECT',
   'EXCEPT',
+  'RETURNING',
 );
 
 # These are binary operator keywords always a single LHS and RHS
@@ -57,11 +59,14 @@ my @expression_terminator_sql_keywords = (
 # * BETWEEN without paranthesis around the ANDed arguments (which
 #   makes it a non-binary op) is detected and accomodated in 
 #   _recurse_parse()
-my $stuff_around_mathops = qr/[\w\s\`\'\)]/;
+my $stuff_around_mathops = qr/[\w\s\`\'\"\)]/;
 my @binary_op_keywords = (
   ( map
-    { " (?<=  $stuff_around_mathops) " . quotemeta $_ . "(?= $stuff_around_mathops )" }
-    (qw/< > != = <= >=/)
+    {
+      ' ^ '  . quotemeta ($_) . "(?= \$ | $stuff_around_mathops ) ",
+      " (?<= $stuff_around_mathops)" . quotemeta ($_) . "(?= \$ | $stuff_around_mathops ) ",
+    }
+    (qw/< > != <> = <= >=/)
   ),
   ( map
     { '\b (?: NOT \s+)?' . $_ . '\b' }
@@ -74,7 +79,7 @@ my $tokenizer_re_str = join("\n\t|\n",
   @binary_op_keywords,
 );
 
-my $tokenizer_re = qr/ \s* ( \( | \) | \? | $tokenizer_re_str ) \s* /xi;
+my $tokenizer_re = qr/ \s* ( $tokenizer_re_str | \( | \) | \? ) \s* /xi;
 
 # All of these keywords allow their parameters to be specified with or without parenthesis without changing the semantics
 my @unrollable_ops = (
@@ -215,7 +220,7 @@ sub _eq_sql {
     _parenthesis_unroll ($_) for ($left, $right);
 
     # if operators are different
-    if ($left->[0] ne $right->[0]) {
+    if ( $left->[0] ne $right->[0] ) {
       $sql_differ = sprintf "OP [$left->[0]] != [$right->[0]] in\nleft: %s\nright: %s\n",
         unparse($left),
         unparse($right);
@@ -223,7 +228,7 @@ sub _eq_sql {
     }
     # elsif operators are identical, compare operands
     else { 
-      if ($left->[0] eq 'EXPR' ) { # unary operator
+      if ($left->[0] eq 'LITERAL' ) { # unary
         (my $l = " $left->[1][0] " ) =~ s/\s+/ /g;
         (my $r = " $right->[1][0] ") =~ s/\s+/ /g;
         my $eq = $case_sensitive ? $l eq $r : uc($l) eq uc($r);
@@ -245,10 +250,7 @@ sub parse {
   # tokenize string, and remove all optional whitespace
   my $tokens = [];
   foreach my $token (split $tokenizer_re, $s) {
-    $token =~ s/\s+/ /g;
-    $token =~ s/\s+([^\w\s])/$1/g;
-    $token =~ s/([^\w\s])\s+/$1/g;
-    push @$tokens, $token if length $token;
+    push @$tokens, $token if (length $token) && ($token =~ /\S/);
   }
 
   my $tree = _recurse_parse($tokens, PARSE_TOP_LEVEL);
@@ -276,7 +278,7 @@ sub _recurse_parse {
     my $token = shift @$tokens;
 
     # nested expression in ()
-    if ($token eq '(') {
+    if ($token eq '(' ) {
       my $right = _recurse_parse($tokens, PARSE_IN_PARENS);
       $token = shift @$tokens   or croak "missing closing ')' around block " . unparse ($right);
       $token eq ')'             or croak "unexpected token '$token' terminating block " . unparse ($right);
@@ -301,9 +303,9 @@ sub _recurse_parse {
       my $op = uc $token;
       my $right = _recurse_parse($tokens, PARSE_RHS);
 
-      # A between with a simple EXPR for a 1st RHS argument needs a
+      # A between with a simple LITERAL for a 1st RHS argument needs a
       # rerun of the search to (hopefully) find the proper AND construct
-      if ($op eq 'BETWEEN' and $right->[0] eq 'EXPR') {
+      if ($op eq 'BETWEEN' and $right->[0] eq 'LITERAL') {
         unshift @$tokens, $right->[1][0];
         $right = _recurse_parse($tokens, PARSE_IN_EXPR);
       }
@@ -325,10 +327,11 @@ sub _recurse_parse {
                     : [[ $op => [$right] ]];
 
     }
-    # leaf expression
+    # literal (eat everything on the right until RHS termination)
     else {
-      $left = $left ? [@$left, [EXPR => [$token] ] ]
-                    : [ EXPR => [$token] ];
+      my $right = _recurse_parse ($tokens, PARSE_RHS);
+      $left = $left ? [$left, [LITERAL => [join ' ', $token, unparse($right)||()] ] ]
+                    : [ LITERAL => [join ' ', $token, unparse($right)||()] ];
     }
   }
 }
@@ -372,23 +375,23 @@ sub _parenthesis_unroll {
         $changes++;
       }
 
-      # only one EXPR element in the parenthesis
+      # only one LITERAL element in the parenthesis
       elsif (
-        @{$child->[1]} == 1 && $child->[1][0][0] eq 'EXPR'
+        @{$child->[1]} == 1 && $child->[1][0][0] eq 'LITERAL'
       ) {
         push @children, $child->[1][0];
         $changes++;
       }
 
-      # only one element in the parenthesis which is a binary op with two EXPR sub-children
+      # only one element in the parenthesis which is a binary op with two LITERAL sub-children
       elsif (
         @{$child->[1]} == 1
           and
         grep { $child->[1][0][0] =~ /^ $_ $/xi } (@binary_op_keywords)
           and
-        $child->[1][0][1][0][0] eq 'EXPR'
+        $child->[1][0][1][0][0] eq 'LITERAL'
           and
-        $child->[1][0][1][1][0] eq 'EXPR'
+        $child->[1][0][1][1][0] eq 'LITERAL'
       ) {
         push @children, $child->[1][0];
         $changes++;
@@ -415,7 +418,7 @@ sub unparse {
   elsif (ref $tree->[0]) {
     return join (" ", map { unparse ($_) } @$tree);
   }
-  elsif ($tree->[0] eq 'EXPR') {
+  elsif ($tree->[0] eq 'LITERAL') {
     return $tree->[1][0];
   }
   elsif ($tree->[0] eq 'PAREN') {

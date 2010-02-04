@@ -35,7 +35,7 @@ $where = {
   };
 push @tests, {
   where => $where,
-  stmt => " WHERE ( bar > ALL (SELECT c1 FROM t1 WHERE ( c2 < ? AND c3 LIKE ? )) AND foo = ? )",
+  stmt => " WHERE ( bar > ALL (SELECT c1 FROM t1 WHERE (( c2 < ? AND c3 LIKE ? )) ) AND foo = ? )",
   bind => [100, "foo%", 1234],
 };
 
