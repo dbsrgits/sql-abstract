@@ -15,7 +15,7 @@ use Scalar::Util qw/blessed/;
 # GLOBALS
 #======================================================================
 
-our $VERSION  = '1.58';
+our $VERSION  = '1.60';
 
 # This would confuse some packagers
 #$VERSION      = eval $VERSION; # numify for warning-free dev releases
@@ -109,13 +109,24 @@ sub new {
 #======================================================================
 
 sub insert {
-  my $self  = shift;
-  my $table = $self->_table(shift);
-  my $data  = shift || return;
+  my $self    = shift;
+  my $table   = $self->_table(shift);
+  my $data    = shift || return;
+  my $options = shift;
 
   my $method       = $self->_METHOD_FOR_refkind("_insert", $data);
-  my ($sql, @bind) = $self->$method($data); 
+  my ($sql, @bind) = $self->$method($data);
   $sql = join " ", $self->_sqlcase('insert into'), $table, $sql;
+
+  if (my $fields = $options->{returning}) {
+    my $f = $self->_SWITCH_refkind($fields, {
+      ARRAYREF     => sub {join ', ', map { $self->_quote($_) } @$fields;},
+      SCALAR       => sub {$self->_quote($fields)},
+      SCALARREF    => sub {$$fields},
+    });
+    $sql .= join " ", $self->_sqlcase(' returning'), $f;
+  }
+
   return wantarray ? ($sql, @bind) : $sql;
 }
 
@@ -818,38 +829,51 @@ sub _where_UNDEF {
 sub _where_field_BETWEEN {
   my ($self, $k, $op, $vals) = @_;
 
-  (ref $vals eq 'ARRAY' && @$vals == 2) or 
-  (ref $vals eq 'REF' && (@$$vals == 1 || @$$vals == 2 || @$$vals == 3))
-    or puke "special op 'between' requires an arrayref of two values (or a scalarref or arrayrefref for literal SQL)";
-
-  my ($clause, @bind, $label, $and, $placeholder);
+  my ($label, $and, $placeholder);
   $label       = $self->_convert($self->_quote($k));
   $and         = ' ' . $self->_sqlcase('and') . ' ';
   $placeholder = $self->_convert('?');
   $op               = $self->_sqlcase($op);
 
-  if (ref $vals eq 'REF') {
-    ($clause, @bind) = @$$vals;
-  }
-  else {
-    my (@all_sql, @all_bind);
+  my ($clause, @bind) = $self->_SWITCH_refkind($vals, {
+    ARRAYREFREF => sub {
+      return @$$vals;
+    },
+    SCALARREF => sub {
+      return $$vals;
+    },
+    ARRAYREF => sub {
+      puke "special op 'between' accepts an arrayref with exactly two values"
+        if @$vals != 2;
 
-    foreach my $val (@$vals) {
-      my ($sql, @bind) = $self->_SWITCH_refkind($val, {
-         SCALAR => sub {
-           return ($placeholder, ($val));
-         },
-         SCALARREF => sub {
-           return ($self->_convert($$val), ());
-         },
-      });
-      push @all_sql, $sql;
-      push @all_bind, @bind;
-    }
+      my (@all_sql, @all_bind);
+      foreach my $val (@$vals) {
+        my ($sql, @bind) = $self->_SWITCH_refkind($val, {
+           SCALAR => sub {
+             return ($placeholder, ($val));
+           },
+           SCALARREF => sub {
+             return ($self->_convert($$val), ());
+           },
+           ARRAYREFREF => sub {
+             my ($sql, @bind) = @$$val;
+             return ($self->_convert($sql), @bind);
+           },
+        });
+        push @all_sql, $sql;
+        push @all_bind, @bind;
+      }
 
-    $clause = (join $and, @all_sql);
-    @bind = $self->_bindtype($k, @all_bind);
-  }
+      return (
+        (join $and, @all_sql),
+        $self->_bindtype($k, @all_bind),
+      );
+    },
+    FALLBACK => sub {
+      puke "special op 'between' accepts an arrayref with two values, or a single literal scalarref/arrayref-ref";
+    },
+  });
+
   my $sql = "( $label $op $clause )";
   return ($sql, @bind)
 }
@@ -880,21 +904,33 @@ sub _where_field_IN {
       }
     },
 
+    SCALARREF => sub {  # literal SQL
+      my $sql = $self->_open_outer_paren ($$vals);
+      return ("$label $op ( $sql )");
+    },
     ARRAYREFREF => sub {  # literal SQL with bind
       my ($sql, @bind) = @$$vals;
       $self->_assert_bindval_matches_bindtype(@bind);
+      $sql = $self->_open_outer_paren ($sql);
       return ("$label $op ( $sql )", @bind);
     },
 
     FALLBACK => sub {
-      puke "special op 'in' requires an arrayref (or arrayref-ref)";
+      puke "special op 'in' requires an arrayref (or scalarref/arrayref-ref)";
     },
   });
 
   return ($sql, @bind);
 }
 
-
+# Some databases (SQLite) treat col IN (1, 2) different from
+# col IN ( (1, 2) ). Use this to strip all outer parens while
+# adding them back in the corresponding method
+sub _open_outer_paren {
+  my ($self, $sql) = @_;
+  $sql = $1 while $sql =~ /^ \s* \( (.*) \) \s* $/x;
+  return $sql;
+}
 
 
 #======================================================================
@@ -1650,7 +1686,7 @@ See section L</"UNARY OPERATORS"> for details.
 
 =back
 
-=head2 insert($table, \@values || \%fieldvals)
+=head2 insert($table, \@values || \%fieldvals, \%options)
 
 This is the simplest function. You simply give it a table name
 and either an arrayref of values or hashref of field/value pairs.
@@ -1658,6 +1694,23 @@ It returns an SQL INSERT statement and a list of bind values.
 See the sections on L</"Inserting and Updating Arrays"> and
 L</"Inserting and Updating SQL"> for information on how to insert
 with those data types.
+
+The optional C<\%options> hash reference may contain additional
+options to generate the insert SQL. Currently supported options
+are:
+
+=over 4
+
+=item returning
+
+Takes either a scalar of raw SQL fields, or an array reference of
+field names, and adds on an SQL C<RETURNING> statement at the end.
+This allows you to return data generated by the insert statement
+(such as row IDs) without performing another C<SELECT> statement.
+Note, however, this is not part of the SQL standard and may not
+be supported by all database engines.
+
+=back
 
 =head2 update($table, \%fieldvals, \%where)
 
@@ -1947,9 +2000,28 @@ If the argument to C<-in> is an empty array, 'sqlfalse' is generated
 (by default : C<1=0>). Similarly, C<< -not_in => [] >> generates
 'sqltrue' (by default : C<1=1>).
 
+In addition to the array you can supply a chunk of literal sql or
+literal sql with bind:
+
+    my %where = {
+      customer => { -in => \[
+        'SELECT cust_id FROM cust WHERE balance > ?',
+        2000,
+      ],
+      status => { -in => \'SELECT status_codes FROM states' },
+    };
+
+would generate:
+
+    $stmt = "WHERE (
+          customer IN ( SELECT cust_id FROM cust WHERE balance > ? )
+      AND status IN ( SELECT status_codes FROM states )
+    )";
+    @bind = ('2000');
 
 
-Another pair of operators is C<-between> and C<-not_between>, 
+
+Another pair of operators is C<-between> and C<-not_between>,
 used with an arrayref of two values:
 
     my %where  = (
@@ -1962,6 +2034,30 @@ used with an arrayref of two values:
 Would give you:
 
     WHERE user = ? AND completion_date NOT BETWEEN ( ? AND ? )
+
+Just like with C<-in> all plausible combinations of literal SQL
+are possible:
+
+    my %where = {
+      start0 => { -between => [ 1, 2 ] },
+      start1 => { -between => \["? AND ?", 1, 2] },
+      start2 => { -between => \"lower(x) AND upper(y)" },
+      start3 => { -between => [ 
+        \"lower(x)",
+        \["upper(?)", 'stuff' ],
+      ] },
+    };
+
+Would give you:
+
+    $stmt = "WHERE (
+          ( start0 BETWEEN ? AND ?                )
+      AND ( start1 BETWEEN ? AND ?                )
+      AND ( start2 BETWEEN lower(x) AND upper(y)  )
+      AND ( start3 BETWEEN lower(x) AND upper(?)  )
+    )";
+    @bind = (1, 2, 1, 2, 'stuff');
+
 
 These are the two builtin "special operators"; but the 
 list can be expanded : see section L</"SPECIAL OPERATORS"> below.
@@ -2117,7 +2213,7 @@ with this:
     );
 
 
-TMTOWTDI.
+TMTOWTDI
 
 Conditions on boolean columns can be expressed in the same way, passing
 a reference to an empty string, however using liternal SQL in this way
@@ -2568,6 +2664,7 @@ so I have no idea who they are! But the people I do know are:
     Laurent Dami (internal refactoring, multiple -nest, extensible list of special operators, literal SQL)
     Norbert Buchmuller (support for literal SQL in hashpair, misc. fixes & tests)
     Peter Rabbitson (rewrite of SQLA::Test, misc. fixes & tests)
+    Oliver Charles (support for "RETURNING" after "INSERT")
 
 Thanks!
 
