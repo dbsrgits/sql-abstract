@@ -101,14 +101,14 @@ my @in_between_tests = (
   {
     parenthesis_significant => 1,
     where => { x => { -in => \'( 1,2,lower(y) )' } },
-    stmt => "WHERE ( x IN (1, 2, lower(y) ) )",
+    stmt => "WHERE ( x IN ( 1,2,lower(y) ) )",
     bind => [],
     test => '-in with a literal scalarref',
   },
   {
     parenthesis_significant => 1,
     where => { x => { -in => \['( ( ?,?,lower(y) ) )', 1, 2] } },
-    stmt => "WHERE ( x IN (?, ?, lower(y) ) )",
+    stmt => "WHERE ( x IN ( ?,?,lower(y) ) )",  # note that outer parens are opened even though literal was requested (RIBASUSHI)
     bind => [1, 2],
     test => '-in with a literal arrayrefref',
   },
