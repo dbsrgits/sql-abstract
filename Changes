@@ -1,5 +1,7 @@
 Revision history for SQL::Abstract
 
+revision 1.61  2010-02-05 16:28 (UTC)
+----------------------------
     - Allow INSERT to take additional attributes
     - Support for INSERT ... RETURNING
     - Another iteration of SQL::Abstract::Test fixes and improvements
