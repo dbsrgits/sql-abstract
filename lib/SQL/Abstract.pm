@@ -2685,9 +2685,9 @@ how to create queries.
 
 =head1 LICENSE
 
-This module is free software; you may copy this under the terms of
-the GNU General Public License, or the Artistic License, copies of
-which should have accompanied your Perl kit.
+This module is free software; you may copy this under the same
+terms as perl itself (either the GNU General Public License or
+the Artistic License)
 
 =cut
 
