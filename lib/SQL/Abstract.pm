@@ -928,7 +928,7 @@ sub _where_field_IN {
 # adding them back in the corresponding method
 sub _open_outer_paren {
   my ($self, $sql) = @_;
-  $sql = $1 while $sql =~ /^ \s* \( (.*) \) \s* $/x;
+  $sql = $1 while $sql =~ /^ \s* \( (.*) \) \s* $/xs;
   return $sql;
 }
 
