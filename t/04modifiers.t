@@ -7,8 +7,8 @@ use Test::Exception;
 use SQL::Abstract::Test import => ['is_same_sql_bind'];
 
 use Data::Dumper;
+use Storable qw/dclone/;
 use SQL::Abstract;
-use Clone;
 
 =begin
 Test -and -or and -nest modifiers, assuming the following:
@@ -384,7 +384,7 @@ for my $case (@and_or_tests) {
     local $SIG{__WARN__} = sub { push @w, @_ };
 
     my $sql = SQL::Abstract->new ($case->{args} || {});
-    my $where_copy = Clone::clone ($case->{where});
+    my $where_copy = dclone($case->{where});
 
     lives_ok (sub { 
       my ($stmt, @bind) = $sql->where($case->{where});

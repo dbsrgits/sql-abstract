@@ -15,7 +15,7 @@ use Scalar::Util qw/blessed/;
 # GLOBALS
 #======================================================================
 
-our $VERSION  = '1.60';
+our $VERSION  = '1.61';
 
 # This would confuse some packagers
 #$VERSION      = eval $VERSION; # numify for warning-free dev releases
@@ -118,16 +118,22 @@ sub insert {
   my ($sql, @bind) = $self->$method($data);
   $sql = join " ", $self->_sqlcase('insert into'), $table, $sql;
 
-  if (my $fields = $options->{returning}) {
-    my $f = $self->_SWITCH_refkind($fields, {
-      ARRAYREF     => sub {join ', ', map { $self->_quote($_) } @$fields;},
-      SCALAR       => sub {$self->_quote($fields)},
-      SCALARREF    => sub {$$fields},
-    });
-    $sql .= join " ", $self->_sqlcase(' returning'), $f;
+  if (my $ret = $options->{returning}) {
+    $sql .= $self->_insert_returning ($ret);
   }
 
   return wantarray ? ($sql, @bind) : $sql;
+}
+
+sub _insert_returning {
+  my ($self, $fields) = @_;
+
+  my $f = $self->_SWITCH_refkind($fields, {
+    ARRAYREF     => sub {join ', ', map { $self->_quote($_) } @$fields;},
+    SCALAR       => sub {$self->_quote($fields)},
+    SCALARREF    => sub {$$fields},
+  });
+  return join (' ', $self->_sqlcase(' returning'), $f);
 }
 
 sub _insert_HASHREF { # explicit list of fields and then values
@@ -928,7 +934,7 @@ sub _where_field_IN {
 # adding them back in the corresponding method
 sub _open_outer_paren {
   my ($self, $sql) = @_;
-  $sql = $1 while $sql =~ /^ \s* \( (.*) \) \s* $/x;
+  $sql = $1 while $sql =~ /^ \s* \( (.*) \) \s* $/xs;
   return $sql;
 }
 
@@ -2685,9 +2691,9 @@ how to create queries.
 
 =head1 LICENSE
 
-This module is free software; you may copy this under the terms of
-the GNU General Public License, or the Artistic License, copies of
-which should have accompanied your Perl kit.
+This module is free software; you may copy this under the same
+terms as perl itself (either the GNU General Public License or
+the Artistic License)
 
 =cut
 

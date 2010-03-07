@@ -115,6 +115,16 @@ my @in_between_tests = (
   {
     parenthesis_significant => 1,
     where => {
+      status => { -in => \"(SELECT status_codes\nFROM states)" },
+    },
+    # failed to open outer parens on a multi-line query in 1.61 (semifor)
+    stmt => " WHERE ( status IN ( SELECT status_codes FROM states )) ",
+    bind => [],
+    test => '-in multi-line subquery test',
+  },
+  {
+    parenthesis_significant => 1,
+    where => {
       customer => { -in => \[
         'SELECT cust_id FROM cust WHERE balance > ?',
         2000,
