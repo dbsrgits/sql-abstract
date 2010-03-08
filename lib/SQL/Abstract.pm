@@ -565,22 +565,6 @@ sub _where_op_NEST {
 
   $self->_SWITCH_refkind($v, {
 
-    ARRAYREF => sub {
-      return $self->_where_ARRAYREF($v, '');
-    },
-
-    HASHREF => sub {
-      return $self->_where_HASHREF($v);
-    },
-
-    SCALARREF  => sub {         # literal SQL
-      return ($$v); 
-    },
-
-    ARRAYREFREF => sub {        # literal SQL
-      return @{${$v}};
-    },
-
     SCALAR => sub { # permissively interpreted as SQL
       belch "literal SQL should be -nest => \\'scalar' "
           . "instead of -nest => 'scalar' ";
@@ -590,6 +574,11 @@ sub _where_op_NEST {
     UNDEF => sub {
       puke "-$op => undef not supported";
     },
+
+    FALLBACK => sub {
+      $self->_recurse_where ($v);
+    },
+
    });
 }
 
