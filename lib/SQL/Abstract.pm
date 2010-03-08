@@ -8,8 +8,8 @@ package SQL::Abstract; # see doc at end of file
 use Carp;
 use strict;
 use warnings;
-use List::Util   qw/first/;
-use Scalar::Util qw/blessed/;
+use List::Util ();
+use Scalar::Util ();
 
 #======================================================================
 # GLOBALS
@@ -474,7 +474,7 @@ sub _where_HASHREF {
 
         $self->_debug("Unary OP(-$op) within hashref, recursing...");
 
-        my $op_entry = first {$op =~ $_->{regex}} @{$self->{unary_ops}};
+        my $op_entry = List::Util::first {$op =~ $_->{regex}} @{$self->{unary_ops}};
         if (my $handler = $op_entry->{handler}) {
           if (not ref $handler) {
             if ($op =~ s/\s?\d+$//) {
@@ -675,7 +675,7 @@ sub _where_hashpair_HASHREF {
       ($sql, @bind) = $self->_where_hashpair_HASHREF($k, $val, $1);
     }
     # CASE: special operators like -in or -between
-    elsif ( my $special_op = first {$op =~ $_->{regex}} @{$self->{special_ops}} ) {
+    elsif ( my $special_op = List::Util::first {$op =~ $_->{regex}} @{$self->{special_ops}} ) {
       my $handler = $special_op->{handler};
       if (! $handler) {
         puke "No handler supplied for special operator $orig_op";
@@ -1165,7 +1165,7 @@ sub _refkind {
 
   while (1) {
     # blessed objects are treated like scalars
-    $ref = (blessed $data) ? '' : ref $data;
+    $ref = (Scalar::Util::blessed $data) ? '' : ref $data;
     $n_steps += 1 if $ref;
     last          if $ref ne 'REF';
     $data = $$data;
@@ -1188,7 +1188,7 @@ sub _try_refkind {
 
 sub _METHOD_FOR_refkind {
   my ($self, $meth_prefix, $data) = @_;
-  my $method = first {$_} map {$self->can($meth_prefix."_".$_)} 
+  my $method = List::Util::first {$_} map {$self->can($meth_prefix."_".$_)} 
                               $self->_try_refkind($data)
     or puke "cannot dispatch on '$meth_prefix' for ".$self->_refkind($data);
   return $method;
@@ -1198,7 +1198,7 @@ sub _METHOD_FOR_refkind {
 sub _SWITCH_refkind {
   my ($self, $data, $dispatch_table) = @_;
 
-  my $coderef = first {$_} map {$dispatch_table->{$_}} 
+  my $coderef = List::Util::first {$_} map {$dispatch_table->{$_}} 
                                $self->_try_refkind($data)
     or puke "no dispatch entry for ".$self->_refkind($data);
   $coderef->();
