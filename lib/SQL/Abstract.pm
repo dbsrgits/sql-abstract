@@ -1188,19 +1188,29 @@ sub _try_refkind {
 
 sub _METHOD_FOR_refkind {
   my ($self, $meth_prefix, $data) = @_;
-  my $method = List::Util::first {$_} map {$self->can($meth_prefix."_".$_)} 
-                              $self->_try_refkind($data)
-    or puke "cannot dispatch on '$meth_prefix' for ".$self->_refkind($data);
-  return $method;
+
+  my $method;
+  for ($self->_try_refkind($data)) {
+    $method = $self->can($meth_prefix."_".$_)
+      and last;
+  }
+
+  return $method || puke "cannot dispatch on '$meth_prefix' for ".$self->_refkind($data);
 }
 
 
 sub _SWITCH_refkind {
   my ($self, $data, $dispatch_table) = @_;
 
-  my $coderef = List::Util::first {$_} map {$dispatch_table->{$_}} 
-                               $self->_try_refkind($data)
-    or puke "no dispatch entry for ".$self->_refkind($data);
+  my $coderef;
+  for ($self->_try_refkind($data)) {
+    $coderef = $dispatch_table->{$_}
+      and last;
+  }
+
+  puke "no dispatch entry for ".$self->_refkind($data)
+    unless $coderef;
+
   $coderef->();
 }
 
