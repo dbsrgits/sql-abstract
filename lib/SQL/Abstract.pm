@@ -82,10 +82,18 @@ sub new {
   # default comparison is "=", but can be overridden
   $opt{cmp} ||= '=';
 
+  # generic SQL comparison operators
+  my $anchored_cmp_ops = join ('|', map { '^' . $_ . '$' } (
+    '(?:is \s+)? (?:not \s+)? like',
+    'is',
+    (map { quotemeta($_) } (qw/ < > != <> = <= >= /) ),
+  ));
+  $opt{cmp_ops} = qr/$anchored_cmp_ops/ix;
+
   # try to recognize which are the 'equality' and 'unequality' ops
   # (temporary quickfix, should go through a more seasoned API)
- $opt{equality_op}   = qr/^(\Q$opt{cmp}\E|is|(is\s+)?like)$/i;
- $opt{inequality_op} = qr/^(!=|<>|(is\s+)?not(\s+like)?)$/i;
+  $opt{equality_op}   = qr/^(\Q$opt{cmp}\E|is|(is\s+)?like)$/i;
+  $opt{inequality_op} = qr/^(!=|<>|(is\s+)?not(\s+like)?)$/i;
 
   # SQL booleans
   $opt{sqltrue}  ||= '1=1';
@@ -452,15 +460,46 @@ sub _where_HASHREF {
   my ($self, $where) = @_;
   my (@sql_clauses, @all_bind);
 
-  for my $k (sort keys %$where) { 
+  for my $k (sort keys %$where) {
     my $v = $where->{$k};
 
-    # ($k => $v) is either a special op or a regular hashpair
-    my ($sql, @bind) = ($k =~ /^(-.+)/) ? $self->_where_op_in_hash($1, $v)
-                                        : do {
-         my $method = $self->_METHOD_FOR_refkind("_where_hashpair", $v);
-         $self->$method($k, $v);
-       };
+    # ($k => $v) is either a special unary op or a regular hashpair
+    my ($sql, @bind) = do {
+      if ($k =~ /^-./) {
+        # put the operator in canonical form
+        my $op = $k;
+        $op =~ s/^-//;        # remove initial dash
+        $op =~ s/[_\t ]+/ /g; # underscores and whitespace become single spaces
+        $op =~ s/^\s+|\s+$//g;# remove leading/trailing space
+
+        $self->_debug("Unary OP(-$op) within hashref, recursing...");
+
+        my $op_entry = first {$op =~ $_->{regex}} @{$self->{unary_ops}};
+        if (my $handler = $op_entry->{handler}) {
+          if (not ref $handler) {
+            if ($op =~ s/\s?\d+$//) {
+              belch 'Use of [and|or|nest]_N modifiers is deprecated and will be removed in SQLA v2.0. '
+                  . "You probably wanted ...-and => [ -$op => COND1, -$op => COND2 ... ]";
+              }
+            $self->$handler ($op, $v);
+          }
+          elsif (ref $handler eq 'CODE') {
+            $handler->($self, $op, $v);
+          }
+          else {
+            puke "Illegal handler for operator $k - expecting a method name or a coderef";
+          }
+        }
+        else {
+          $self->debug("Generic unary OP: $k - recursing as function");
+          $self->_where_func_generic ($op, $v);
+        }
+      }
+      else {
+        my $method = $self->_METHOD_FOR_refkind("_where_hashpair", $v);
+        $self->$method($k, $v);
+      }
+    };
 
     push @sql_clauses, $sql;
     push @all_bind, @bind;
@@ -469,40 +508,34 @@ sub _where_HASHREF {
   return $self->_join_sql_clauses('and', \@sql_clauses, \@all_bind);
 }
 
+sub _where_func_generic {
+  my ($self, $op, $rhs) = @_;
 
-sub _where_op_in_hash {
-  my ($self, $orig_op, $v) = @_;
+  my ($sql, @bind) = $self->_SWITCH_refkind ($rhs, {
+    SCALAR =>   sub {
+      puke "Illegal use of top-level '$op'"
+        unless $self->{_nested_func_lhs};
 
-  # put the operator in canonical form
-  my $op = $orig_op;
-  $op =~ s/^-//;        # remove initial dash
-  $op =~ s/[_\t ]+/ /g; # underscores and whitespace become single spaces
-  $op =~ s/^\s+|\s+$//g;# remove leading/trailing space
+      return (
+        $self->_convert('?'),
+        $self->_bindtype($self->{_nested_func_lhs}, $rhs)
+      );
+    },
+    FALLBACK => sub {
+      $self->_recurse_where ($rhs)
+    },
+  });
 
-  $self->_debug("OP(-$op) within hashref, recursing...");
+  $sql = sprintf ('%s%s',
+    $self->_sqlcase($op),
+    ($op =~ $self->{cmp_ops}) ? " $sql" : "( $sql )",
+  );
 
-  my $op_entry = first {$op =~ $_->{regex}} @{$self->{unary_ops}};
-  my $handler = $op_entry->{handler};
-  if (! $handler) {
-    puke "unknown operator: $orig_op";
-  }
-  elsif (not ref $handler) {
-    if ($op =~ s/\s?\d+$//) {
-      belch 'Use of [and|or|nest]_N modifiers is deprecated and will be removed in SQLA v2.0. '
-          . "You probably wanted ...-and => [ -$op => COND1, -$op => COND2 ... ]";
-    }
-    return $self->$handler ($op, $v);
-  }
-  elsif (ref $handler eq 'CODE') {
-    return $handler->($self, $op, $v);
-  }
-  else {
-    puke "Illegal handler for operator $orig_op - expecting a method name or a coderef";
-  }
+  return ($sql, @bind);
 }
 
 sub _where_op_ANDOR {
-  my ($self, $op, $v) = @_; 
+  my ($self, $op, $v) = @_;
 
   $self->_SWITCH_refkind($v, {
     ARRAYREF => sub {
@@ -538,22 +571,6 @@ sub _where_op_NEST {
 
   $self->_SWITCH_refkind($v, {
 
-    ARRAYREF => sub {
-      return $self->_where_ARRAYREF($v, '');
-    },
-
-    HASHREF => sub {
-      return $self->_where_HASHREF($v);
-    },
-
-    SCALARREF  => sub {         # literal SQL
-      return ($$v); 
-    },
-
-    ARRAYREFREF => sub {        # literal SQL
-      return @{${$v}};
-    },
-
     SCALAR => sub { # permissively interpreted as SQL
       belch "literal SQL should be -nest => \\'scalar' "
           . "instead of -nest => 'scalar' ";
@@ -563,6 +580,11 @@ sub _where_op_NEST {
     UNDEF => sub {
       puke "-$op => undef not supported";
     },
+
+    FALLBACK => sub {
+      $self->_recurse_where ($v);
+    },
+
    });
 }
 
@@ -573,34 +595,27 @@ sub _where_op_BOOL {
   my ( $prefix, $suffix ) = ( $op =~ /\bnot\b/i ) 
     ? ( '(NOT ', ')' ) 
     : ( '', '' );
-  $self->_SWITCH_refkind($v, {
-    ARRAYREF => sub {
-      my ( $sql, @bind ) = $self->_where_ARRAYREF($v, '');
-      return ( ($prefix . $sql . $suffix), @bind );
-    },
 
-    ARRAYREFREF => sub {
-      my ( $sql, @bind ) = @{ ${$v} };
-      return ( ($prefix . $sql . $suffix), @bind );
-    },
+  my ($sql, @bind) = do {
+    $self->_SWITCH_refkind($v, {
+      SCALAR => sub { # interpreted as SQL column
+        $self->_convert($self->_quote($v));
+      },
 
-    HASHREF => sub {
-      my ( $sql, @bind ) = $self->_where_HASHREF($v);
-      return ( ($prefix . $sql . $suffix), @bind );
-    },
+      UNDEF => sub {
+        puke "-$op => undef not supported";
+      },
 
-    SCALARREF  => sub {         # literal SQL
-      return ($prefix . $$v . $suffix); 
-    },
+      FALLBACK => sub {
+        $self->_recurse_where ($v);
+      },
+    });
+  };
 
-    SCALAR => sub { # interpreted as SQL column
-      return ($prefix . $self->_convert($self->_quote($v)) . $suffix); 
-    },
-
-    UNDEF => sub {
-      puke "-$op => undef not supported";
-    },
-   });
+  return (
+    join ('', $prefix, $sql, $suffix),
+    @bind,
+  );
 }
 
 
@@ -639,6 +654,9 @@ sub _where_hashpair_HASHREF {
   my ($self, $k, $v, $logic) = @_;
   $logic ||= 'and';
 
+  local $self->{_nested_func_lhs} = $self->{_nested_func_lhs};
+  $self->{_nested_func_lhs} ||= $k;
+
   my ($all_sql, @all_bind);
 
   for my $orig_op (sort keys %$v) {
@@ -652,9 +670,12 @@ sub _where_hashpair_HASHREF {
 
     my ($sql, @bind);
 
+    # CASE: col-value logic modifiers
+    if ( $orig_op =~ /^ \- (and|or) $/xi ) {
+      ($sql, @bind) = $self->_where_hashpair_HASHREF($k, $val, $1);
+    }
     # CASE: special operators like -in or -between
-    my $special_op = first {$op =~ $_->{regex}} @{$self->{special_ops}};
-    if ($special_op) {
+    elsif ( my $special_op = first {$op =~ $_->{regex}} @{$self->{special_ops}} ) {
       my $handler = $special_op->{handler};
       if (! $handler) {
         puke "No handler supplied for special operator $orig_op";
@@ -676,12 +697,6 @@ sub _where_hashpair_HASHREF {
           ($sql, @bind) = $self->_where_field_op_ARRAYREF($k, $op, $val);
         },
 
-        SCALARREF => sub {      # CASE: col => {op => \$scalar} (literal SQL without bind)
-          $sql  = join ' ', $self->_convert($self->_quote($k)),
-                            $self->_sqlcase($op),
-                            $$val;
-        },
-
         ARRAYREFREF => sub {    # CASE: col => {op => \[$sql, @bind]} (literal SQL with bind)
           my ($sub_sql, @sub_bind) = @$$val;
           $self->_assert_bindval_matches_bindtype(@sub_bind);
@@ -691,10 +706,6 @@ sub _where_hashpair_HASHREF {
           @bind = @sub_bind;
         },
 
-        HASHREF => sub {
-          ($sql, @bind) = $self->_where_hashpair_HASHREF($k, $val, $op);
-        },
-
         UNDEF => sub {          # CASE: col => {op => undef} : sql "IS (NOT)? NULL"
           my $is = ($op =~ $self->{equality_op})   ? 'is'     :
                    ($op =~ $self->{inequality_op}) ? 'is not' :
@@ -702,11 +713,9 @@ sub _where_hashpair_HASHREF {
           $sql = $self->_quote($k) . $self->_sqlcase(" $is null");
         },
 
-        FALLBACK => sub {       # CASE: col => {op => $scalar}
-          $sql  = join ' ', $self->_convert($self->_quote($k)),
-                            $self->_sqlcase($op),
-                            $self->_convert('?');
-          @bind = $self->_bindtype($k, $val);
+        FALLBACK => sub {       # CASE: col => {op/func => $stuff}
+          ($sql, @bind) = $self->_where_func_generic ($op, $val);
+          $sql = join ' ', $self->_convert($self->_quote($k)), $sql;
         },
       });
     }

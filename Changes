@@ -1,6 +1,7 @@
 Revision history for SQL::Abstract
 
-    - fixed open outer parens for a multi-line literal
+    - Fixed open outer parens for a multi-line literal
+    - Allow nested column-functions in WHERE
 
 revision 1.61  2010-02-05 16:28 (UTC)
 ----------------------------
