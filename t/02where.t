@@ -312,7 +312,7 @@ my @handle_tests = (
 # Op against internal function
    {
        where => { bool1 => { '=' => { -not_bool => 'bool2' } } },
-       stmt => " WHERE ( bool1 = NOT(bool2) )",
+       stmt => " WHERE ( bool1 = (NOT bool2) )",
        bind => [],
    },
    {
@@ -323,13 +323,13 @@ my @handle_tests = (
 
 # Op against random functions (these two are oracle-specific)
    {
-       where => { timestamp => { '!=' => { -trunk => \'sysdate' } } },
+       where => { timestamp => { '!=' => { -trunc => \'sysdate' } } },
        stmt => " WHERE ( timestamp != TRUNC(sysdate) )",
        bind => [],
    },
    {
        where => { timestamp => { '>=' => { -TO_DATE => '2009-12-21 00:00:00' } } },
-       stmt => " WHERE ( timestamp >= TO_DATE(?) )",
+       stmt => " WHERE ( timestamp >= TO DATE(?) )",
        bind => ['2009-12-21 00:00:00'],
    },
 
