@@ -513,7 +513,13 @@ sub _where_func_generic {
 
   my ($sql, @bind) = $self->_SWITCH_refkind ($rhs, {
     SCALAR =>   sub {
-      ($self->_convert('?'), $self->_bindtype('xxx', $rhs) );
+      puke "Illegal use of top-level '$op'"
+        unless $self->{_nested_func_lhs};
+
+      return (
+        $self->_convert('?'),
+        $self->_bindtype($self->{_nested_func_lhs}, $rhs)
+      );
     },
     FALLBACK => sub {
       $self->_recurse_where ($rhs)
@@ -647,6 +653,9 @@ sub _where_hashpair_ARRAYREF {
 sub _where_hashpair_HASHREF {
   my ($self, $k, $v, $logic) = @_;
   $logic ||= 'and';
+
+  local $self->{_nested_func_lhs} = $self->{_nested_func_lhs};
+  $self->{_nested_func_lhs} ||= $k;
 
   my ($all_sql, @all_bind);
 
