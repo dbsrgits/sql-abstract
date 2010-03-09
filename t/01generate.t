@@ -231,10 +231,10 @@ my @tests = (
       #26            
       {              
               func   => 'select',
-              args   => ['test', '*', {priority => [ -and => {'!=', 2}, {'!=', 1} ]}],
-              stmt   => 'SELECT * FROM test WHERE ( ( ( priority != ? ) AND ( priority != ? ) ) )',
-              stmt_q => 'SELECT * FROM `test` WHERE ( ( ( `priority` != ? ) AND ( `priority` != ? ) ) )',
-              bind   => [qw(2 1)],
+              args   => ['test', '*', {priority => [ -and => {'!=', 2}, { -not_like => '3%'} ]}],
+              stmt   => 'SELECT * FROM test WHERE ( ( ( priority != ? ) AND ( priority NOT LIKE ? ) ) )',
+              stmt_q => 'SELECT * FROM `test` WHERE ( ( ( `priority` != ? ) AND ( `priority` NOT LIKE ? ) ) )',
+              bind   => [qw(2 3%)],
       },             
       #27            
       {              
@@ -583,6 +583,14 @@ my @tests = (
               stmt   => 'INSERT INTO test VALUES (?, ?, ?, ?, ?) RETURNING id',
               stmt_q => 'INSERT INTO `test` VALUES (?, ?, ?, ?, ?) RETURNING id',
               bind   => [qw/1 2 3 4 5/],
+      },
+      {
+              func   => 'select',
+              new    => {bindtype => 'columns'},
+              args   => ['test', '*', [ Y => { -max => { -LENGTH => { -min => 'x' } } } ] ],
+              stmt   => 'SELECT * FROM test WHERE ( Y = MAX( LENGTH( MIN( ? ) ) ) )',
+              stmt_q => 'SELECT * FROM `test` WHERE ( `Y` = MAX( LENGTH( MIN( ? ) ) ) )',
+              bind   => [[Y => 'x']],
       },
 );
 

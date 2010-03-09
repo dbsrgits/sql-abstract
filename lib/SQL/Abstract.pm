@@ -655,7 +655,6 @@ sub _where_hashpair_HASHREF {
   $logic ||= 'and';
 
   local $self->{_nested_func_lhs} = $self->{_nested_func_lhs};
-  $self->{_nested_func_lhs} ||= $k;
 
   my ($all_sql, @all_bind);
 
@@ -714,8 +713,17 @@ sub _where_hashpair_HASHREF {
         },
 
         FALLBACK => sub {       # CASE: col => {op/func => $stuff}
+
+          # if we are starting to nest and the first func is not a cmp op
+          # assume equality
+          my $prefix;
+          unless ($self->{_nested_func_lhs}) {
+            $self->{_nested_func_lhs} = $k;
+            $prefix = $self->{cmp} unless $op =~ $self->{cmp_ops};
+          }
+
           ($sql, @bind) = $self->_where_func_generic ($op, $val);
-          $sql = join ' ', $self->_convert($self->_quote($k)), $sql;
+          $sql = join ' ', $self->_convert($self->_quote($k)), $prefix||(), $sql;
         },
       });
     }
