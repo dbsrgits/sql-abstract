@@ -2,6 +2,8 @@ Revision history for SQL::Abstract
 
     - Fixed open outer parens for a multi-line literal
     - Allow recursively-nested column-functions in WHERE
+    - Bumped minimum perl to 5.6.2 and changed tests to
+      rely on core dependencies
 
 revision 1.61  2010-02-05 16:28 (UTC)
 ----------------------------
