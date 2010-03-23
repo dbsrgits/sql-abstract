@@ -1,5 +1,7 @@
 Revision history for SQL::Abstract
 
+    - Add ILIKE to the core list of comparision ops
+
 revision 1.62  2010-03-15 11:06 (UTC)
 ----------------------------
     - Fixed open outer parens for a multi-line literal

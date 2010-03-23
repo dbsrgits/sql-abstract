@@ -262,13 +262,13 @@ my @tests = (
       #29            
       {              
               func   => 'select',
-              args   => ['jeff', '*', { name => {'like', '%smith%', -not_in => ['Nate','Jim','Bob','Sally']},
+              args   => ['jeff', '*', { name => {'ilike', '%smith%', -not_in => ['Nate','Jim','Bob','Sally']},
                                        -nest => [ -or => [ -and => [age => { -between => [20,30] }, age => {'!=', 25} ],
                                                                    yob => {'<', 1976} ] ] } ],
               stmt   => 'SELECT * FROM jeff WHERE ( ( ( ( ( ( ( age BETWEEN ? AND ? ) AND ( age != ? ) ) ) OR ( yob < ? ) ) ) )'
-                      . ' AND name NOT IN ( ?, ?, ?, ? ) AND name LIKE ? )',
+                      . ' AND name NOT IN ( ?, ?, ?, ? ) AND name ILIKE ? )',
               stmt_q => 'SELECT * FROM `jeff` WHERE ( ( ( ( ( ( ( `age` BETWEEN ? AND ? ) AND ( `age` != ? ) ) ) OR ( `yob` < ? ) ) ) )'
-                      . ' AND `name` NOT IN ( ?, ?, ?, ? ) AND `name` LIKE ? )',
+                      . ' AND `name` NOT IN ( ?, ?, ?, ? ) AND `name` ILIKE ? )',
               bind   => [qw(20 30 25 1976 Nate Jim Bob Sally %smith%)]
       },             
       #30            

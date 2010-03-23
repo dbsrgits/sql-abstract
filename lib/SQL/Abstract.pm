@@ -84,7 +84,7 @@ sub new {
 
   # generic SQL comparison operators
   my $anchored_cmp_ops = join ('|', map { '^' . $_ . '$' } (
-    '(?:is \s+)? (?:not \s+)? like',
+    '(?:is \s+)? (?:not \s+)? i? like',
     'is',
     (map { quotemeta($_) } (qw/ < > != <> = <= >= /) ),
   ));
