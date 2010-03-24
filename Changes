@@ -1,5 +1,7 @@
 Revision history for SQL::Abstract
 
+revision 1.63  2010-03-24 09:56 (UTC)
+----------------------------
     - Add ILIKE to the core list of comparision ops
 
 revision 1.62  2010-03-15 11:06 (UTC)
