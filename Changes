@@ -1,5 +1,9 @@
 Revision history for SQL::Abstract
 
+    - Fix multiple generic op handling regressions by
+      reverting the auto-equality assumption (turned out
+      to be a very very bad idea)
+
 revision 1.63  2010-03-24 09:56 (UTC)
 ----------------------------
     - Add ILIKE to the core list of comparision ops

@@ -587,9 +587,9 @@ my @tests = (
       {
               func   => 'select',
               new    => {bindtype => 'columns'},
-              args   => ['test', '*', [ Y => { -max => { -LENGTH => { -min => 'x' } } } ] ],
-              stmt   => 'SELECT * FROM test WHERE ( Y = MAX( LENGTH( MIN( ? ) ) ) )',
-              stmt_q => 'SELECT * FROM `test` WHERE ( `Y` = MAX( LENGTH( MIN( ? ) ) ) )',
+              args   => ['test', '*', [ Y => { '=' => { -max => { -LENGTH => { -min => 'x' } } } } ] ],
+              stmt   => 'SELECT * FROM test WHERE ( Y = ( MAX( LENGTH( MIN ? ) ) ) )',
+              stmt_q => 'SELECT * FROM `test` WHERE ( `Y` = ( MAX( LENGTH( MIN ? ) ) ) )',
               bind   => [[Y => 'x']],
       },
 );

@@ -15,7 +15,7 @@ use Scalar::Util ();
 # GLOBALS
 #======================================================================
 
-our $VERSION  = '1.63';
+our $VERSION  = '1.63_01';
 
 # This would confuse some packagers
 #$VERSION      = eval $VERSION; # numify for warning-free dev releases
@@ -81,14 +81,6 @@ sub new {
 
   # default comparison is "=", but can be overridden
   $opt{cmp} ||= '=';
-
-  # generic SQL comparison operators
-  my $anchored_cmp_ops = join ('|', map { '^' . $_ . '$' } (
-    '(?:is \s+)? (?:not \s+)? i? like',
-    'is',
-    (map { quotemeta($_) } (qw/ < > != <> = <= >= /) ),
-  ));
-  $opt{cmp_ops} = qr/$anchored_cmp_ops/ix;
 
   # try to recognize which are the 'equality' and 'unequality' ops
   # (temporary quickfix, should go through a more seasoned API)
@@ -382,7 +374,6 @@ sub _recurse_where {
   # dispatch on appropriate method according to refkind of $where
   my $method = $self->_METHOD_FOR_refkind("_where", $where);
 
-
   my ($sql, @bind) =  $self->$method($where, $logic); 
 
   # DBIx::Class directly calls _recurse_where in scalar context, so 
@@ -492,7 +483,9 @@ sub _where_HASHREF {
         }
         else {
           $self->debug("Generic unary OP: $k - recursing as function");
-          $self->_where_func_generic ($op, $v);
+          my ($sql, @bind) = $self->_where_func_generic ($op, $v);
+          $sql = "($sql)" unless $self->{_nested_func_lhs} eq $k;  # top level vs nested
+          ($sql, @bind);
         }
       }
       else {
@@ -526,9 +519,9 @@ sub _where_func_generic {
     },
   });
 
-  $sql = sprintf ('%s%s',
+  $sql = sprintf ('%s %s',
     $self->_sqlcase($op),
-    ($op =~ $self->{cmp_ops}) ? " $sql" : "( $sql )",
+    $sql,
   );
 
   return ($sql, @bind);
@@ -714,16 +707,15 @@ sub _where_hashpair_HASHREF {
 
         FALLBACK => sub {       # CASE: col => {op/func => $stuff}
 
-          # if we are starting to nest and the first func is not a cmp op
-          # assume equality
-          my $prefix;
-          unless ($self->{_nested_func_lhs}) {
-            $self->{_nested_func_lhs} = $k;
-            $prefix = $self->{cmp} unless $op =~ $self->{cmp_ops};
-          }
+          # retain for proper column type bind
+          $self->{_nested_func_lhs} ||= $k;
 
           ($sql, @bind) = $self->_where_func_generic ($op, $val);
-          $sql = join ' ', $self->_convert($self->_quote($k)), $prefix||(), $sql;
+
+          $sql = join (' ',
+            $self->_convert($self->_quote($k)),
+            $self->{_nested_func_lhs} eq $k ? $sql : "($sql)",  # top level vs nested
+          );
         },
       });
     }

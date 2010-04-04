@@ -323,16 +323,32 @@ my @handle_tests = (
 
 # Op against random functions (these two are oracle-specific)
    {
-       where => { timestamp => { '!=' => { -trunc => \'sysdate' } } },
-       stmt => " WHERE ( timestamp != TRUNC(sysdate) )",
+       where => { timestamp => { '!=' => { -trunc => { -year => \'sysdate' } } } },
+       stmt => " WHERE ( timestamp != TRUNC (YEAR sysdate) )",
        bind => [],
    },
    {
        where => { timestamp => { '>=' => { -TO_DATE => '2009-12-21 00:00:00' } } },
-       stmt => " WHERE ( timestamp >= TO DATE(?) )",
+       stmt => " WHERE ( timestamp >= TO DATE ? )",
        bind => ['2009-12-21 00:00:00'],
    },
 
+# Legacy function specs
+   {
+       where => { ip => {'<<=' => '127.0.0.1/32' } },
+       stmt => "WHERE ( ip <<= ? )",
+       bind => ['127.0.0.1/32'],
+   },
+   {
+       where => { foo => { 'GLOB' => '*str*' } },
+       stmt => " WHERE foo GLOB ? ",
+       bind => [ '*str*' ],
+   },
+   {
+       where => { foo => { 'REGEXP' => 'bar|baz' } },
+       stmt => " WHERE foo REGEXP ? ",
+       bind => [ 'bar|baz' ],
+   },
 );
 
 plan tests => ( @handle_tests * 2 ) + 1;
