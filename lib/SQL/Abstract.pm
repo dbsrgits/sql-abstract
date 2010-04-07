@@ -2404,7 +2404,7 @@ or an array of either of the two previous forms. Examples:
                                 |
     ['colA', {-asc => 'colB'}]  | ORDER BY colA, colB ASC
                                 |
-    { -asc => [qw/colA colB] }  | ORDER BY colA ASC, colB ASC
+    { -asc => [qw/colA colB/] } | ORDER BY colA ASC, colB ASC
                                 |
     [                           |
       { -asc => 'colA' },       | ORDER BY colA ASC, colB DESC,
