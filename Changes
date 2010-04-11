@@ -1,5 +1,11 @@
 Revision history for SQL::Abstract
 
+revision 1.65  2010-04-11 19:59 (UTC)
+----------------------------
+    - Rerelease last version to not include .svn files
+      and grab MANIFEST.SKIP from DBIx::Class so it
+      won't happen again
+
 revision 1.64  2010-04-11 16:58 (UTC)
 ----------------------------
     - Fix multiple generic op handling regressions by
