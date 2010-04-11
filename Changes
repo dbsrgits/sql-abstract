@@ -1,5 +1,7 @@
 Revision history for SQL::Abstract
 
+revision 1.64  2010-04-11 16:58 (UTC)
+----------------------------
     - Fix multiple generic op handling regressions by
       reverting the auto-equality assumption (turned out
       to be a very very bad idea)
@@ -64,7 +66,7 @@ revision 1.53  2009-04-30 14:58 (UTC)
 
 revision 1.52  2009-04-28 23:14 (UTC)
 ----------------------------
-    - allow -between to handle [\"", \""] and \["", @bind] 
+    - allow -between to handle [\"", \""] and \["", @bind]
     - allow order_by to handle -asc|desc => [qw/colA colB/] (artifact from DBIx::Class)
     - more tests and clearing up of some corner cases
     - t/10test.t does not run by default (developer only, too cpu intensive)
