@@ -1052,28 +1052,24 @@ sub _quote {
   # my ($self, $label) = @_;
 
   return '' unless defined $_[1];
-
   return ${$_[1]} if ref($_[1]) eq 'SCALAR';
 
   return $_[1] unless $_[0]->{quote_char};
 
-  return '*' if $_[1] eq '*';
-
+  my $qref = ref $_[0]->{quote_char};
   my ($l, $r);
-  if (ref($_[0]->{quote_char}) eq 'ARRAY') {
-    ($l, $r) = @{$_[0]->{quote_char}};
+  if (!$qref) {
+    ($l, $r) = ( $_[0]->{quote_char}, $_[0]->{quote_char} );
   }
-  elsif (!ref($_[0]->{quote_char}) ) {
-    ($l, $r) = ($_[0]->{quote_char}) x 2;
+  elsif ($qref eq 'ARRAY') {
+    ($l, $r) = @{$_[0]->{quote_char}};
   }
   else {
     puke "Unsupported quote_char format: $_[0]->{quote_char}";
   }
 
-  return $l . $_[1] . $r
-    if ! defined $_[0]->{name_sep};
-
-  return join( $_[0]->{name_sep}, map
+  # parts containing * are naturally unquoted
+  return join( $_[0]->{name_sep}||'', map
     { $_ eq '*' ? $_ : $l . $_ . $r }
     ( $_[0]->{name_sep} ? split (/\Q$_[0]->{name_sep}\E/, $_[1] ) : $_[1] )
   );
@@ -1082,7 +1078,7 @@ sub _quote {
 
 # Conversion, if applicable
 sub _convert ($) {
-  my ($self, $arg) = @_;
+  #my ($self, $arg) = @_;
 
 # LDNOTE : modified the previous implementation below because
 # it was not consistent : the first "return" is always an array,
@@ -1093,23 +1089,25 @@ sub _convert ($) {
 #     my $conv = $self->_sqlcase($self->{convert});
 #     my @ret = map { $conv.'('.$_.')' } @_;
 #     return wantarray ? @ret : $ret[0];
-  if ($self->{convert}) {
-    my $conv = $self->_sqlcase($self->{convert});
-    $arg = $conv.'('.$arg.')';
+  if ($_[0]->{convert}) {
+    return $_[0]->_sqlcase($_[0]->{convert}) .'(' . $_[1] . ')';
   }
-  return $arg;
+  return $_[1];
 }
 
 # And bindtype
 sub _bindtype (@) {
-  my $self = shift;
-  my($col, @vals) = @_;
+  #my ($self, $col, @vals) = @_;
 
   #LDNOTE : changed original implementation below because it did not make
   # sense when bindtype eq 'columns' and @vals > 1.
 #  return $self->{bindtype} eq 'columns' ? [ $col, @vals ] : @vals;
 
-  return $self->{bindtype} eq 'columns' ? map {[$col, $_]} @vals : @vals;
+  # called often - tighten code
+  return $_[0]->{bindtype} eq 'columns'
+    ? map {[$_[1], $_]} @_[2 .. $#_]
+    : @_[2 .. $#_]
+  ;
 }
 
 # Dies if any element of @bind is not in [colname => value] format
@@ -1145,11 +1143,9 @@ sub _join_sql_clauses {
 
 # Fix SQL case, if so requested
 sub _sqlcase {
-  my $self = shift;
-
   # LDNOTE: if $self->{case} is true, then it contains 'lower', so we
   # don't touch the argument ... crooked logic, but let's not change it!
-  return $self->{case} ? $_[0] : uc($_[0]);
+  return $_[0]->{case} ? $_[1] : uc($_[1]);
 }
 
 
@@ -1174,9 +1170,7 @@ sub _refkind {
     $n_steps++ if $ref;
   }
 
-  my $base = $ref || 'SCALAR';
-
-  return $base . ('REF' x $n_steps);
+  return $ref . ('REF' x $n_steps);
 }
 
 sub _try_refkind {
