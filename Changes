@@ -1,5 +1,8 @@
 Revision history for SQL::Abstract
 
+    - Optimized the quoting mechanism, winning nearly 10%
+      speedup on repeatable sql generation
+
 revision 1.65  2010-04-11 19:59 (UTC)
 ----------------------------
     - Rerelease last version to not include .svn files

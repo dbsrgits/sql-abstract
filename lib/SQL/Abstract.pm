@@ -15,7 +15,7 @@ use Scalar::Util ();
 # GLOBALS
 #======================================================================
 
-our $VERSION  = '1.65_01';
+our $VERSION  = '1.65_02';
 
 # This would confuse some packagers
 $VERSION = eval $VERSION if $VERSION =~ /_/; # numify for warning-free dev releases
@@ -1047,36 +1047,36 @@ sub _table  {
 # UTILITY FUNCTIONS
 #======================================================================
 
+# highly optimized, as it's called way too often
 sub _quote {
-  my $self  = shift;
-  my $label = shift;
+  # my ($self, $label) = @_;
 
-  $label or puke "can't quote an empty label";
+  return '' unless defined $_[1];
 
-  # left and right quote characters
-  my ($ql, $qr, @other) = $self->_SWITCH_refkind($self->{quote_char}, {
-    SCALAR   => sub {($self->{quote_char}, $self->{quote_char})},
-    ARRAYREF => sub {@{$self->{quote_char}}},
-    UNDEF    => sub {()},
-   });
-  not @other
-      or puke "quote_char must be an arrayref of 2 values";
+  return ${$_[1]} if ref($_[1]) eq 'SCALAR';
 
-  # no quoting if no quoting chars
-  $ql or return $label;
+  return $_[1] unless $_[0]->{quote_char};
 
-  # no quoting for literal SQL
-  return $$label if ref($label) eq 'SCALAR';
+  return '*' if $_[1] eq '*';
 
-  # separate table / column (if applicable)
-  my $sep = $self->{name_sep} || '';
-  my @to_quote = $sep ? split /\Q$sep\E/, $label : ($label);
+  my ($l, $r);
+  if (ref($_[0]->{quote_char}) eq 'ARRAY') {
+    ($l, $r) = @{$_[0]->{quote_char}};
+  }
+  elsif (!ref($_[0]->{quote_char}) ) {
+    ($l, $r) = ($_[0]->{quote_char}) x 2;
+  }
+  else {
+    puke "Unsupported quote_char format: $_[0]->{quote_char}";
+  }
 
-  # do the quoting, except for "*" or for `table`.*
-  my @quoted = map { $_ eq '*' ? $_: $ql.$_.$qr} @to_quote;
+  return $l . $_[1] . $r
+    if ! defined $_[0]->{name_sep};
 
-  # reassemble and return.
-  return join $sep, @quoted;
+  return join( $_[0]->{name_sep}, map
+    { $_ eq '*' ? $_ : $l . $_ . $r }
+    ( $_[0]->{name_sep} ? split (/\Q$_[0]->{name_sep}\E/, $_[1] ) : $_[1] )
+  );
 }
 
 
@@ -1159,38 +1159,39 @@ sub _sqlcase {
 
 sub _refkind {
   my ($self, $data) = @_;
-  my $suffix = '';
-  my $ref;
-  my $n_steps = 0;
 
-  while (1) {
-    # blessed objects are treated like scalars
-    $ref = (Scalar::Util::blessed $data) ? '' : ref $data;
-    $n_steps += 1 if $ref;
-    last          if $ref ne 'REF';
+  return 'UNDEF' unless defined $data;
+
+  # blessed objects are treated like scalars
+  my $ref = (Scalar::Util::blessed $data) ? '' : ref $data;
+
+  return 'SCALAR' unless $ref;
+
+  my $n_steps = 1;
+  while ($ref eq 'REF') {
     $data = $$data;
+    $ref = (Scalar::Util::blessed $data) ? '' : ref $data;
+    $n_steps++ if $ref;
   }
 
-  my $base = $ref || (defined $data ? 'SCALAR' : 'UNDEF');
+  my $base = $ref || 'SCALAR';
 
   return $base . ('REF' x $n_steps);
 }
-
-
 
 sub _try_refkind {
   my ($self, $data) = @_;
   my @try = ($self->_refkind($data));
   push @try, 'SCALAR_or_UNDEF' if $try[0] eq 'SCALAR' || $try[0] eq 'UNDEF';
   push @try, 'FALLBACK';
-  return @try;
+  return \@try;
 }
 
 sub _METHOD_FOR_refkind {
   my ($self, $meth_prefix, $data) = @_;
 
   my $method;
-  for ($self->_try_refkind($data)) {
+  for (@{$self->_try_refkind($data)}) {
     $method = $self->can($meth_prefix."_".$_)
       and last;
   }
@@ -1203,7 +1204,7 @@ sub _SWITCH_refkind {
   my ($self, $data, $dispatch_table) = @_;
 
   my $coderef;
-  for ($self->_try_refkind($data)) {
+  for (@{$self->_try_refkind($data)}) {
     $coderef = $dispatch_table->{$_}
       and last;
   }
