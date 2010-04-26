@@ -1170,7 +1170,7 @@ sub _refkind {
     $n_steps++ if $ref;
   }
 
-  return $ref . ('REF' x $n_steps);
+  return ($ref||'SCALAR') . ('REF' x $n_steps);
 }
 
 sub _try_refkind {
