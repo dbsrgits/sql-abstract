@@ -484,7 +484,7 @@ sub _where_HASHREF {
         else {
           $self->debug("Generic unary OP: $k - recursing as function");
           my ($sql, @bind) = $self->_where_func_generic ($op, $v);
-          $sql = "($sql)" unless $self->{_nested_func_lhs} eq $k;  # top level vs nested
+          $sql = "($sql)" unless (defined($self->{_nested_func_lhs}) && ($self->{_nested_func_lhs} eq $k));  # top level vs nested
           ($sql, @bind);
         }
       }
