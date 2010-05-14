@@ -349,6 +349,39 @@ my @handle_tests = (
        stmt => " WHERE foo REGEXP ? ",
        bind => [ 'bar|baz' ],
    },
+
+# Tests for -not
+# Basic tests only
+    {
+        where => { -not => { a => 1 } },
+        stmt  => " WHERE ( (NOT a = ?) ) ",
+        bind => [ 1 ],
+    },
+    {
+        where => { a => 1, -not => { b => 2 } },
+        stmt  => " WHERE ( ( (NOT b = ?) AND a = ? ) ) ",
+        bind => [ 2, 1 ],
+    },
+    {
+        where => { -not => { a => 1, b => 2, c => 3 } },
+        stmt  => " WHERE ( (NOT ( a = ? AND b = ? AND c = ? )) ) ",
+        bind => [ 1, 2, 3 ],
+    },
+    {
+        where => { -not => [ a => 1, b => 2, c => 3 ] },
+        stmt  => " WHERE ( (NOT ( a = ? OR b = ? OR c = ? )) ) ",
+        bind => [ 1, 2, 3 ],
+    },
+    {
+        where => { -not => { c => 3, -not => { b => 2, -not => { a => 1 } } } },
+        stmt  => " WHERE ( (NOT ( (NOT ( (NOT a = ?) AND b = ? )) AND c = ? )) ) ",
+        bind => [ 1, 2, 3 ],
+    },
+    {
+        where => { -not => { -bool => 'c', -not => { -not_bool => 'b', -not => { a => 1 } } } },
+        stmt  => " WHERE ( (NOT ( c AND (NOT ( (NOT a = ?) AND (NOT b) )) )) ) ",
+        bind => [ 1 ],
+    },
 );
 
 plan tests => ( @handle_tests * 2 ) + 1;
