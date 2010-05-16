@@ -406,7 +406,11 @@ sub _where_ARRAYREF {
       # skip empty elements, otherwise get invalid trailing AND stuff
       ARRAYREF  => sub {$self->_recurse_where($el)        if @$el},
 
-      ARRAYREFREF => sub { @{${$el}}                 if @{${$el}}},
+      ARRAYREFREF => sub {
+        my ($s, @b) = @$$el;
+        $self->_assert_bindval_matches_bindtype(@b);
+        ($s, @b);
+      },
 
       HASHREF   => sub {$self->_recurse_where($el, 'and') if %$el},
            # LDNOTE : previous SQLA code for hashrefs was creating a dirty
@@ -438,8 +442,8 @@ sub _where_ARRAYREF {
 
 sub _where_ARRAYREFREF {
     my ($self, $where) = @_;
-    my ($sql, @bind) = @{${$where}};
-
+    my ($sql, @bind) = @$$where;
+    $self->_assert_bindval_matches_bindtype(@bind);
     return ($sql, @bind);
 }
 
@@ -782,7 +786,7 @@ sub _where_hashpair_SCALARREF {
 sub _where_hashpair_ARRAYREFREF {
   my ($self, $k, $v) = @_;
   $self->_debug("REF($k) means literal SQL: @${$v}");
-  my ($sql, @bind) = @${$v};
+  my ($sql, @bind) = @$$v;
   $self->_assert_bindval_matches_bindtype(@bind);
   $sql  = $self->_quote($k) . " " . $sql;
   return ($sql, @bind );
@@ -852,7 +856,9 @@ sub _where_field_BETWEEN {
 
   my ($clause, @bind) = $self->_SWITCH_refkind($vals, {
     ARRAYREFREF => sub {
-      return @$$vals;
+      my ($s, @b) = @$$vals;
+      $self->_assert_bindval_matches_bindtype(@b);
+      ($s, @b);
     },
     SCALARREF => sub {
       return $$vals;
@@ -872,6 +878,7 @@ sub _where_field_BETWEEN {
            },
            ARRAYREFREF => sub {
              my ($sql, @bind) = @$$val;
+             $self->_assert_bindval_matches_bindtype(@bind);
              return ($self->_convert($sql), @bind);
            },
         });
@@ -983,7 +990,11 @@ sub _order_by_chunks {
       map { $self->_order_by_chunks ($_ ) } @$arg;
     },
 
-    ARRAYREFREF => sub { [ @$$arg ] },
+    ARRAYREFREF => sub {
+      my ($s, @b) = @$$arg;
+      $self->_assert_bindval_matches_bindtype(@b);
+      [ $s, @b ];
+    },
 
     SCALAR    => sub {$self->_quote($arg)},
 
@@ -993,11 +1004,11 @@ sub _order_by_chunks {
 
     HASHREF   => sub {
       # get first pair in hash
-      my ($key, $val) = each %$arg;
+      my ($key, $val, @rest) = %$arg;
 
       return () unless $key;
 
-      if ( (keys %$arg) > 1 or not $key =~ /^-(desc|asc)/i ) {
+      if ( @rest or not $key =~ /^-(desc|asc)/i ) {
         puke "hash passed to _order_by must have exactly one key (-desc or -asc)";
       }
 
@@ -1113,11 +1124,11 @@ sub _bindtype (@) {
 # Dies if any element of @bind is not in [colname => value] format
 # if bindtype is 'columns'.
 sub _assert_bindval_matches_bindtype {
-  my ($self, @bind) = @_;
-
+#  my ($self, @bind) = @_;
+  my $self = shift;
   if ($self->{bindtype} eq 'columns') {
-    foreach my $val (@bind) {
-      if (!defined $val || ref($val) ne 'ARRAY' || @$val != 2) {
+    for (@_) {
+      if (!defined $_ || ref($_) ne 'ARRAY' || @$_ != 2) {
         die "bindtype 'columns' selected, you need to pass: [column_name => bind_value]"
       }
     }
