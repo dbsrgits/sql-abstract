@@ -1,5 +1,7 @@
 Revision history for SQL::Abstract
 
+revision 1.66  2010-04-27 02:44 (UTC)
+----------------------------
     - Optimized the quoting mechanism, winning nearly 10%
       speedup on repeatable sql generation
 
