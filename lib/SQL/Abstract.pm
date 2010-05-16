@@ -1129,7 +1129,7 @@ sub _assert_bindval_matches_bindtype {
   if ($self->{bindtype} eq 'columns') {
     for (@_) {
       if (!defined $_ || ref($_) ne 'ARRAY' || @$_ != 2) {
-        die "bindtype 'columns' selected, you need to pass: [column_name => bind_value]"
+        puke "bindtype 'columns' selected, you need to pass: [column_name => bind_value]"
       }
     }
   }

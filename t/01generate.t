@@ -598,52 +598,49 @@ my @tests = (
 plan tests => scalar(grep { !$_->{warning_like} } @tests) * 2
             + scalar(grep { $_->{warning_like} } @tests) * 4;
 
-for (@tests) {
+for my $t (@tests) {
   local $"=', ';
 
-  my $new = $_->{new} || {};
+  my $new = $t->{new} || {};
   $new->{debug} = $ENV{DEBUG} || 0;
 
-  # test without quoting labels
-  {
-    my $sql = SQL::Abstract->new(%$new);
+  for my $quoted (0, 1) {
 
-    my $func = $_->{func};
+    my $maker = SQL::Abstract->new(%$new, $quoted
+      ? (quote_char => '`', name_sep => '.')
+      : ()
+    );
+
     my($stmt, @bind);
-    my $test = sub {
-      ($stmt, @bind) = $sql->$func(@{$_->{args}})
+
+    my $cref = sub {
+      my $op = $t->{func};
+      ($stmt, @bind) = $maker->$op (@ { $t->{args} } );
     };
-    if ($_->{exception_like}) {
-      throws_ok { &$test } $_->{exception_like}, "throws the expected exception ($_->{exception_like})";
+
+    if ($t->{exception_like}) {
+      throws_ok(
+        sub { $cref->() },
+        $t->{exception_like},
+        "throws the expected exception ($t->{exception_like})"
+      );
     } else {
-      if ($_->{warning_like}) {
-        warning_like { &$test } $_->{warning_like}, "throws the expected warning ($_->{warning_like})";
-      } else {
-        &$test;
+      if ($t->{warning_like}) {
+        warning_like(
+          sub { $cref->() },
+          $t->{warning_like},
+          "issues the expected warning ($t->{warning_like})"
+        );
       }
-      is_same_sql_bind($stmt, \@bind, $_->{stmt}, $_->{bind});
-    }
-  }
-
-  # test with quoted labels
-  {
-    my $sql_q = SQL::Abstract->new(%$new, quote_char => '`', name_sep => '.');
-
-    my $func_q = $_->{func};
-    my($stmt_q, @bind_q);
-    my $test = sub {
-      ($stmt_q, @bind_q) = $sql_q->$func_q(@{$_->{args}})
-    };
-    if ($_->{exception_like}) {
-      throws_ok { &$test } $_->{exception_like}, "throws the expected exception ($_->{exception_like})";
-    } else {
-      if ($_->{warning_like}) {
-        warning_like { &$test } $_->{warning_like}, "throws the expected warning ($_->{warning_like})";
-      } else {
-        &$test;
+      else {
+        $cref->();
       }
-
-      is_same_sql_bind($stmt_q, \@bind_q, $_->{stmt_q}, $_->{bind});
+      is_same_sql_bind(
+        $stmt,
+        \@bind,
+        $quoted ? $t->{stmt_q}: $t->{stmt},
+        $t->{bind}
+      );
     }
   }
 }
