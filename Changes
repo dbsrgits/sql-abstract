@@ -3,6 +3,7 @@ Revision history for SQL::Abstract
     - Fix SQL::Test failure when first chunk is an unrecognized
       literal
     - Generic -not operator tests
+    - More columns-bindtype assertion checks
 
 revision 1.66  2010-04-27 02:44 (UTC)
 ----------------------------
