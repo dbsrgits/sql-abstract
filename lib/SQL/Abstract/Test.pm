@@ -284,6 +284,7 @@ sub _recurse_parse {
       my $right = _recurse_parse($tokens, PARSE_IN_PARENS);
       $token = shift @$tokens   or croak "missing closing ')' around block " . unparse ($right);
       $token eq ')'             or croak "unexpected token '$token' terminating block " . unparse ($right);
+
       $left = $left ? [@$left, [PAREN => [$right] ]]
                     : [PAREN  => [$right] ];
     }
@@ -318,21 +319,21 @@ sub _recurse_parse {
     elsif (grep { $token =~ /^ $_ $/xi } @expression_terminator_sql_keywords ) {
       my $op = uc $token;
       my $right = _recurse_parse($tokens, PARSE_IN_EXPR);
-      $left = $left ? [@$left,  [$op => [$right] ]]
-                    : [[ $op => [$right] ]];
+      $left = $left ? [ $left,  [$op => [$right] ]]
+                    : [ $op => [$right] ];
     }
     # NOT (last as to allow all other NOT X pieces first)
     elsif ( $token =~ /^ not $/ix ) {
       my $op = uc $token;
       my $right = _recurse_parse ($tokens, PARSE_RHS);
       $left = $left ? [ @$left, [$op => [$right] ]]
-                    : [[ $op => [$right] ]];
+                    : [ $op => [$right] ];
 
     }
     # literal (eat everything on the right until RHS termination)
     else {
       my $right = _recurse_parse ($tokens, PARSE_RHS);
-      $left = $left ? [$left, [LITERAL => [join ' ', $token, unparse($right)||()] ] ]
+      $left = $left ? [ $left, [LITERAL => [join ' ', $token, unparse($right)||()] ] ]
                     : [ LITERAL => [join ' ', $token, unparse($right)||()] ];
     }
   }

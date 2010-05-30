@@ -6,6 +6,10 @@ use List::Util qw(sum);
 
 use Test::More;
 
+use Data::Dumper;
+$Data::Dumper::Terse = 1;
+$Data::Dumper::Sortkeys = 1;
+
 # equivalent to $Module::Install::AUTHOR
 my $author = (
   ( not -d './inc' )
@@ -542,6 +546,13 @@ my @sql_tests = (
       {
         equal => 0,
         statements => [
+          q/DELETE FROM cd WHERE ( cdid IN ( SELECT me.cdid FROM (SELECT * FROM cd me WHERE ( year != ? ) GROUP BY me.cdid) me WHERE ( year != ? ) ) )/,
+          q/DELETE FROM cd WHERE ( cdid IN ( SELECT me.cdid FROM cd me WHERE ( year != ? ) GROUP BY me.cdid ) )/,
+        ],
+      },
+      {
+        equal => 0,
+        statements => [
           q/SELECT * FROM (SELECT * FROM bar WHERE b = 1) AS foo WHERE a = 1/,
           q/SELECT * FROM (SELECT * FROM bar WHERE b = 1) AS foo WHERE a = 2/,
           q/SELECT * FROM (SELECT * FROM bar WHERE b = 1) AS foo WHERE (a = 3)/,
@@ -847,6 +858,8 @@ for my $test (@sql_tests) {
         if ($equal ^ $test->{equal}) {
           diag("sql1: $sql1");
           diag("sql2: $sql2");
+          note('ast1: ' . Dumper SQL::Abstract::Test::parse ($sql1));
+          note('ast2: ' . Dumper SQL::Abstract::Test::parse ($sql2));
         }
       }
     }

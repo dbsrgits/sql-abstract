@@ -1,5 +1,9 @@
 Revision history for SQL::Abstract
 
+    - Fix SQL::Test failure when first chunk is an unrecognized
+      literal
+    - Generic -not operator tests
+
 revision 1.66  2010-04-27 02:44 (UTC)
 ----------------------------
     - Optimized the quoting mechanism, winning nearly 10%
