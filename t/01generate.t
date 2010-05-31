@@ -248,13 +248,15 @@ my @tests = (
 #
 # acked by RIBASUSHI
 #              args   => ['fhole', {fpoles => 4}, [-maybe => {race => [-and => [qw(black white asian)]]},
-              args   => ['fhole', {fpoles => 4}, [          {race => [-and => [qw(black white asian)]]},
-                                                            {-nest => {firsttime => [-or => {'=','yes'}, undef]}},
-                                                            [ -and => {firstname => {-not_like => 'candace'}}, {lastname => {-in => [qw(jugs canyon towers)]}} ] ] ],
+              args   => ['fhole', {fpoles => 4}, [
+                          { race => [qw/-or black white asian /] },
+                          { -nest => { firsttime => [-or => {'=','yes'}, undef] } },
+                          { -and => [ { firstname => {-not_like => 'candace'} }, { lastname => {-in => [qw(jugs canyon towers)] } } ] },
+                        ] ],
               stmt   => 'UPDATE fhole SET fpoles = ? WHERE ( ( ( ( ( ( ( race = ? ) OR ( race = ? ) OR ( race = ? ) ) ) ) ) )'
-                      . ' OR ( ( ( ( firsttime = ? ) OR ( firsttime IS NULL ) ) ) ) OR ( ( ( firstname NOT LIKE ? ) ) AND ( lastname IN ( ?, ?, ? ) ) ) )',
+                      . ' OR ( ( ( ( firsttime = ? ) OR ( firsttime IS NULL ) ) ) ) OR ( ( ( firstname NOT LIKE ? ) ) AND ( lastname IN ?, ?, ? ) ) )',
               stmt_q => 'UPDATE `fhole` SET `fpoles` = ? WHERE ( ( ( ( ( ( ( `race` = ? ) OR ( `race` = ? ) OR ( `race` = ? ) ) ) ) ) )'
-                      . ' OR ( ( ( ( `firsttime` = ? ) OR ( `firsttime` IS NULL ) ) ) ) OR ( ( ( `firstname` NOT LIKE ? ) ) AND ( `lastname` IN ( ?, ?, ? ) ) ) )',
+                      . ' OR ( ( ( ( `firsttime` = ? ) OR ( `firsttime` IS NULL ) ) ) ) OR ( ( ( `firstname` NOT LIKE ? ) ) AND ( `lastname` IN ?, ?, ? ) ) )',
               bind   => [qw(4 black white asian yes candace jugs canyon towers)]
       },
       {
