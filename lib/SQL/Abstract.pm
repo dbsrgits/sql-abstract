@@ -2098,7 +2098,7 @@ list can be expanded : see section L</"SPECIAL OPERATORS"> below.
 If you wish to test against boolean columns or functions within your
 database you can use the C<-bool> and C<-not_bool> operators. For
 example to test the column C<is_user> being true and the column
-<is_enabled> being false you would use:-
+C<is_enabled> being false you would use:-
 
     my %where  = (
         -bool       => 'is_user',
