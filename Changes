@@ -1,5 +1,9 @@
 Revision history for SQL::Abstract
 
+revision 1.68  work in progress
+----------------------------
+    - Better documentation of undef/NULL in where clause
+
 revision 1.67  2010-05-31 14:21 (UTC)
 ----------------------------
     - Fix SQL::Test failure when first chunk is an unrecognized

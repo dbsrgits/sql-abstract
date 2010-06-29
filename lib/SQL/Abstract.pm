@@ -1900,6 +1900,20 @@ This simple code will create the following:
 A field associated to an empty arrayref will be considered a
 logical false and will generate 0=1.
 
+=head2 Tests for NULL values
+
+If the value part is C<undef> then this is converted to SQL <IS NULL>
+
+    my %where  = (
+        user   => 'nwiger',
+        status => undef,
+    );
+
+becomes:
+
+    $stmt = "WHERE user = ? AND status IS NULL";
+    @bind = ('nwiger');
+
 =head2 Specific comparison operators
 
 If you want to specify a different type of operator for your comparison,
@@ -2261,6 +2275,17 @@ which yields
     $stmt = "WHERE priority < ? AND is_ready";
     @bind = ('2');
 
+Literal SQL is also the only way to compare 2 columns to one another:
+
+    my %where = (
+        priority => { '<', 2 },
+        requestor => \'= submittor'
+    );
+
+which creates:
+
+    $stmt = "WHERE priority < ? AND requestor = submitter";
+    @bind = ('2');
 
 =head2 Literal SQL with placeholders and bind values (subqueries)
 
@@ -2584,6 +2609,12 @@ the same structure, you only have to generate the SQL the first time
 around. On subsequent queries, simply use the C<values> function provided
 by this module to return your values in the correct order.
 
+However this depends on the values having the same type - if, for
+example, the values of a where clause may either have values
+(resulting in sql of the form C<column = ?> with a single bind
+value), or alternatively the values might be C<undef> (resulting in
+sql of the form C<column IS NULL> with no bind value) then the
+caching technique suggested will not work.
 
 =head1 FORMBUILDER
 
