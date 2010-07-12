@@ -1,6 +1,8 @@
 Revision history for SQL::Abstract
 
     - Better documentation of undef/NULL in where clause
+    - Depend on bugfixed Module::Install (now again installs
+      on old < 5.8.3 perls)
 
 revision 1.67  2010-05-31 14:21 (UTC)
 ----------------------------
