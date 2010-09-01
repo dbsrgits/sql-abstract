@@ -182,10 +182,11 @@ sub unparse {
     return join (" $tree->[0] ", map {unparse($_)} @{$tree->[1]});
   }
   else {
-    return sprintf "%s %s\n", $tree->[0], unparse ($tree->[1]);
+    return sprintf '%s %s', $tree->[0], unparse ($tree->[1]);
   }
 }
 
+sub format { unparse(parse(@_)) }
 
 1;
 

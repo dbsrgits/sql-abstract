@@ -8,7 +8,7 @@ use SQL::Abstract::Tree;
    FROM foo WHERE foo.a =1 and foo.b LIKE 'station'";
 
    print "$sql\n";
-   print SQL::Abstract::Tree::unparse(SQL::Abstract::Tree::parse($sql)) . "\n";
+   print SQL::Abstract::Tree::format($sql) . "\n";
 }
 
 {
@@ -16,7 +16,7 @@ use SQL::Abstract::Tree;
    FROM (SELECT * FROM foobar) WHERE foo.a =1 and foo.b LIKE 'station'";
 
    print "$sql\n";
-   print SQL::Abstract::Tree::unparse(SQL::Abstract::Tree::parse($sql)) . "\n";
+   print SQL::Abstract::Tree::format($sql) . "\n";
 }
 
 # stuff we want:
