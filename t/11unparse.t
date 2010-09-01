@@ -3,20 +3,20 @@ use warnings;
 
 use SQL::Abstract::Tree;
 
+my $sqlat = SQL::Abstract::Tree->new;
+
 {
-   my $sql = "SELECT a, b, c
-   FROM foo WHERE foo.a =1 and foo.b LIKE 'station'";
+   my $sql = "SELECT a, b, c FROM foo WHERE foo.a =1 and foo.b LIKE 'station'";
 
    print "$sql\n";
-   print SQL::Abstract::Tree::format($sql) . "\n";
+   print $sqlat->format($sql) . "\n";
 }
 
 {
-   my $sql = "SELECT *
-   FROM (SELECT * FROM foobar) WHERE foo.a =1 and foo.b LIKE 'station'";
+   my $sql = "SELECT * FROM (SELECT * FROM foobar) WHERE foo.a =1 and foo.b LIKE 'station'";
 
    print "$sql\n";
-   print SQL::Abstract::Tree::format($sql) . "\n";
+   print $sqlat->format($sql) . "\n";
 }
 
 # stuff we want:

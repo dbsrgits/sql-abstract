@@ -70,8 +70,10 @@ my $tokenizer_re = qr/ \s* ( $tokenizer_re_str | \( | \) | \? ) \s* /xi;
 
 sub _binary_op_keywords { @binary_op_keywords }
 
+sub new { bless sub {}, shift }
+
 sub parse {
-  my $s = shift;
+  my ($self, $s) = @_;
 
   # tokenize string, and remove all optional whitespace
   my $tokens = [];
@@ -79,12 +81,12 @@ sub parse {
     push @$tokens, $token if (length $token) && ($token =~ /\S/);
   }
 
-  my $tree = _recurse_parse($tokens, PARSE_TOP_LEVEL);
+  my $tree = $self->_recurse_parse($tokens, PARSE_TOP_LEVEL);
   return $tree;
 }
 
 sub _recurse_parse {
-  my ($tokens, $state) = @_;
+  my ($self, $tokens, $state) = @_;
 
   my $left;
   while (1) { # left-associative parsing
@@ -105,9 +107,9 @@ sub _recurse_parse {
 
     # nested expression in ()
     if ($token eq '(' ) {
-      my $right = _recurse_parse($tokens, PARSE_IN_PARENS);
-      $token = shift @$tokens   or croak "missing closing ')' around block " . unparse ($right);
-      $token eq ')'             or croak "unexpected token '$token' terminating block " . unparse ($right);
+      my $right = $self->_recurse_parse($tokens, PARSE_IN_PARENS);
+      $token = shift @$tokens   or croak "missing closing ')' around block " . $self->unparse($right);
+      $token eq ')'             or croak "unexpected token '$token' terminating block " . $self->unparse($right);
 
       $left = $left ? [@$left, [PAREN => [$right] ]]
                     : [PAREN  => [$right] ];
@@ -115,7 +117,7 @@ sub _recurse_parse {
     # AND/OR
     elsif ($token =~ /^ (?: OR | AND ) $/xi )  {
       my $op = uc $token;
-      my $right = _recurse_parse($tokens, PARSE_IN_EXPR);
+      my $right = $self->_recurse_parse($tokens, PARSE_IN_EXPR);
 
       # Merge chunks if logic matches
       if (ref $right and $op eq $right->[0]) {
@@ -128,13 +130,13 @@ sub _recurse_parse {
     # binary operator keywords
     elsif (grep { $token =~ /^ $_ $/xi } @binary_op_keywords ) {
       my $op = uc $token;
-      my $right = _recurse_parse($tokens, PARSE_RHS);
+      my $right = $self->_recurse_parse($tokens, PARSE_RHS);
 
       # A between with a simple LITERAL for a 1st RHS argument needs a
       # rerun of the search to (hopefully) find the proper AND construct
       if ($op eq 'BETWEEN' and $right->[0] eq 'LITERAL') {
         unshift @$tokens, $right->[1][0];
-        $right = _recurse_parse($tokens, PARSE_IN_EXPR);
+        $right = $self->_recurse_parse($tokens, PARSE_IN_EXPR);
       }
 
       $left = [$op => [$left, $right] ];
@@ -142,51 +144,69 @@ sub _recurse_parse {
     # expression terminator keywords (as they start a new expression)
     elsif (grep { $token =~ /^ $_ $/xi } @expression_terminator_sql_keywords ) {
       my $op = uc $token;
-      my $right = _recurse_parse($tokens, PARSE_IN_EXPR);
+      my $right = $self->_recurse_parse($tokens, PARSE_IN_EXPR);
       $left = $left ? [ $left,  [$op => [$right] ]]
                     : [ $op => [$right] ];
     }
     # NOT (last as to allow all other NOT X pieces first)
     elsif ( $token =~ /^ not $/ix ) {
       my $op = uc $token;
-      my $right = _recurse_parse ($tokens, PARSE_RHS);
+      my $right = $self->_recurse_parse ($tokens, PARSE_RHS);
       $left = $left ? [ @$left, [$op => [$right] ]]
                     : [ $op => [$right] ];
 
     }
     # literal (eat everything on the right until RHS termination)
     else {
-      my $right = _recurse_parse ($tokens, PARSE_RHS);
-      $left = $left ? [ $left, [LITERAL => [join ' ', $token, unparse($right)||()] ] ]
-                    : [ LITERAL => [join ' ', $token, unparse($right)||()] ];
+      my $right = $self->_recurse_parse ($tokens, PARSE_RHS);
+      $left = $left ? [ $left, [LITERAL => [join ' ', $token, $self->unparse($right)||()] ] ]
+                    : [ LITERAL => [join ' ', $token, $self->unparse($right)||()] ];
     }
   }
 }
 
+use Term::ANSIColor 'color';
+
+my %ghetto_colormap = (
+  select => [color('red'), color('reset')],
+  where => [color('green'), color('reset')],
+  from => [color('cyan'), color('reset')],
+);
+
+sub format_keyword {
+  my ($self, $keyword) = @_;
+
+  if (my $around = $ghetto_colormap{lc $keyword}) {
+     $keyword = "$around->[0]$keyword$around->[1]";
+  }
+
+  return $keyword
+}
+
 sub unparse {
-  my $tree = shift;
+  my ($self, $tree) = @_;
 
   if (not $tree ) {
     return '';
   }
   elsif (ref $tree->[0]) {
-    return join (" ", map { unparse ($_) } @$tree);
+    return join (" ", map $self->unparse ($_), @$tree);
   }
   elsif ($tree->[0] eq 'LITERAL') {
     return $tree->[1][0];
   }
   elsif ($tree->[0] eq 'PAREN') {
-    return sprintf '(%s)', join (" ", map {unparse($_)} @{$tree->[1]});
+    return sprintf '(%s)', join (" ", map $self->unparse($_), @{$tree->[1]});
   }
   elsif ($tree->[0] eq 'OR' or $tree->[0] eq 'AND' or (grep { $tree->[0] =~ /^ $_ $/xi } @binary_op_keywords ) ) {
-    return join (" $tree->[0] ", map {unparse($_)} @{$tree->[1]});
+    return join (" $tree->[0] ", map $self->unparse($_), @{$tree->[1]});
   }
   else {
-    return sprintf '%s %s', $tree->[0], unparse ($tree->[1]);
+    return sprintf '%s %s', $self->format_keyword($tree->[0]), $self->unparse ($tree->[1]);
   }
 }
 
-sub format { unparse(parse(@_)) }
+sub format { my $self = shift; $self->unparse($self->parse(@_)) }
 
 1;
 
