@@ -183,12 +183,22 @@ sub format_keyword {
   return $keyword
 }
 
+
+my %ghetto_whitespacemap = (
+  select => 0,
+  where  => 1,
+  from   => 1,
+);
+
 sub whitespace {
    my ($self, $keyword, $depth) = @_;
-   if (lc $keyword eq 'from') {
-      return ['', "\n"];
+
+   my $before = '';
+   my $after  = '';
+   if (defined $ghetto_whitespacemap{lc $keyword}) {
+      $before = $self->newline . $self->indent($depth + $ghetto_whitespacemap{lc $keyword});
    }
-   return ['', ''];
+   return [$before, $after];
 }
 
 sub newline { "\n" }
@@ -198,7 +208,7 @@ sub indent { '   ' x $_[1] }
 sub unparse {
   my ($self, $tree, $depth) = @_;
 
-  $depth ||= 1;
+  $depth ||= 0;
 
   if (not $tree ) {
     return '';
@@ -208,23 +218,23 @@ sub unparse {
   my $cdr = $tree->[1];
 
   if (ref $car) {
-    return join (" ", map $self->unparse($_), @$tree);
+    return join ('', map $self->unparse($_, $depth), @$tree);
   }
   elsif ($car eq 'LITERAL') {
     return $cdr->[0];
   }
   elsif ($car eq 'PAREN') {
-    return '(' . $self->newline .
+    return '(' .
       join(' ',
-        map $self->indent($depth) . $self->unparse($_, $depth + 1), @{$cdr})
-    . $self->newline . ')';
+        map $self->unparse($_, $depth + 1), @{$cdr})
+    . ')';
   }
   elsif ($car eq 'OR' or $car eq 'AND' or (grep { $car =~ /^ $_ $/xi } @binary_op_keywords ) ) {
-    return join (" $car ", map $self->unparse($_), @{$cdr});
+    return join (" $car ", map $self->unparse($_, $depth), @{$cdr});
   }
   else {
     my ($l, $r) = @{$self->whitespace($car, $depth)};
-    return sprintf "%s %s$r", $self->format_keyword($car), $self->unparse($cdr);
+    return sprintf "$l%s %s$r", $self->format_keyword($car), $self->unparse($cdr, $depth);
   }
 }
 
