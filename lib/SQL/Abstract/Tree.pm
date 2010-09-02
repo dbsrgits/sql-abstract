@@ -183,26 +183,48 @@ sub format_keyword {
   return $keyword
 }
 
+sub whitespace {
+   my ($self, $keyword, $depth) = @_;
+   if (lc $keyword eq 'from') {
+      return ['', "\n"];
+   }
+   return ['', ''];
+}
+
+sub newline { "\n" }
+
+sub indent { '   ' x $_[1] }
+
 sub unparse {
-  my ($self, $tree) = @_;
+  my ($self, $tree, $depth) = @_;
+
+  $depth ||= 1;
 
   if (not $tree ) {
     return '';
   }
-  elsif (ref $tree->[0]) {
-    return join (" ", map $self->unparse ($_), @$tree);
+
+  my $car = $tree->[0];
+  my $cdr = $tree->[1];
+
+  if (ref $car) {
+    return join (" ", map $self->unparse($_), @$tree);
   }
-  elsif ($tree->[0] eq 'LITERAL') {
-    return $tree->[1][0];
+  elsif ($car eq 'LITERAL') {
+    return $cdr->[0];
   }
-  elsif ($tree->[0] eq 'PAREN') {
-    return sprintf '(%s)', join (" ", map $self->unparse($_), @{$tree->[1]});
+  elsif ($car eq 'PAREN') {
+    return '(' . $self->newline .
+      join(' ',
+        map $self->indent($depth) . $self->unparse($_, $depth + 1), @{$cdr})
+    . $self->newline . ')';
   }
-  elsif ($tree->[0] eq 'OR' or $tree->[0] eq 'AND' or (grep { $tree->[0] =~ /^ $_ $/xi } @binary_op_keywords ) ) {
-    return join (" $tree->[0] ", map $self->unparse($_), @{$tree->[1]});
+  elsif ($car eq 'OR' or $car eq 'AND' or (grep { $car =~ /^ $_ $/xi } @binary_op_keywords ) ) {
+    return join (" $car ", map $self->unparse($_), @{$cdr});
   }
   else {
-    return sprintf '%s %s', $self->format_keyword($tree->[0]), $self->unparse ($tree->[1]);
+    my ($l, $r) = @{$self->whitespace($car, $depth)};
+    return sprintf "%s %s$r", $self->format_keyword($car), $self->unparse($cdr);
   }
 }
 

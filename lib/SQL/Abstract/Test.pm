@@ -11,6 +11,8 @@ our @EXPORT_OK = qw/&is_same_sql_bind &is_same_sql &is_same_bind
                     &eq_sql_bind &eq_sql &eq_bind
                     $case_sensitive $sql_differ/;
 
+my $sqlat = SQL::Abstract::Tree->new;
+
 our $case_sensitive = 0;
 our $parenthesis_significant = 0;
 our $sql_differ; # keeps track of differing portion between SQLs
@@ -122,8 +124,8 @@ sub eq_sql {
   my ($sql1, $sql2) = @_;
 
   # parse
-  my $tree1 = parse($sql1);
-  my $tree2 = parse($sql2);
+  my $tree1 = $sqlat->parse($sql1);
+  my $tree2 = $sqlat->parse($sql2);
 
   return 1 if _eq_sql($tree1, $tree2);
 }
@@ -141,7 +143,7 @@ sub _eq_sql {
   }
   # one is a list, the other is an op with a list
   elsif (ref $left->[0] xor ref $right->[0]) {
-    $sql_differ = sprintf ("left: %s\nright: %s\n", map { unparse ($_) } ($left, $right) );
+    $sql_differ = sprintf ("left: %s\nright: %s\n", map { $sqlat->unparse ($_) } ($left, $right) );
     return 0;
   }
   # one is a list, so is the other
@@ -160,8 +162,8 @@ sub _eq_sql {
     # if operators are different
     if ( $left->[0] ne $right->[0] ) {
       $sql_differ = sprintf "OP [$left->[0]] != [$right->[0]] in\nleft: %s\nright: %s\n",
-        unparse($left),
-        unparse($right);
+        $sqlat->unparse($left),
+        $sqlat->unparse($right);
       return 0;
     }
     # elsif operators are identical, compare operands
@@ -175,7 +177,7 @@ sub _eq_sql {
       }
       else {
         my $eq = _eq_sql($left->[1], $right->[1]);
-        $sql_differ ||= sprintf ("left: %s\nright: %s\n", map { unparse ($_) } ($left, $right) ) if not $eq;
+        $sql_differ ||= sprintf ("left: %s\nright: %s\n", map { $sqlat->unparse ($_) } ($left, $right) ) if not $eq;
         return $eq;
       }
     }
@@ -254,11 +256,6 @@ sub _parenthesis_unroll {
   } while ($changes);
 
 }
-
-sub parse { goto &SQL::Abstract::Tree::parse }
-
-sub unparse { goto &SQL::Abstract::Tree::unparse  }
-
 
 1;
 

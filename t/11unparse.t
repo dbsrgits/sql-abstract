@@ -19,6 +19,13 @@ my $sqlat = SQL::Abstract::Tree->new;
    print $sqlat->format($sql) . "\n";
 }
 
+{
+   my $sql = "SELECT * FROM lolz WHERE ( foo.a =1 ) and foo.b LIKE 'station'";
+
+   print "$sql\n";
+   print $sqlat->format($sql) . "\n";
+}
+
 # stuff we want:
 #    Nested indentation
 #    Max Width
