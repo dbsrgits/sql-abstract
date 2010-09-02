@@ -210,7 +210,7 @@ sub _is_select {
    my $tree = shift;
    $tree = $tree->[0] while ref $tree;
 
-   lc $tree eq 'select';
+   defined $tree && lc $tree eq 'select';
 }
 
 sub unparse {
