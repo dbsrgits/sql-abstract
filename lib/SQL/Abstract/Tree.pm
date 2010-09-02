@@ -198,6 +198,7 @@ sub whitespace {
    if (defined $ghetto_whitespacemap{lc $keyword}) {
       $before = $self->newline . $self->indent($depth + $ghetto_whitespacemap{lc $keyword});
    }
+   $before = '' if $depth == 0 and lc $keyword eq 'select';
    return [$before, $after];
 }
 
