@@ -70,7 +70,27 @@ my $tokenizer_re = qr/ \s* ( $tokenizer_re_str | \( | \) | \? ) \s* /xi;
 
 sub _binary_op_keywords { @binary_op_keywords }
 
-sub new { bless sub {}, shift }
+my %profiles = (
+   console => {
+      indent => ' ',
+      indent_amount => 2,
+      newline => "\n",
+   },
+   none => {
+      indent => '',
+      indent_amount => 0,
+      newline => '',
+   },
+);
+
+sub new {
+   my ($class, $args) = @_;
+
+   my $profile = delete $args->{profile} || 'none';
+   my $data = {%{$profiles{$profile}}, %{$args||{}}};
+
+   bless $data, $class
+}
 
 sub parse {
   my ($self, $s) = @_;
@@ -202,9 +222,12 @@ sub whitespace {
    return [$before, $after];
 }
 
-sub newline { "\n" }
+sub _newline { $_[0]->{newline} }
+sub _indent { $_[0]->{indent} }
+sub _indent_amount { $_[0]->{indent_amount} }
+sub newline { $_[0]->_newline }
 
-sub indent { '   ' x $_[1] }
+sub indent { $_[0]->_indent x $_[0]->_indent_amount x $_[1] }
 
 sub _is_select {
    my $tree = shift;

@@ -3,7 +3,7 @@ use warnings;
 
 use SQL::Abstract::Tree;
 
-my $sqlat = SQL::Abstract::Tree->new;
+my $sqlat = SQL::Abstract::Tree->new({ profile => 'console' });
 
 {
    my $sql = "SELECT a, b, c FROM foo WHERE foo.a =1 and foo.b LIKE 'station'";
