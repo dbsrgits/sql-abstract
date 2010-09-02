@@ -205,6 +205,13 @@ sub newline { "\n" }
 
 sub indent { '   ' x $_[1] }
 
+sub _is_select {
+   my $tree = shift;
+   $tree = $tree->[0] while ref $tree;
+
+   lc $tree eq 'select';
+}
+
 sub unparse {
   my ($self, $tree, $depth) = @_;
 
@@ -226,8 +233,8 @@ sub unparse {
   elsif ($car eq 'PAREN') {
     return '(' .
       join(' ',
-        map $self->unparse($_, $depth + 1), @{$cdr})
-    . ')';
+        map $self->unparse($_, $depth + 2), @{$cdr}) .
+    (_is_select($cdr)?$self->newline.$self->indent($depth + 1):'') . ')';
   }
   elsif ($car eq 'OR' or $car eq 'AND' or (grep { $car =~ /^ $_ $/xi } @binary_op_keywords ) ) {
     return join (" $car ", map $self->unparse($_, $depth), @{$cdr});
