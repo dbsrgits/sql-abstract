@@ -4,6 +4,14 @@ use strict;
 use warnings;
 use Carp;
 
+
+use Term::ANSIColor 'color';
+use base 'Class::Accessor::Grouped';
+
+__PACKAGE__->mk_group_accessors( simple => $_ ) for qw(
+   newline indent_string indent_amount colormap indentmap
+);
+
 # Parser states for _recurse_parse()
 use constant PARSE_TOP_LEVEL => 0;
 use constant PARSE_IN_EXPR => 1;
@@ -72,14 +80,23 @@ sub _binary_op_keywords { @binary_op_keywords }
 
 my %profiles = (
    console => {
-      indent => ' ',
+      indent_string => ' ',
       indent_amount => 2,
-      newline => "\n",
+      newline       => "\n",
+      colormap      => {
+         select => [color('red'), color('reset')],
+         where  => [color('green'), color('reset')],
+         from   => [color('cyan'), color('reset')],
+      },
+      indentmap => {
+         select     => 0,
+         where  => 1,
+         from   => 1,
+      },
    },
    none => {
-      indent => '',
-      indent_amount => 0,
-      newline => '',
+      colormap      => {},
+      indentmap     => {},
    },
 );
 
@@ -185,49 +202,29 @@ sub _recurse_parse {
   }
 }
 
-use Term::ANSIColor 'color';
-
-my %ghetto_colormap = (
-  select => [color('red'), color('reset')],
-  where => [color('green'), color('reset')],
-  from => [color('cyan'), color('reset')],
-);
-
 sub format_keyword {
   my ($self, $keyword) = @_;
 
-  if (my $around = $ghetto_colormap{lc $keyword}) {
+  if (my $around = $self->colormap->{lc $keyword}) {
      $keyword = "$around->[0]$keyword$around->[1]";
   }
 
   return $keyword
 }
 
-
-my %ghetto_whitespacemap = (
-  select => 0,
-  where  => 1,
-  from   => 1,
-);
-
 sub whitespace {
    my ($self, $keyword, $depth) = @_;
 
    my $before = '';
-   my $after  = '';
-   if (defined $ghetto_whitespacemap{lc $keyword}) {
-      $before = $self->newline . $self->indent($depth + $ghetto_whitespacemap{lc $keyword});
+   my $after  = ' ';
+   if (defined $self->indentmap->{lc $keyword}) {
+      $before = $self->newline . $self->indent($depth + $self->indentmap->{lc $keyword});
    }
    $before = '' if $depth == 0 and lc $keyword eq 'select';
    return [$before, $after];
 }
 
-sub _newline { $_[0]->{newline} }
-sub _indent { $_[0]->{indent} }
-sub _indent_amount { $_[0]->{indent_amount} }
-sub newline { $_[0]->_newline }
-
-sub indent { $_[0]->_indent x $_[0]->_indent_amount x $_[1] }
+sub indent { ($_[0]->indent_string||'') x ( ( $_[0]->indent_amount || 0 ) * $_[1] ) }
 
 sub _is_select {
    my $tree = shift;
@@ -258,7 +255,7 @@ sub unparse {
     return '(' .
       join(' ',
         map $self->unparse($_, $depth + 2), @{$cdr}) .
-    (_is_select($cdr)?$self->newline.$self->indent($depth + 1):'') . ')';
+    (_is_select($cdr)?( $self->newline||'' ).$self->indent($depth + 1):'') . ')';
   }
   elsif ($car eq 'OR' or $car eq 'AND' or (grep { $car =~ /^ $_ $/xi } @binary_op_keywords ) ) {
     return join (" $car ", map $self->unparse($_, $depth), @{$cdr});
