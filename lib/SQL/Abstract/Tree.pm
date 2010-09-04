@@ -77,28 +77,37 @@ my $tokenizer_re = qr/ \s* ( $tokenizer_re_str | \( | \) | \? ) \s* /xi;
 
 sub _binary_op_keywords { @binary_op_keywords }
 
+my %indents = (
+   select => 0,
+   where  => 1,
+   from   => 1,
+);
+
 my %profiles = (
    console => {
       indent_string => ' ',
       indent_amount => 2,
       newline       => "\n",
       colormap      => {},
-      indentmap     => {
-         select => 0,
-         where  => 1,
-         from   => 1,
-      },
+      indentmap     => { %indents },
    },
    console_monochrome => {
       indent_string => ' ',
       indent_amount => 2,
       newline       => "\n",
       colormap      => {},
-      indentmap     => {
-         select => 0,
-         where  => 1,
-         from   => 1,
+      indentmap     => { %indents },
+   },
+   html => {
+      indent_string => '&nbsp;',
+      indent_amount => 2,
+      newline       => "<br />\n",
+      colormap      => {
+         select => ['<span class="select">', '</span>'],
+         where  => ['<span class="where">', '</span>'],
+         from   => ['<span class="from">', '</span>'],
       },
+      indentmap     => { %indents },
    },
    none => {
       colormap      => {},
