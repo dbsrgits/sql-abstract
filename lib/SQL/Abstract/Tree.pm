@@ -5,7 +5,6 @@ use warnings;
 use Carp;
 
 
-use Term::ANSIColor 'color';
 use base 'Class::Accessor::Grouped';
 
 __PACKAGE__->mk_group_accessors( simple => $_ ) for qw(
@@ -83,13 +82,20 @@ my %profiles = (
       indent_string => ' ',
       indent_amount => 2,
       newline       => "\n",
-      colormap      => {
-         select => [color('red'), color('reset')],
-         where  => [color('green'), color('reset')],
-         from   => [color('cyan'), color('reset')],
+      colormap      => {},
+      indentmap     => {
+         select => 0,
+         where  => 1,
+         from   => 1,
       },
-      indentmap => {
-         select     => 0,
+   },
+   console_monochrome => {
+      indent_string => ' ',
+      indent_amount => 2,
+      newline       => "\n",
+      colormap      => {},
+      indentmap     => {
+         select => 0,
          where  => 1,
          from   => 1,
       },
@@ -99,6 +105,15 @@ my %profiles = (
       indentmap     => {},
    },
 );
+
+eval {
+   require Term::ANSIColor;
+   $profiles{console}->{colormap} = {
+      select => [Term::ANSIColor::color('red'), Term::ANSIColor::color('reset')],
+      where  => [Term::ANSIColor::color('green'), Term::ANSIColor::color('reset')],
+      from   => [Term::ANSIColor::color('cyan'), Term::ANSIColor::color('reset')],
+   };
+};
 
 sub new {
    my ($class, $args) = @_;
@@ -269,4 +284,16 @@ sub unparse {
 sub format { my $self = shift; $self->unparse($self->parse(@_)) }
 
 1;
+
+=pod
+
+=head1 SYNOPSIS
+
+ my $sqla_tree = SQL::Abstract::Tree->new({ profile => 'console' });
+
+ print $sqla_tree->format('SELECT * FROM foo WHERE foo.a > 2');
+
+ # SELECT *
+ #   FROM foo
+ #   WHERE foo.a > 2
 
