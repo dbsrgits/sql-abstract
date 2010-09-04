@@ -254,3 +254,4 @@ subtest configuration => sub {
 done_testing;
 # stuff we want:
 #    Max Width
+#    placeholder substitution
