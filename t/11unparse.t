@@ -4,47 +4,83 @@ use warnings;
 use Test::More;
 use SQL::Abstract::Tree;
 
-my $sqlat = SQL::Abstract::Tree->new({
-   profile => 'console_monochrome',
-});
+subtest no_formatting => sub {
+   my $sqlat = SQL::Abstract::Tree->new;
 
-{
-   my $sql = "SELECT a, b, c FROM foo WHERE foo.a =1 and foo.b LIKE 'station'";
-   my $expected_sql =
-      qq{SELECT a, b, c \n} .
-      qq{  FROM foo \n} .
-      qq{  WHERE foo.a = 1 AND foo.b LIKE 'station' };
-   is($sqlat->format($sql), $expected_sql,
-      'simple statement formatted correctly'
-   );
-}
+   {
+      my $sql = "SELECT a, b, c FROM foo WHERE foo.a =1 and foo.b LIKE 'station'";
+      my $expected_sql =
+         "SELECT a, b, c FROM foo WHERE foo.a = 1 AND foo.b LIKE 'station' ";
+      is($sqlat->format($sql), $expected_sql,
+         'simple statement formatted correctly'
+      );
+   }
 
-{
-   my $sql = "SELECT * FROM (SELECT * FROM foobar) WHERE foo.a =1 and foo.b LIKE 'station'";
-   my $expected_sql =
-      qq{SELECT * \n} .
-      qq{  FROM (\n} .
-      qq{    SELECT * \n} .
-      qq{      FROM foobar \n} .
-      qq{  ) \n} .
-      qq{  WHERE foo.a = 1 AND foo.b LIKE 'station' };
+   {
+      my $sql = "SELECT * FROM (SELECT * FROM foobar) WHERE foo.a =1 and foo.b LIKE 'station'";
+      my $expected_sql =
+         "SELECT * FROM (SELECT * FROM foobar ) WHERE foo.a = 1 AND foo.b LIKE 'station' ";
+      is($sqlat->format($sql), $expected_sql,
+         'subquery statement formatted correctly'
+      );
+   }
 
-   is($sqlat->format($sql), $expected_sql,
-      'subquery statement formatted correctly'
-   );
-}
+   {
+      my $sql = "SELECT * FROM lolz WHERE ( foo.a =1 ) and foo.b LIKE 'station'";
+      my $expected_sql =
+         "SELECT * FROM lolz WHERE (foo.a = 1) AND foo.b LIKE 'station' ";
 
-{
-   my $sql = "SELECT * FROM lolz WHERE ( foo.a =1 ) and foo.b LIKE 'station'";
-   my $expected_sql =
-      qq{SELECT * \n} .
-      qq{  FROM lolz \n} .
-      qq{  WHERE (foo.a = 1) AND foo.b LIKE 'station' };
+      is($sqlat->format($sql), $expected_sql,
+         'simple statement with parens in where formatted correctly'
+      );
+   }
+   done_testing;
+};
 
-   is($sqlat->format($sql), $expected_sql,
-      'simple statement with parens in where formatted correctly'
-   );
-}
+subtest console_monochrome => sub {
+   my $sqlat = SQL::Abstract::Tree->new({
+      profile => 'console_monochrome',
+   });
+
+   {
+      my $sql = "SELECT a, b, c FROM foo WHERE foo.a =1 and foo.b LIKE 'station'";
+      my $expected_sql =
+         qq{SELECT a, b, c \n} .
+         qq{  FROM foo \n} .
+         qq{  WHERE foo.a = 1 AND foo.b LIKE 'station' };
+      is($sqlat->format($sql), $expected_sql,
+         'simple statement formatted correctly'
+      );
+   }
+
+   {
+      my $sql = "SELECT * FROM (SELECT * FROM foobar) WHERE foo.a =1 and foo.b LIKE 'station'";
+      my $expected_sql =
+         qq{SELECT * \n} .
+         qq{  FROM (\n} .
+         qq{    SELECT * \n} .
+         qq{      FROM foobar \n} .
+         qq{  ) \n} .
+         qq{  WHERE foo.a = 1 AND foo.b LIKE 'station' };
+
+      is($sqlat->format($sql), $expected_sql,
+         'subquery statement formatted correctly'
+      );
+   }
+
+   {
+      my $sql = "SELECT * FROM lolz WHERE ( foo.a =1 ) and foo.b LIKE 'station'";
+      my $expected_sql =
+         qq{SELECT * \n} .
+         qq{  FROM lolz \n} .
+         qq{  WHERE (foo.a = 1) AND foo.b LIKE 'station' };
+
+      is($sqlat->format($sql), $expected_sql,
+         'simple statement with parens in where formatted correctly'
+      );
+   }
+   done_testing;
+};
 
 done_testing;
 # stuff we want:

@@ -13,7 +13,7 @@ all_from 'lib/SQL/Abstract.pm';
 requires 'List::Util'   => 0;
 requires 'Scalar::Util' => 0;
 
-test_requires "Test::More"      => 0;
+test_requires "Test::More"      => 0.96;
 test_requires "Test::Exception" => 0;
 test_requires "Test::Warn"      => 0;
 test_requires "Storable"        => 0;   # for cloning in tests
