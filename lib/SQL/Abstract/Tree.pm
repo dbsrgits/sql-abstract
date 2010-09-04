@@ -78,9 +78,12 @@ my $tokenizer_re = qr/ \s* ( $tokenizer_re_str | \( | \) | \? ) \s* /xi;
 sub _binary_op_keywords { @binary_op_keywords }
 
 my %indents = (
-   select => 0,
-   where  => 1,
-   from   => 1,
+   select     => 0,
+   where      => 1,
+   from       => 1,
+   join       => 1,
+   on         => 2,
+   'group by' => 1,
 );
 
 my %profiles = (
@@ -103,9 +106,12 @@ my %profiles = (
       indent_amount => 2,
       newline       => "<br />\n",
       colormap      => {
-         select => ['<span class="select">', '</span>'],
-         where  => ['<span class="where">', '</span>'],
-         from   => ['<span class="from">', '</span>'],
+         select     => ['<span class="select">'  , '</span>'],
+         where      => ['<span class="where">'   , '</span>'],
+         from       => ['<span class="from">'    , '</span>'],
+         join       => ['<span class="join">'    , '</span>'],
+         on         => ['<span class="on">'      , '</span>'],
+         'group by' => ['<span class="group-by">', '</span>'],
       },
       indentmap     => { %indents },
    },
