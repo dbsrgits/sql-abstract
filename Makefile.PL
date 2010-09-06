@@ -18,6 +18,9 @@ test_requires "Test::Exception" => 0;
 test_requires "Test::Warn"      => 0;
 test_requires "Storable"        => 0;   # for cloning in tests
 
+no_index package => 'DBIx::Class::Storage::PrettyPrinter';
+no_index directory => 'examples';
+
 tests_recursive 't';
 
 WriteAll();
