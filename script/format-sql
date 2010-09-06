@@ -1,0 +1,7 @@
+#!/usr/bin/env perl
+
+use SQL::Abstract::Tree;
+
+my $sqlat = SQL::Abstract::Tree->new({ profile => 'console' });
+
+print $sqlat->format($_) . "\n" while <>;

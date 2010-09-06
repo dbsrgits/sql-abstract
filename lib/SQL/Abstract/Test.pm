@@ -4,81 +4,19 @@ use strict;
 use warnings;
 use base qw/Test::Builder::Module Exporter/;
 use Data::Dumper;
-use Carp;
 use Test::Builder;
+use SQL::Abstract::Tree;
 
 our @EXPORT_OK = qw/&is_same_sql_bind &is_same_sql &is_same_bind
-                    &eq_sql_bind &eq_sql &eq_bind 
+                    &eq_sql_bind &eq_sql &eq_bind
                     $case_sensitive $sql_differ/;
+
+my $sqlat = SQL::Abstract::Tree->new;
 
 our $case_sensitive = 0;
 our $parenthesis_significant = 0;
 our $sql_differ; # keeps track of differing portion between SQLs
 our $tb = __PACKAGE__->builder;
-
-# Parser states for _recurse_parse()
-use constant PARSE_TOP_LEVEL => 0;
-use constant PARSE_IN_EXPR => 1;
-use constant PARSE_IN_PARENS => 2;
-use constant PARSE_RHS => 3;
-
-# These SQL keywords always signal end of the current expression (except inside
-# of a parenthesized subexpression).
-# Format: A list of strings that will be compiled to extended syntax (ie.
-# /.../x) regexes, without capturing parentheses. They will be automatically
-# anchored to word boundaries to match the whole token).
-my @expression_terminator_sql_keywords = (
-  'SELECT',
-  'FROM',
-  '(?:
-    (?:
-        (?: \b (?: LEFT | RIGHT | FULL ) \s+ )?
-        (?: \b (?: CROSS | INNER | OUTER ) \s+ )?
-    )?
-    JOIN
-  )',
-  'ON',
-  'WHERE',
-  'EXISTS',
-  'GROUP \s+ BY',
-  'HAVING',
-  'ORDER \s+ BY',
-  'LIMIT',
-  'OFFSET',
-  'FOR',
-  'UNION',
-  'INTERSECT',
-  'EXCEPT',
-  'RETURNING',
-);
-
-# These are binary operator keywords always a single LHS and RHS
-# * AND/OR are handled separately as they are N-ary
-# * so is NOT as being unary
-# * BETWEEN without paranthesis around the ANDed arguments (which
-#   makes it a non-binary op) is detected and accomodated in 
-#   _recurse_parse()
-my $stuff_around_mathops = qr/[\w\s\`\'\"\)]/;
-my @binary_op_keywords = (
-  ( map
-    {
-      ' ^ '  . quotemeta ($_) . "(?= \$ | $stuff_around_mathops ) ",
-      " (?<= $stuff_around_mathops)" . quotemeta ($_) . "(?= \$ | $stuff_around_mathops ) ",
-    }
-    (qw/< > != <> = <= >=/)
-  ),
-  ( map
-    { '\b (?: NOT \s+)?' . $_ . '\b' }
-    (qw/IN BETWEEN LIKE/)
-  ),
-);
-
-my $tokenizer_re_str = join("\n\t|\n",
-  ( map { '\b' . $_ . '\b' } @expression_terminator_sql_keywords, 'AND', 'OR', 'NOT'),
-  @binary_op_keywords,
-);
-
-my $tokenizer_re = qr/ \s* ( $tokenizer_re_str | \( | \) | \? ) \s* /xi;
 
 # All of these keywords allow their parameters to be specified with or without parenthesis without changing the semantics
 my @unrollable_ops = (
@@ -186,8 +124,8 @@ sub eq_sql {
   my ($sql1, $sql2) = @_;
 
   # parse
-  my $tree1 = parse($sql1);
-  my $tree2 = parse($sql2);
+  my $tree1 = $sqlat->parse($sql1);
+  my $tree2 = $sqlat->parse($sql2);
 
   return 1 if _eq_sql($tree1, $tree2);
 }
@@ -205,7 +143,7 @@ sub _eq_sql {
   }
   # one is a list, the other is an op with a list
   elsif (ref $left->[0] xor ref $right->[0]) {
-    $sql_differ = sprintf ("left: %s\nright: %s\n", map { unparse ($_) } ($left, $right) );
+    $sql_differ = sprintf ("left: %s\nright: %s\n", map { $sqlat->unparse ($_) } ($left, $right) );
     return 0;
   }
   # one is a list, so is the other
@@ -224,12 +162,12 @@ sub _eq_sql {
     # if operators are different
     if ( $left->[0] ne $right->[0] ) {
       $sql_differ = sprintf "OP [$left->[0]] != [$right->[0]] in\nleft: %s\nright: %s\n",
-        unparse($left),
-        unparse($right);
+        $sqlat->unparse($left),
+        $sqlat->unparse($right);
       return 0;
     }
     # elsif operators are identical, compare operands
-    else { 
+    else {
       if ($left->[0] eq 'LITERAL' ) { # unary
         (my $l = " $left->[1][0] " ) =~ s/\s+/ /g;
         (my $r = " $right->[1][0] ") =~ s/\s+/ /g;
@@ -239,102 +177,9 @@ sub _eq_sql {
       }
       else {
         my $eq = _eq_sql($left->[1], $right->[1]);
-        $sql_differ ||= sprintf ("left: %s\nright: %s\n", map { unparse ($_) } ($left, $right) ) if not $eq;
+        $sql_differ ||= sprintf ("left: %s\nright: %s\n", map { $sqlat->unparse ($_) } ($left, $right) ) if not $eq;
         return $eq;
       }
-    }
-  }
-}
-
-sub parse {
-  my $s = shift;
-
-  # tokenize string, and remove all optional whitespace
-  my $tokens = [];
-  foreach my $token (split $tokenizer_re, $s) {
-    push @$tokens, $token if (length $token) && ($token =~ /\S/);
-  }
-
-  my $tree = _recurse_parse($tokens, PARSE_TOP_LEVEL);
-  return $tree;
-}
-
-sub _recurse_parse {
-  my ($tokens, $state) = @_;
-
-  my $left;
-  while (1) { # left-associative parsing
-
-    my $lookahead = $tokens->[0];
-    if ( not defined($lookahead)
-          or
-        ($state == PARSE_IN_PARENS && $lookahead eq ')')
-          or
-        ($state == PARSE_IN_EXPR && grep { $lookahead =~ /^ $_ $/xi } ('\)', @expression_terminator_sql_keywords ) )
-          or
-        ($state == PARSE_RHS && grep { $lookahead =~ /^ $_ $/xi } ('\)', @expression_terminator_sql_keywords, @binary_op_keywords, 'AND', 'OR', 'NOT' ) )
-    ) {
-      return $left;
-    }
-
-    my $token = shift @$tokens;
-
-    # nested expression in ()
-    if ($token eq '(' ) {
-      my $right = _recurse_parse($tokens, PARSE_IN_PARENS);
-      $token = shift @$tokens   or croak "missing closing ')' around block " . unparse ($right);
-      $token eq ')'             or croak "unexpected token '$token' terminating block " . unparse ($right);
-
-      $left = $left ? [@$left, [PAREN => [$right] ]]
-                    : [PAREN  => [$right] ];
-    }
-    # AND/OR
-    elsif ($token =~ /^ (?: OR | AND ) $/xi )  {
-      my $op = uc $token;
-      my $right = _recurse_parse($tokens, PARSE_IN_EXPR);
-
-      # Merge chunks if logic matches
-      if (ref $right and $op eq $right->[0]) {
-        $left = [ (shift @$right ), [$left, map { @$_ } @$right] ];
-      }
-      else {
-       $left = [$op => [$left, $right]];
-      }
-    }
-    # binary operator keywords
-    elsif (grep { $token =~ /^ $_ $/xi } @binary_op_keywords ) {
-      my $op = uc $token;
-      my $right = _recurse_parse($tokens, PARSE_RHS);
-
-      # A between with a simple LITERAL for a 1st RHS argument needs a
-      # rerun of the search to (hopefully) find the proper AND construct
-      if ($op eq 'BETWEEN' and $right->[0] eq 'LITERAL') {
-        unshift @$tokens, $right->[1][0];
-        $right = _recurse_parse($tokens, PARSE_IN_EXPR);
-      }
-
-      $left = [$op => [$left, $right] ];
-    }
-    # expression terminator keywords (as they start a new expression)
-    elsif (grep { $token =~ /^ $_ $/xi } @expression_terminator_sql_keywords ) {
-      my $op = uc $token;
-      my $right = _recurse_parse($tokens, PARSE_IN_EXPR);
-      $left = $left ? [ $left,  [$op => [$right] ]]
-                    : [ $op => [$right] ];
-    }
-    # NOT (last as to allow all other NOT X pieces first)
-    elsif ( $token =~ /^ not $/ix ) {
-      my $op = uc $token;
-      my $right = _recurse_parse ($tokens, PARSE_RHS);
-      $left = $left ? [ @$left, [$op => [$right] ]]
-                    : [ $op => [$right] ];
-
-    }
-    # literal (eat everything on the right until RHS termination)
-    else {
-      my $right = _recurse_parse ($tokens, PARSE_RHS);
-      $left = $left ? [ $left, [LITERAL => [join ' ', $token, unparse($right)||()] ] ]
-                    : [ LITERAL => [join ' ', $token, unparse($right)||()] ];
     }
   }
 }
@@ -390,7 +235,7 @@ sub _parenthesis_unroll {
       elsif (
         @{$child->[1]} == 1
           and
-        grep { $child->[1][0][0] =~ /^ $_ $/xi } (@binary_op_keywords)
+        grep { $child->[1][0][0] =~ /^ $_ $/xi } (SQL::Abstract::Tree::_binary_op_keywords())
           and
         $child->[1][0][1][0][0] eq 'LITERAL'
           and
@@ -412,30 +257,6 @@ sub _parenthesis_unroll {
 
 }
 
-sub unparse {
-  my $tree = shift;
-
-  if (not $tree ) {
-    return '';
-  }
-  elsif (ref $tree->[0]) {
-    return join (" ", map { unparse ($_) } @$tree);
-  }
-  elsif ($tree->[0] eq 'LITERAL') {
-    return $tree->[1][0];
-  }
-  elsif ($tree->[0] eq 'PAREN') {
-    return sprintf '(%s)', join (" ", map {unparse($_)} @{$tree->[1]});
-  }
-  elsif ($tree->[0] eq 'OR' or $tree->[0] eq 'AND' or (grep { $tree->[0] =~ /^ $_ $/xi } @binary_op_keywords ) ) {
-    return join (" $tree->[0] ", map {unparse($_)} @{$tree->[1]});
-  }
-  else {
-    return sprintf '%s %s', $tree->[0], unparse ($tree->[1]);
-  }
-}
-
-
 1;
 
 
@@ -456,13 +277,13 @@ SQL::Abstract::Test - Helper function for testing SQL::Abstract
 
   my ($sql, @bind) = SQL::Abstract->new->select(%args);
 
-  is_same_sql_bind($given_sql,    \@given_bind, 
+  is_same_sql_bind($given_sql,    \@given_bind,
                    $expected_sql, \@expected_bind, $test_msg);
 
   is_same_sql($given_sql, $expected_sql, $test_msg);
   is_same_bind(\@given_bind, \@expected_bind, $test_msg);
 
-  my $is_same = eq_sql_bind($given_sql,    \@given_bind, 
+  my $is_same = eq_sql_bind($given_sql,    \@given_bind,
                             $expected_sql, \@expected_bind);
 
   my $sql_same = eq_sql($given_sql, $expected_sql);
@@ -486,14 +307,14 @@ non-significant parenthesis, including AND/OR operator associativity.
 Currently this module does not support commutativity and more
 intelligent transformations like Morgan laws, etc.
 
-For a good overview of what this test framework is capable of refer 
+For a good overview of what this test framework is capable of refer
 to C<t/10test.t>
 
 =head1 FUNCTIONS
 
 =head2 is_same_sql_bind
 
-  is_same_sql_bind($given_sql,    \@given_bind, 
+  is_same_sql_bind($given_sql,    \@given_bind,
                    $expected_sql, \@expected_bind, $test_msg);
 
 Compares given and expected pairs of C<($sql, \@bind)>, and calls
@@ -524,7 +345,7 @@ to be imported.
 
 =head2 eq_sql_bind
 
-  my $is_same = eq_sql_bind($given_sql,    \@given_bind, 
+  my $is_same = eq_sql_bind($given_sql,    \@given_bind,
                             $expected_sql, \@expected_bind);
 
 Compares given and expected pairs of C<($sql, \@bind)>. Similar to
@@ -585,4 +406,4 @@ Peter Rabbitson <ribasushi@cpan.org>
 Copyright 2008 by Laurent Dami.
 
 This library is free software; you can redistribute it and/or modify
-it under the same terms as Perl itself. 
+it under the same terms as Perl itself.
