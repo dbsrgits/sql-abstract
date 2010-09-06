@@ -257,6 +257,7 @@ sub _parenthesis_unroll {
 
 }
 
+sub parse { $sqlat->parse(@_) }
 1;
 
 

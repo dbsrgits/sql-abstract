@@ -24,7 +24,10 @@ use constant PARSE_RHS => 3;
 # anchored to word boundaries to match the whole token).
 my @expression_terminator_sql_keywords = (
   'SELECT',
-  'FROM',
+  'UPDATE',
+  'INSERT \s+ INTO',
+  'DELETE \s+ FROM',
+  'SET',
   '(?:
     (?:
         (?: \b (?: LEFT | RIGHT | FULL ) \s+ )?
@@ -34,6 +37,7 @@ my @expression_terminator_sql_keywords = (
   )',
   'ON',
   'WHERE',
+  'VALUES',
   'EXISTS',
   'GROUP \s+ BY',
   'HAVING',
@@ -79,13 +83,19 @@ my $tokenizer_re = qr/ \s* ( $tokenizer_re_str | \( | \) | \? ) \s* /xi;
 sub _binary_op_keywords { @binary_op_keywords }
 
 my %indents = (
-   select     => 0,
-   where      => 1,
-   from       => 1,
-   join       => 1,
-   on         => 2,
-   'group by' => 1,
-   'order by' => 1,
+   select        => 0,
+   update        => 0,
+   'insert into' => 0,
+   'delete from' => 0,
+   where         => 1,
+   join          => 1,
+   'left join'   => 1,
+   on            => 2,
+   'group by'    => 1,
+   'order by'    => 1,
+   set           => 1,
+   into          => 1,
+   values        => 2,
 );
 
 my %profiles = (
@@ -108,12 +118,19 @@ my %profiles = (
       indent_amount => 2,
       newline       => "<br />\n",
       colormap      => {
-         select     => ['<span class="select">'  , '</span>'],
-         where      => ['<span class="where">'   , '</span>'],
-         from       => ['<span class="from">'    , '</span>'],
-         join       => ['<span class="join">'    , '</span>'],
-         on         => ['<span class="on">'      , '</span>'],
-         'group by' => ['<span class="group-by">', '</span>'],
+         select        => ['<span class="select">'  , '</span>'],
+         'insert into' => ['<span class="insert-into">'  , '</span>'],
+         update        => ['<span class="select">'  , '</span>'],
+         'delete from' => ['<span class="delete-from">'  , '</span>'],
+         where         => ['<span class="where">'   , '</span>'],
+         from          => ['<span class="from">'    , '</span>'],
+         join          => ['<span class="join">'    , '</span>'],
+         on            => ['<span class="on">'      , '</span>'],
+         'group by'    => ['<span class="group-by">', '</span>'],
+         'order by'    => ['<span class="order-by">', '</span>'],
+         set           => ['<span class="set">', '</span>'],
+         into          => ['<span class="into">', '</span>'],
+         values        => ['<span class="values">', '</span>'],
       },
       indentmap     => { %indents },
    },
@@ -126,13 +143,22 @@ my %profiles = (
 eval {
    require Term::ANSIColor;
    $profiles{console}->{colormap} = {
-      select     => [Term::ANSIColor::color('red'), Term::ANSIColor::color('reset')],
-      where      => [Term::ANSIColor::color('green'), Term::ANSIColor::color('reset')],
-      from       => [Term::ANSIColor::color('cyan'), Term::ANSIColor::color('reset')],
-      join       => [Term::ANSIColor::color('magenta'), Term::ANSIColor::color('reset')],
-      on         => [Term::ANSIColor::color('blue'), Term::ANSIColor::color('reset')],
-      'group by' => [Term::ANSIColor::color('cyan'), Term::ANSIColor::color('reset')],
-      'order by' => [Term::ANSIColor::color('yellow'), Term::ANSIColor::color('reset')],
+      select        => [Term::ANSIColor::color('red'), Term::ANSIColor::color('reset')],
+      'insert into' => [Term::ANSIColor::color('red'), Term::ANSIColor::color('reset')],
+      update        => [Term::ANSIColor::color('red'), Term::ANSIColor::color('reset')],
+      'delete from' => [Term::ANSIColor::color('red'), Term::ANSIColor::color('reset')],
+
+      set           => [Term::ANSIColor::color('cyan'), Term::ANSIColor::color('reset')],
+
+      where         => [Term::ANSIColor::color('green'), Term::ANSIColor::color('reset')],
+      values        => [Term::ANSIColor::color('yellow'), Term::ANSIColor::color('reset')],
+
+      join          => [Term::ANSIColor::color('magenta'), Term::ANSIColor::color('reset')],
+      'left join'   => [Term::ANSIColor::color('magenta'), Term::ANSIColor::color('reset')],
+      on            => [Term::ANSIColor::color('blue'), Term::ANSIColor::color('reset')],
+
+      'group by'    => [Term::ANSIColor::color('yellow'), Term::ANSIColor::color('reset')],
+      'order by'    => [Term::ANSIColor::color('yellow'), Term::ANSIColor::color('reset')],
    };
 };
 
