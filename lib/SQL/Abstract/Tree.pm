@@ -291,7 +291,7 @@ sub unparse {
     return '(' .
       join(' ',
         map $self->unparse($_, $depth + 2), @{$cdr}) .
-    (_is_select($cdr)?( $self->newline||'' ).$self->indent($depth + 1):'') . ')';
+    (_is_select($cdr)?( $self->newline||'' ).$self->indent($depth + 1):'') . ') ';
   }
   elsif ($car eq 'OR' or $car eq 'AND' or (grep { $car =~ /^ $_ $/xi } @binary_op_keywords ) ) {
     return join (" $car ", map $self->unparse($_, $depth), @{$cdr});
