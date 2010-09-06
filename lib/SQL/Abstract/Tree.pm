@@ -45,6 +45,7 @@ my @expression_terminator_sql_keywords = (
   'INTERSECT',
   'EXCEPT',
   'RETURNING',
+  'ROW_NUMBER \s* \( \s* \) \s+ OVER',
 );
 
 # These are binary operator keywords always a single LHS and RHS
@@ -84,6 +85,7 @@ my %indents = (
    join       => 1,
    on         => 2,
    'group by' => 1,
+   'order by' => 1,
 );
 
 my %profiles = (
@@ -124,9 +126,13 @@ my %profiles = (
 eval {
    require Term::ANSIColor;
    $profiles{console}->{colormap} = {
-      select => [Term::ANSIColor::color('red'), Term::ANSIColor::color('reset')],
-      where  => [Term::ANSIColor::color('green'), Term::ANSIColor::color('reset')],
-      from   => [Term::ANSIColor::color('cyan'), Term::ANSIColor::color('reset')],
+      select     => [Term::ANSIColor::color('red'), Term::ANSIColor::color('reset')],
+      where      => [Term::ANSIColor::color('green'), Term::ANSIColor::color('reset')],
+      from       => [Term::ANSIColor::color('cyan'), Term::ANSIColor::color('reset')],
+      join       => [Term::ANSIColor::color('magenta'), Term::ANSIColor::color('reset')],
+      on         => [Term::ANSIColor::color('blue'), Term::ANSIColor::color('reset')],
+      'group by' => [Term::ANSIColor::color('cyan'), Term::ANSIColor::color('reset')],
+      'order by' => [Term::ANSIColor::color('yellow'), Term::ANSIColor::color('reset')],
    };
 };
 
