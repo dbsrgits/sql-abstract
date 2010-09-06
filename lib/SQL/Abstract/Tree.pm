@@ -252,12 +252,11 @@ sub whitespace {
    my ($self, $keyword, $depth) = @_;
 
    my $before = '';
-   my $after  = ' ';
    if (defined $self->indentmap->{lc $keyword}) {
       $before = $self->newline . $self->indent($depth + $self->indentmap->{lc $keyword});
    }
    $before = '' if $depth == 0 and lc $keyword eq 'select';
-   return [$before, $after];
+   return [$before, ' '];
 }
 
 sub indent { ($_[0]->indent_string||'') x ( ( $_[0]->indent_amount || 0 ) * $_[1] ) }
