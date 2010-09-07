@@ -346,3 +346,14 @@ sub format { my $self = shift; $self->unparse($self->parse(@_)) }
  #   FROM foo
  #   WHERE foo.a > 2
 
+=head1 METHODS
+
+=head2 new
+
+ my $sqla_tree = SQL::Abstract::Tree->new({ profile => 'console' });
+
+=head2 format
+
+ $sqlat->format('SELECT * FROM bar')
+
+Returns a formatting string based on wthe string passed in

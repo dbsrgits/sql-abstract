@@ -27,3 +27,28 @@ sub query_start {
 }
 
 1;
+
+=pod
+
+=head1 SYNOPSIS
+
+ package MyApp::Schema;
+
+ use parent 'DBIx::Class::Schema';
+
+ use DBIx::Class::Storage::PrettyPrinter;
+
+ __PACKAGE__->load_namespaces;
+
+ my $pp = DBIx::Class::Storage::PrettyPrinter->new({ profile => 'console' });
+
+ sub connection {
+	my $self = shift;
+
+	my $ret = $self->next::method(@_);
+
+	$self->storage->debugobj($pp);
+
+	$ret
+ }
+
