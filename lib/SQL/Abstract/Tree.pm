@@ -27,6 +27,7 @@ my @expression_terminator_sql_keywords = (
   'UPDATE',
   'INSERT \s+ INTO',
   'DELETE \s+ FROM',
+  'FROM',
   'SET',
   '(?:
     (?:
@@ -87,6 +88,7 @@ my %indents = (
    update        => 0,
    'insert into' => 0,
    'delete from' => 0,
+   from          => 1,
    where         => 1,
    join          => 1,
    'left join'   => 1,
@@ -152,6 +154,7 @@ eval {
 
       where         => [Term::ANSIColor::color('green'), Term::ANSIColor::color('reset')],
       values        => [Term::ANSIColor::color('yellow'), Term::ANSIColor::color('reset')],
+      from          => [Term::ANSIColor::color('yellow'), Term::ANSIColor::color('reset')],
 
       join          => [Term::ANSIColor::color('magenta'), Term::ANSIColor::color('reset')],
       'left join'   => [Term::ANSIColor::color('magenta'), Term::ANSIColor::color('reset')],
