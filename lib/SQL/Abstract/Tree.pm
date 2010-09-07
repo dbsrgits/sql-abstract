@@ -151,10 +151,10 @@ eval {
       'delete from' => [Term::ANSIColor::color('red'), Term::ANSIColor::color('reset')],
 
       set           => [Term::ANSIColor::color('cyan'), Term::ANSIColor::color('reset')],
+      from          => [Term::ANSIColor::color('cyan'), Term::ANSIColor::color('reset')],
 
       where         => [Term::ANSIColor::color('green'), Term::ANSIColor::color('reset')],
       values        => [Term::ANSIColor::color('yellow'), Term::ANSIColor::color('reset')],
-      from          => [Term::ANSIColor::color('yellow'), Term::ANSIColor::color('reset')],
 
       join          => [Term::ANSIColor::color('magenta'), Term::ANSIColor::color('reset')],
       'left join'   => [Term::ANSIColor::color('magenta'), Term::ANSIColor::color('reset')],
