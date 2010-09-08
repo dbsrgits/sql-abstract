@@ -89,15 +89,15 @@ my %indents = (
    'insert into' => 0,
    'delete from' => 0,
    from          => 1,
-   where         => 1,
+   where         => 0,
    join          => 1,
    'left join'   => 1,
    on            => 2,
-   'group by'    => 1,
-   'order by'    => 1,
+   'group by'    => 0,
+   'order by'    => 0,
    set           => 1,
    into          => 1,
-   values        => 2,
+   values        => 1,
 );
 
 my %profiles = (
