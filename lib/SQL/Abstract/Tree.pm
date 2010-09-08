@@ -4,6 +4,7 @@ use strict;
 use warnings;
 use Carp;
 
+use List::Util;
 
 use base 'Class::Accessor::Grouped';
 
@@ -290,11 +291,11 @@ sub whitespace {
 
 sub indent { ($_[0]->indent_string||'') x ( ( $_[0]->indent_amount || 0 ) * $_[1] ) }
 
-sub _is_select {
-   my $tree = shift;
+sub _is_key {
+   my ($self, $tree) = @_;
    $tree = $tree->[0] while ref $tree;
 
-   defined $tree && lc $tree eq 'select';
+   defined $tree && defined $self->indentmap->{lc $tree};
 }
 
 sub unparse {
@@ -319,7 +320,7 @@ sub unparse {
     return '(' .
       join(' ',
         map $self->unparse($_, $depth + 2), @{$cdr}) .
-    (_is_select($cdr)?( $self->newline||'' ).$self->indent($depth + 1):'') . ') ';
+    ($self->_is_key($cdr)?( $self->newline||'' ).$self->indent($depth + 1):'') . ') ';
   }
   elsif ($car eq 'OR' or $car eq 'AND' or (grep { $car =~ /^ $_ $/xi } @binary_op_keywords ) ) {
     return join (" $car ", map $self->unparse($_, $depth), @{$cdr});
