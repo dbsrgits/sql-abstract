@@ -1,4 +1,4 @@
-package DBIx::Class::Storage::PrettyPrinter;
+package DBIx::Class::Storage::Debug::PrettyPrint;
 
 use base 'DBIx::Class::Storage::Statistics';
 
@@ -7,14 +7,14 @@ use SQL::Abstract::Tree;
 __PACKAGE__->mk_group_accessors( simple => '_sqlat' );
 
 sub new {
-	my $class = shift;
+   my $class = shift;
 
-	my $sqlat = SQL::Abstract::Tree->new(shift @_);
-	my $self = $class->next::method(@_);
+   my $sqlat = SQL::Abstract::Tree->new(shift @_);
+   my $self = $class->next::method(@_);
 
-	$self->_sqlat($sqlat);
+   $self->_sqlat($sqlat);
 
-	return $self
+   return $self
 }
 
 sub query_start {
@@ -36,19 +36,21 @@ sub query_start {
 
  use parent 'DBIx::Class::Schema';
 
- use DBIx::Class::Storage::PrettyPrinter;
+ use DBIx::Class::Storage::Debug::PrettyPrint;
 
  __PACKAGE__->load_namespaces;
 
- my $pp = DBIx::Class::Storage::PrettyPrinter->new({ profile => 'console' });
+ my $pp = DBIx::Class::Storage::Debug::PrettyPrint->new({
+   profile => 'console',
+ });
 
  sub connection {
-	my $self = shift;
+   my $self = shift;
 
-	my $ret = $self->next::method(@_);
+   my $ret = $self->next::method(@_);
 
-	$self->storage->debugobj($pp);
+   $self->storage->debugobj($pp);
 
-	$ret
+   $ret
  }
 

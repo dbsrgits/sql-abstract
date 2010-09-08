@@ -2,9 +2,9 @@ Revision history for SQL::Abstract
 
 revision 1.67_02  2010-09-08
 ----------------------------
-    - renamed DBIx::Class::Storage::PrettyPrinter to
+    - rename DBIx::Class::Storage::PrettyPrinter to DBIx::Class::Storage::Debug::PrettyPrint
     - decreased a lot of indentation from ::Tree
-	 - cleaned up handling of newlines inside of parens
+    - cleaned up handling of newlines inside of parens
 
 revision 1.67_01  2010-09-06
 ----------------------------
