@@ -17,7 +17,7 @@ sub new {
    return $self
 }
 
-sub query_start {
+sub print {
   my $self = shift;
   my $string = shift;
 
