@@ -16,5 +16,5 @@ my @sql = (
 
 );
 
-print "\n\n" . $sqlat->format($_) . "\n" for @sql;
+print "\n\n'" . $sqlat->format($_) . "'\n" for @sql;
 
