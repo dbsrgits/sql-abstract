@@ -9,7 +9,7 @@ use List::Util;
 use base 'Class::Accessor::Grouped';
 
 __PACKAGE__->mk_group_accessors( simple => $_ ) for qw(
-   newline indent_string indent_amount colormap indentmap
+   newline indent_string indent_amount colormap indentmap fill_in_placeholders
 );
 
 # Parser states for _recurse_parse()
@@ -298,8 +298,20 @@ sub _is_key {
    defined $tree && defined $self->indentmap->{lc $tree};
 }
 
+sub _fill_in_placeholder {
+   my ($self, $bindargs) = @_;
+
+   if ($self->fill_in_placeholders) {
+      my $val = pop @{$bindargs};
+      $val =~ s/\\/\\\\/g;
+      $val =~ s/'/\\'/g;
+      return qq('$val')
+   }
+   return '?'
+}
+
 sub unparse {
-  my ($self, $tree, $depth) = @_;
+  my ($self, $tree, $bindargs, $depth) = @_;
 
   $depth ||= 0;
 
@@ -311,27 +323,30 @@ sub unparse {
   my $cdr = $tree->[1];
 
   if (ref $car) {
-    return join ('', map $self->unparse($_, $depth), @$tree);
+    return join ('', map $self->unparse($_, $bindargs, $depth), @$tree);
   }
   elsif ($car eq 'LITERAL') {
+    if ($cdr->[0] eq '?') {
+      return $self->_fill_in_placeholder($bindargs)
+    }
     return $cdr->[0];
   }
   elsif ($car eq 'PAREN') {
     return '(' .
       join(' ',
-        map $self->unparse($_, $depth + 2), @{$cdr}) .
+        map $self->unparse($_, $bindargs, $depth + 2), @{$cdr}) .
     ($self->_is_key($cdr)?( $self->newline||'' ).$self->indent($depth + 1):'') . ') ';
   }
   elsif ($car eq 'OR' or $car eq 'AND' or (grep { $car =~ /^ $_ $/xi } @binary_op_keywords ) ) {
-    return join (" $car ", map $self->unparse($_, $depth), @{$cdr});
+    return join (" $car ", map $self->unparse($_, $bindargs, $depth), @{$cdr});
   }
   else {
     my ($l, $r) = @{$self->whitespace($car, $depth)};
-    return sprintf "$l%s %s$r", $self->format_keyword($car), $self->unparse($cdr, $depth);
+    return sprintf "$l%s %s$r", $self->format_keyword($car), $self->unparse($cdr, $bindargs, $depth);
   }
 }
 
-sub format { my $self = shift; $self->unparse($self->parse(@_)) }
+sub format { my $self = shift; $self->unparse($self->parse($_[0]), $_[1]) }
 
 1;
 
