@@ -5,6 +5,25 @@ use warnings;
 use Carp;
 
 use List::Util;
+use Hash::Merge 'merge';
+
+Hash::Merge::specify_behavior({
+   SCALAR => {
+      SCALAR => sub { $_[1] },
+      ARRAY  => sub { [ $_[0], @{$_[1]} ] },
+      HASH   => sub { $_[1] },
+   },
+   ARRAY => {
+      SCALAR => sub { $_[1] },
+      ARRAY  => sub { $_[1] },
+      HASH   => sub { $_[1] },
+   },
+   HASH => {
+      SCALAR => sub { $_[1] },
+      ARRAY  => sub { [ values %{$_[0]}, @{$_[1]} ] },
+      HASH   => sub { Hash::Merge::_merge_hashes( $_[0], $_[1] ) },
+   },
+}, 'My Behavior' );
 
 use base 'Class::Accessor::Grouped';
 
@@ -170,10 +189,11 @@ eval {
 };
 
 sub new {
-   my ($class, $args) = @_;
+   my $class = shift;
+   my $args  = shift || {};
 
    my $profile = delete $args->{profile} || 'none';
-   my $data = {%{$profiles{$profile}}, %{$args||{}}};
+   my $data = merge( $profiles{$profile}, $args );
 
    bless $data, $class
 }
@@ -280,7 +300,6 @@ sub format_keyword {
 
   return $keyword
 }
-
 
 my %starters = (
    select        => 1,

@@ -1,7 +1,8 @@
 Revision history for SQL::Abstract
 
-revision 1.67_03  2010-09-08
+revision 1.67_03  2010-09-
 ----------------------------
+    - correcty merge profile and parameters
     - added fill_in_placeholders option for excellent copy/pasta
 
 revision 1.67_02  2010-09-08
