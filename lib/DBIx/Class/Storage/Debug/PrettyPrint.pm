@@ -23,7 +23,7 @@ sub new {
 sub print {
   my $self = shift;
   my $string = shift;
-  my $bindargs = shift;
+  my $bindargs = shift || [];
 
   my $use_placeholders = !!$self->_sqlat->fill_in_placeholders;
 
