@@ -103,6 +103,7 @@ my %indents = (
 
 my %profiles = (
    console => {
+      fill_in_placeholders => 1,
       indent_string => ' ',
       indent_amount => 2,
       newline       => "\n",
@@ -110,6 +111,7 @@ my %profiles = (
       indentmap     => { %indents },
    },
    console_monochrome => {
+      fill_in_placeholders => 1,
       indent_string => ' ',
       indent_amount => 2,
       newline       => "\n",
@@ -117,6 +119,7 @@ my %profiles = (
       indentmap     => { %indents },
    },
    html => {
+      fill_in_placeholders => 1,
       indent_string => '&nbsp;',
       indent_amount => 2,
       newline       => "<br />\n",

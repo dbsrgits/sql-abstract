@@ -1,5 +1,8 @@
 package DBIx::Class::Storage::Debug::PrettyPrint;
 
+use strict;
+use warnings;
+
 use base 'DBIx::Class::Storage::Statistics';
 
 use SQL::Abstract::Tree;
@@ -20,10 +23,31 @@ sub new {
 sub print {
   my $self = shift;
   my $string = shift;
+  my $bindargs = shift;
 
-  my $formatted = $self->_sqlat->format($string);
+  my $use_placeholders = !!$self->_sqlat->fill_in_placeholders;
+
+  # DBIC pre-quotes bindargs
+  $bindargs = [map { s/^'//; s/'$//; } @{$bindargs}] if $use_placeholders;
+
+  my $formatted = $self->_sqlat->format($string, $bindargs) . "\n";
+
+  $formatted = "$formatted: " . join ', ', @{$bindargs}
+     unless $use_placeholders;
 
   $self->next::method($formatted, @_);
+}
+
+sub query_start {
+  my ($self, $string, @bind) = @_;
+
+  if(defined $self->callback) {
+    $string =~ m/^(\w+)/;
+    $self->callback->($1, "$string: ".join(', ', @bind)."\n");
+    return;
+  }
+
+  $self->print($string, \@bind);
 }
 
 1;
