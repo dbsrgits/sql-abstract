@@ -29,7 +29,7 @@ my $exceptions = {
     },
     'SQL::Abstract::Test' => { skip => 1 },
     'SQL::Abstract::Tree' => { skip => 1 },
-    'DBIx::Class::Storage::PrettyPrinter' => { skip => 1 },
+    'DBIx::Class::Storage::Debug::PrettyPrint' => { skip => 1 },
 };
 
 foreach my $module (@modules) {
