@@ -278,6 +278,14 @@ sub format_keyword {
   return $keyword
 }
 
+
+my %starters = (
+   select        => 1,
+   update        => 1,
+   'insert into' => 1,
+   'delete from' => 1,
+);
+
 sub whitespace {
    my ($self, $keyword, $depth) = @_;
 
@@ -285,7 +293,7 @@ sub whitespace {
    if (defined $self->indentmap->{lc $keyword}) {
       $before = $self->newline . $self->indent($depth + $self->indentmap->{lc $keyword});
    }
-   $before = '' if $depth == 0 and lc $keyword eq 'select';
+   $before = '' if $depth == 0 and defined $starters{lc $keyword};
    return [$before, ' '];
 }
 
