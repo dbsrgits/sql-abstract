@@ -398,8 +398,40 @@ sub format { my $self = shift; $self->unparse($self->parse($_[0]), $_[1]) }
 
  my $sqla_tree = SQL::Abstract::Tree->new({ profile => 'console' });
 
+ $args = {
+   profile => 'console',      # predefined profile to use (default: 'none')
+   fill_in_placeholders => 1, # true for placeholder population
+   indent_string => ' ',      # the string used when indenting
+   indent_amount => 2,        # how many of above string to use for a single
+                              # indent level
+   newline       => "\n",     # string for newline
+   colormap      => {
+     select => [RED, RESET], # a pair of strings defining what to surround
+                             # the keyword with for colorization
+     # ...
+   },
+   indentmap     => {
+     select        => 0,     # A zero means that the keyword will start on
+                             # a new line
+     from          => 1,     # Any other positive integer means that after
+     on            => 2,     # said newline it will get that many indents
+     # ...
+   },
+ }
+
+Returns a new SQL::Abstract::Tree object.  All arguments are optional.
+
+=head3 profiles
+
+There are four predefined profiles, C<none>, C<console>, C<console_monochrome>,
+and C<html>.  Typically a user will probably just use C<console> or
+C<console_monochrome>, but if something about a profile bothers you, merely
+use the profile and override the parts that you don't like.
+
 =head2 format
 
- $sqlat->format('SELECT * FROM bar')
+ $sqlat->format('SELECT * FROM bar WHERE x = ?', [1])
+
+Takes C<$sql> and C<\@bindargs>.
 
 Returns a formatting string based on the string passed in
