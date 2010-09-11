@@ -29,7 +29,6 @@ use base 'Class::Accessor::Grouped';
 
 __PACKAGE__->mk_group_accessors( simple => $_ ) for qw(
    newline indent_string indent_amount colormap indentmap fill_in_placeholders
-   include_caller caller_depth
 );
 
 # Parser states for _recurse_parse()
@@ -123,7 +122,6 @@ my %indents = (
 
 my %profiles = (
    console => {
-      caller_depth => 0,
       fill_in_placeholders => 1,
       indent_string => ' ',
       indent_amount => 2,
@@ -132,7 +130,6 @@ my %profiles = (
       indentmap     => { %indents },
    },
    console_monochrome => {
-      caller_depth => 0,
       fill_in_placeholders => 1,
       indent_string => ' ',
       indent_amount => 2,
@@ -141,7 +138,6 @@ my %profiles = (
       indentmap     => { %indents },
    },
    html => {
-      caller_depth => 0,
       fill_in_placeholders => 1,
       indent_string => '&nbsp;',
       indent_amount => 2,
@@ -344,21 +340,10 @@ sub _fill_in_placeholder {
    return '?'
 }
 
-sub _caller_info {
-   my ($self, $depth) = @_;
-
-   return '' if $depth != 1 or !$self->include_caller;
-
-   my @caller_info = caller($self->caller_depth + 0);
-
-   " at $caller_info[1] line $caller_info[2].";
-}
-
 sub unparse {
-  my ($self, $tree, $bindargs, $indent, $depth) = @_;
+  my ($self, $tree, $bindargs, $depth) = @_;
 
-  $depth  ||= 0;
-  $indent ||= 0;
+  $depth ||= 0;
 
   if (not $tree ) {
     return '';
@@ -368,7 +353,7 @@ sub unparse {
   my $cdr = $tree->[1];
 
   if (ref $car) {
-    return join ('', map $self->unparse($_, $bindargs, $indent, $depth + 1), @$tree);
+    return join ('', map $self->unparse($_, $bindargs, $depth), @$tree);
   }
   elsif ($car eq 'LITERAL') {
     if ($cdr->[0] eq '?') {
@@ -379,15 +364,15 @@ sub unparse {
   elsif ($car eq 'PAREN') {
     return '(' .
       join(' ',
-        map $self->unparse($_, $bindargs, $indent + 2, $depth + 1), @{$cdr}) .
-    ($self->_is_key($cdr)?( $self->newline||'' ).$self->indent($indent + 1):'') . ') ';
+        map $self->unparse($_, $bindargs, $depth + 2), @{$cdr}) .
+    ($self->_is_key($cdr)?( $self->newline||'' ).$self->indent($depth + 1):'') . ') ';
   }
   elsif ($car eq 'OR' or $car eq 'AND' or (grep { $car =~ /^ $_ $/xi } @binary_op_keywords ) ) {
-    return join (" $car ", map $self->unparse($_, $bindargs, $indent, $depth + 1), @{$cdr});
+    return join (" $car ", map $self->unparse($_, $bindargs, $depth), @{$cdr});
   }
   else {
-    my ($l, $r) = @{$self->whitespace($car, $indent)};
-    return sprintf "$l%s %s$r%s", $self->format_keyword($car), $self->unparse($cdr, $bindargs, $indent, $depth + 1), $self->_caller_info($depth);
+    my ($l, $r) = @{$self->whitespace($car, $depth)};
+    return sprintf "$l%s %s$r", $self->format_keyword($car), $self->unparse($cdr, $bindargs, $depth);
   }
 }
 
@@ -417,4 +402,4 @@ sub format { my $self = shift; $self->unparse($self->parse($_[0]), $_[1]) }
 
  $sqlat->format('SELECT * FROM bar')
 
-Returns a formatting string based on wthe string passed in
+Returns a formatting string based on the string passed in
