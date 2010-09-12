@@ -15,7 +15,7 @@ use Scalar::Util ();
 # GLOBALS
 #======================================================================
 
-our $VERSION  = '1.67_02';
+our $VERSION  = '1.67_03';
 
 # This would confuse some packagers
 $VERSION = eval $VERSION if $VERSION =~ /_/; # numify for warning-free dev releases
