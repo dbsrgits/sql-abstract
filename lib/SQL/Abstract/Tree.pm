@@ -5,9 +5,11 @@ use warnings;
 use Carp;
 
 use List::Util;
-use Hash::Merge 'merge';
+use Hash::Merge;
 
-Hash::Merge::specify_behavior({
+my $merger = Hash::Merge->new;
+
+$merger->specify_behavior({
    SCALAR => {
       SCALAR => sub { $_[1] },
       ARRAY  => sub { [ $_[0], @{$_[1]} ] },
@@ -193,7 +195,7 @@ sub new {
    my $args  = shift || {};
 
    my $profile = delete $args->{profile} || 'none';
-   my $data = merge( $profiles{$profile}, $args );
+   my $data = $merger->merge( $profiles{$profile}, $args );
 
    bless $data, $class
 }
