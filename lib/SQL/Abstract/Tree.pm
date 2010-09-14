@@ -310,7 +310,7 @@ my %starters = (
    'delete from' => 1,
 );
 
-sub whitespace {
+sub whitespace_keyword {
    my ($self, $keyword, $depth) = @_;
 
    my $before = '';
@@ -373,7 +373,7 @@ sub unparse {
     return join (" $car ", map $self->unparse($_, $bindargs, $depth), @{$cdr});
   }
   else {
-    my ($l, $r) = @{$self->whitespace($car, $depth)};
+    my ($l, $r) = @{$self->whitespace_keyword($car, $depth)};
     return sprintf "$l%s %s$r", $self->format_keyword($car), $self->unparse($cdr, $bindargs, $depth);
   }
 }
@@ -437,3 +437,29 @@ use the profile and override the parts that you don't like.
 Takes C<$sql> and C<\@bindargs>.
 
 Returns a formatting string based on the string passed in
+
+=head2 parse
+
+ $sqlat->parse('SELECT * FROM bar WHERE x = ?')
+
+Returns a "tree" representing passed in SQL.  Please do not depend on the
+structure of the returned tree.  It may be stable at some point, but not yet.
+
+=head2 unparse
+
+ $sqlat->parse($tree_structure, \@bindargs)
+
+Transform "tree" into SQL, applying various transforms on the way.
+
+=head2 format_keyword
+
+ $sqlat->format_keyword('SELECT')
+
+Currently this just takes a keyword and puts the C<colormap> stuff around it.
+Later on it may do more and allow for coderef based transforms.
+
+=head2 whitespace_keyword
+
+ my ($before, $after) = @{$sqlat->whitespace_keyword('SELECT')};
+
+Returns whitespace to be inserted around a keyword.

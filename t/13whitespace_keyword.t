@@ -5,10 +5,10 @@ use Test::More;
 use SQL::Abstract::Tree;
 
 my $sqlat = SQL::Abstract::Tree->new({
-	newline => "\n",
-	indent_string => " ",
-	indent_amount => 1,
-	indentmap => {
+   newline => "\n",
+   indent_string => " ",
+   indent_amount => 1,
+   indentmap => {
       select     => 0,
       where      => 1,
       from       => 2,
@@ -16,15 +16,15 @@ my $sqlat = SQL::Abstract::Tree->new({
       on         => 4,
       'group by' => 5,
       'order by' => 6,
-	},
+   },
 });
 
 for ( keys %{$sqlat->indentmap}) {
-	my ($l, $r) = @{$sqlat->whitespace($_, 1)};
-	is($r, ' ', "right is a space for $_");
-	is($l, "\n " . ' ' x $sqlat->indentmap->{$_}, "left calculated correctly for $_" );
+   my ($l, $r) = @{$sqlat->whitespace_keyword($_, 1)};
+   is($r, ' ', "right is a space for $_");
+   is($l, "\n " . ' ' x $sqlat->indentmap->{$_}, "left calculated correctly for $_" );
 }
 
-is($sqlat->whitespace('select', 0)->[0], '', 'Select gets no newline or indent for depth 0');
+is($sqlat->whitespace_keyword('select', 0)->[0], '', 'Select gets no newline or indent for depth 0');
 
 done_testing;
