@@ -18,3 +18,6 @@ my @sql = (
 
 print "\n\n'" . $sqlat->format($_) . "'\n" for @sql;
 
+print "\n\n'" . $sqlat->format(
+   "UPDATE session SET expires = ?  WHERE (id = ?)", ['1', 1]
+) . "'\n";

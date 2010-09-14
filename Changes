@@ -1,6 +1,7 @@
 Revision history for SQL::Abstract
 
     - Document methods on Tree
+    - Add affordances for color coding placeholders
     - Change ::Tree::whitespace to whitespace_keyword
 
 revision 1.67_03  2010-09-11

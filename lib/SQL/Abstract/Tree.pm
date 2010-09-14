@@ -31,6 +31,7 @@ use base 'Class::Accessor::Grouped';
 
 __PACKAGE__->mk_group_accessors( simple => $_ ) for qw(
    newline indent_string indent_amount colormap indentmap fill_in_placeholders
+   placeholder_surround
 );
 
 # Parser states for _recurse_parse()
@@ -125,6 +126,7 @@ my %indents = (
 my %profiles = (
    console => {
       fill_in_placeholders => 1,
+      placeholder_surround => ['?/', ''],
       indent_string => ' ',
       indent_amount => 2,
       newline       => "\n",
@@ -133,6 +135,7 @@ my %profiles = (
    },
    console_monochrome => {
       fill_in_placeholders => 1,
+      placeholder_surround => ['?/', ''],
       indent_string => ' ',
       indent_amount => 2,
       newline       => "\n",
@@ -141,6 +144,7 @@ my %profiles = (
    },
    html => {
       fill_in_placeholders => 1,
+      placeholder_surround => ['<span class="placeholder">', '</span>'],
       indent_string => '&nbsp;',
       indent_amount => 2,
       newline       => "<br />\n",
@@ -169,6 +173,10 @@ my %profiles = (
 
 eval {
    require Term::ANSIColor;
+
+   $profiles{console}->{placeholder_surround} =
+      [Term::ANSIColor::color('black on_cyan'), Term::ANSIColor::color('reset')];
+
    $profiles{console}->{colormap} = {
       select        => [Term::ANSIColor::color('red'), Term::ANSIColor::color('reset')],
       'insert into' => [Term::ANSIColor::color('red'), Term::ANSIColor::color('reset')],
@@ -330,14 +338,15 @@ sub _is_key {
    defined $tree && defined $self->indentmap->{lc $tree};
 }
 
-sub _fill_in_placeholder {
+sub fill_in_placeholder {
    my ($self, $bindargs) = @_;
 
    if ($self->fill_in_placeholders) {
       my $val = pop @{$bindargs} || '';
+      my ($left, $right) = @{$self->placeholder_surround};
       $val =~ s/\\/\\\\/g;
       $val =~ s/'/\\'/g;
-      return qq('$val')
+      return qq('$left$val$right')
    }
    return '?'
 }
@@ -359,7 +368,7 @@ sub unparse {
   }
   elsif ($car eq 'LITERAL') {
     if ($cdr->[0] eq '?') {
-      return $self->_fill_in_placeholder($bindargs)
+      return $self->fill_in_placeholder($bindargs)
     }
     return $cdr->[0];
   }
@@ -403,6 +412,8 @@ sub format { my $self = shift; $self->unparse($self->parse($_[0]), $_[1]) }
  $args = {
    profile => 'console',      # predefined profile to use (default: 'none')
    fill_in_placeholders => 1, # true for placeholder population
+   placeholder_surround =>    # The strings that will be wrapped around
+              [GREEN, RESET], # populated placeholders if the above is set
    indent_string => ' ',      # the string used when indenting
    indent_amount => 2,        # how many of above string to use for a single
                               # indent level
@@ -463,3 +474,10 @@ Later on it may do more and allow for coderef based transforms.
  my ($before, $after) = @{$sqlat->whitespace_keyword('SELECT')};
 
 Returns whitespace to be inserted around a keyword.
+
+=head2 fill_in_placeholder
+
+ my $value = $sqlat->fill_in_placeholder(\@bindargs)
+
+Removes last arg from passed arrayref and returns it, surrounded with
+the values in placeholder_surround, and then surrounded with single quotes.
