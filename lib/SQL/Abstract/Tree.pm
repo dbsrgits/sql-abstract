@@ -318,7 +318,7 @@ my %starters = (
    'delete from' => 1,
 );
 
-sub whitespace_keyword {
+sub pad_keyword {
    my ($self, $keyword, $depth) = @_;
 
    my $before = '';
@@ -382,7 +382,7 @@ sub unparse {
     return join (" $car ", map $self->unparse($_, $bindargs, $depth), @{$cdr});
   }
   else {
-    my ($l, $r) = @{$self->whitespace_keyword($car, $depth)};
+    my ($l, $r) = @{$self->pad_keyword($car, $depth)};
     return sprintf "$l%s %s$r", $self->format_keyword($car), $self->unparse($cdr, $bindargs, $depth);
   }
 }
@@ -469,9 +469,9 @@ Transform "tree" into SQL, applying various transforms on the way.
 Currently this just takes a keyword and puts the C<colormap> stuff around it.
 Later on it may do more and allow for coderef based transforms.
 
-=head2 whitespace_keyword
+=head2 pad_keyword
 
- my ($before, $after) = @{$sqlat->whitespace_keyword('SELECT')};
+ my ($before, $after) = @{$sqlat->pad_keyword('SELECT')};
 
 Returns whitespace to be inserted around a keyword.
 
@@ -481,3 +481,38 @@ Returns whitespace to be inserted around a keyword.
 
 Removes last arg from passed arrayref and returns it, surrounded with
 the values in placeholder_surround, and then surrounded with single quotes.
+
+=head2 indent
+
+Returns as many indent strings as indent amounts times the first argument.
+
+=head1 ACCESSORS
+
+=head2 colormap
+
+See L</new>
+
+=head2 fill_in_placeholders
+
+See L</new>
+
+=head2 indent_amount
+
+See L</new>
+
+=head2 indent_string
+
+See L</new>
+
+=head2 indentmap
+
+See L</new>
+
+=head2 newline
+
+See L</new>
+
+=head2 placeholder_surround
+
+See L</new>
+
