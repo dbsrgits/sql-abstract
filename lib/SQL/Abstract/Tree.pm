@@ -132,6 +132,33 @@ my %profiles = (
       newline       => "\n",
       colormap      => {},
       indentmap     => { %indents },
+
+      eval { require Term::ANSIColor }
+        ? do {
+          my $c = \&Term::ANSIColor::color;
+          (
+            placeholder_surround => [$c->('black on_cyan'), $c->('reset')],
+            colormap => {
+              select        => [$c->('red'), $c->('reset')],
+              'insert into' => [$c->('red'), $c->('reset')],
+              update        => [$c->('red'), $c->('reset')],
+              'delete from' => [$c->('red'), $c->('reset')],
+
+              set           => [$c->('cyan'), $c->('reset')],
+              from          => [$c->('cyan'), $c->('reset')],
+
+              where         => [$c->('green'), $c->('reset')],
+              values        => [$c->('yellow'), $c->('reset')],
+
+              join          => [$c->('magenta'), $c->('reset')],
+              'left join'   => [$c->('magenta'), $c->('reset')],
+              on            => [$c->('blue'), $c->('reset')],
+
+              'group by'    => [$c->('yellow'), $c->('reset')],
+              'order by'    => [$c->('yellow'), $c->('reset')],
+            }
+          );
+        } : (),
    },
    console_monochrome => {
       fill_in_placeholders => 1,
@@ -170,33 +197,6 @@ my %profiles = (
       indentmap     => {},
    },
 );
-
-eval {
-   require Term::ANSIColor;
-
-   $profiles{console}->{placeholder_surround} =
-      [Term::ANSIColor::color('black on_cyan'), Term::ANSIColor::color('reset')];
-
-   $profiles{console}->{colormap} = {
-      select        => [Term::ANSIColor::color('red'), Term::ANSIColor::color('reset')],
-      'insert into' => [Term::ANSIColor::color('red'), Term::ANSIColor::color('reset')],
-      update        => [Term::ANSIColor::color('red'), Term::ANSIColor::color('reset')],
-      'delete from' => [Term::ANSIColor::color('red'), Term::ANSIColor::color('reset')],
-
-      set           => [Term::ANSIColor::color('cyan'), Term::ANSIColor::color('reset')],
-      from          => [Term::ANSIColor::color('cyan'), Term::ANSIColor::color('reset')],
-
-      where         => [Term::ANSIColor::color('green'), Term::ANSIColor::color('reset')],
-      values        => [Term::ANSIColor::color('yellow'), Term::ANSIColor::color('reset')],
-
-      join          => [Term::ANSIColor::color('magenta'), Term::ANSIColor::color('reset')],
-      'left join'   => [Term::ANSIColor::color('magenta'), Term::ANSIColor::color('reset')],
-      on            => [Term::ANSIColor::color('blue'), Term::ANSIColor::color('reset')],
-
-      'group by'    => [Term::ANSIColor::color('yellow'), Term::ANSIColor::color('reset')],
-      'order by'    => [Term::ANSIColor::color('yellow'), Term::ANSIColor::color('reset')],
-   };
-};
 
 sub new {
    my $class = shift;
