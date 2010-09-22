@@ -34,8 +34,9 @@ my @BUILTIN_UNARY_OPS = (
   # the digits are backcompat stuff
   { regex => qr/^and  (?: \s? \d+ )? $/xi, handler => '_where_op_ANDOR' },
   { regex => qr/^or   (?: \s? \d+ )? $/xi, handler => '_where_op_ANDOR' },
-  { regex => qr/^nest (?: \s? \d+ )? $/xi, handler => '_where_op_NEST' },
   { regex => qr/^ (?: not \s )? bool $/xi, handler => '_where_op_BOOL' },
+  { regex => qr/^ ident              $/xi, handler => '_where_op_IDENT' },
+  { regex => qr/^nest (?: \s? \d+ )? $/xi, handler => '_where_op_NEST' },
 );
 
 #======================================================================
@@ -531,6 +532,16 @@ sub _where_func_generic {
   return ($sql, @bind);
 }
 
+sub _where_op_IDENT {
+  my ($self, $op, $v) = @_;
+
+  if (ref $v) {
+    puke "-$op takes a single scalar argument (a quotable identifier)";
+  }
+
+  return $self->_convert($self->_quote($v));
+}
+
 sub _where_op_ANDOR {
   my ($self, $op, $v) = @_;
 
@@ -871,16 +882,23 @@ sub _where_field_BETWEEN {
       foreach my $val (@$vals) {
         my ($sql, @bind) = $self->_SWITCH_refkind($val, {
            SCALAR => sub {
-             return ($placeholder, ($val));
+             return ($placeholder, $val);
            },
            SCALARREF => sub {
-             return ($self->_convert($$val), ());
+             return $$val;
            },
            ARRAYREFREF => sub {
              my ($sql, @bind) = @$$val;
              $self->_assert_bindval_matches_bindtype(@bind);
-             return ($self->_convert($sql), @bind);
+             return ($sql, @bind);
            },
+           HASHREF => sub {
+             my ($func, $arg, @rest) = %$val;
+             puke ("Only simple { -func => arg } functions accepted as sub-arguments to BETWEEN")
+               if (@rest or $func !~ /^ \- (.+)/x);
+             local $self->{_nested_func_lhs} = $k;
+             $self->_where_func_generic ($1 => $arg);
+           }
         });
         push @all_sql, $sql;
         push @all_bind, @bind;
@@ -914,11 +932,39 @@ sub _where_field_IN {
   my ($sql, @bind) = $self->_SWITCH_refkind($vals, {
     ARRAYREF => sub {     # list of choices
       if (@$vals) { # nonempty list
-        my $placeholders  = join ", ", (($placeholder) x @$vals);
-        my $sql           = "$label $op ( $placeholders )";
-        my @bind = $self->_bindtype($k, @$vals);
+        my (@all_sql, @all_bind);
 
-        return ($sql, @bind);
+        for my $val (@$vals) {
+          my ($sql, @bind) = $self->_SWITCH_refkind($val, {
+            SCALAR => sub {
+              return ($placeholder, $val);
+            },
+            SCALARREF => sub {
+              return $$val;
+            },
+            ARRAYREFREF => sub {
+              my ($sql, @bind) = @$$val;
+              $self->_assert_bindval_matches_bindtype(@bind);
+              return ($sql, @bind);
+            },
+            HASHREF => sub {
+              my ($func, $arg, @rest) = %$val;
+              puke ("Only simple { -func => arg } functions accepted as sub-arguments to IN")
+                if (@rest or $func !~ /^ \- (.+)/x);
+              local $self->{_nested_func_lhs} = $k;
+              $self->_where_func_generic ($1 => $arg);
+            }
+          });
+          push @all_sql, $sql;
+          push @all_bind, @bind;
+        }
+
+        my $sql = sprintf ('%s %s ( %s )',
+          $label,
+          $op,
+          join (', ', @all_sql)
+        );
+        return ($sql, @all_bind);
       }
       else { # empty list : some databases won't understand "IN ()", so DWIM
         my $sql = ($op =~ /\bnot\b/i) ? $self->{sqltrue} : $self->{sqlfalse};

@@ -2,6 +2,7 @@ Revision history for SQL::Abstract
 
     - Switch the tokenizer to precompiled regexes (massive speedup)
     - Rudimentary handling of quotes ( 'WHERE' vs WHERE )
+    - Fix extended argument parsing by IN/BETWEEN
 
 revision 1.68  2010-09-16
 ----------------------------

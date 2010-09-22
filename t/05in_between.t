@@ -66,7 +66,7 @@ my @in_between_tests = (
   },
   {
     where => {
-      start0 => { -between => [ 1, 2 ] },
+      start0 => { -between => [ 1, { -upper => 2 } ] },
       start1 => { -between => \["? AND ?", 1, 2] },
       start2 => { -between => \"lower(x) AND upper(y)" },
       start3 => { -between => [
@@ -75,7 +75,7 @@ my @in_between_tests = (
       ] },
     },
     stmt => "WHERE (
-          ( start0 BETWEEN ? AND ?                )
+          ( start0 BETWEEN ? AND upper ?          )
       AND ( start1 BETWEEN ? AND ?                )
       AND ( start2 BETWEEN lower(x) AND upper(y)  )
       AND ( start3 BETWEEN lower(x) AND upper(?)  )
@@ -139,6 +139,12 @@ my @in_between_tests = (
     ",
     bind => [2000],
     test => '-in POD test',
+  },
+  {
+    where => { x => { -in => [ \['LOWER(?)', 'A' ], \'LOWER(b)', { -lower => 'c' } ] } },
+    stmt => " WHERE ( x IN ( LOWER(?), LOWER(b), LOWER ? ) )",
+    bind => [qw/A c/],
+    test => '-in with an array of function array refs with args',
   },
 );
 
