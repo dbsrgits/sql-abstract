@@ -34,9 +34,8 @@ my @BUILTIN_UNARY_OPS = (
   # the digits are backcompat stuff
   { regex => qr/^and  (?: \s? \d+ )? $/xi, handler => '_where_op_ANDOR' },
   { regex => qr/^or   (?: \s? \d+ )? $/xi, handler => '_where_op_ANDOR' },
-  { regex => qr/^ (?: not \s )? bool $/xi, handler => '_where_op_BOOL' },
-  { regex => qr/^ ident              $/xi, handler => '_where_op_IDENT' },
   { regex => qr/^nest (?: \s? \d+ )? $/xi, handler => '_where_op_NEST' },
+  { regex => qr/^ (?: not \s )? bool $/xi, handler => '_where_op_BOOL' },
 );
 
 #======================================================================
@@ -530,16 +529,6 @@ sub _where_func_generic {
   );
 
   return ($sql, @bind);
-}
-
-sub _where_op_IDENT {
-  my ($self, $op, $v) = @_;
-
-  if (ref $v) {
-    puke "-$op takes a single scalar argument (a quotable identifier)";
-  }
-
-  return $self->_convert($self->_quote($v));
 }
 
 sub _where_op_ANDOR {
