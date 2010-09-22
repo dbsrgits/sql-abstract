@@ -18,4 +18,6 @@ cmp_deeply($sqlat->parse( "SELECT [screen].[id], [screen].[name], [screen].[sect
    'real life statement 1 parsed correctly'
 );
 
+cmp_deeply($sqlat->parse("SELECT x, y FROM foo WHERE x IN (?, ?, ?, ?)"), [ [ [ "SELECT", [ [ "LITERAL", [ "x", "y" ] ] ] ], [ "FROM", [ [ "LITERAL", [ "foo" ] ] ] ] ], [ "WHERE", [ [ "IN", [ "LITERAL", [ "?", "?", "?", "?" ] ] ] ] ] ], 'Lists parsed correctly');
+
 done_testing;
