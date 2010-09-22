@@ -26,6 +26,8 @@ my @unrollable_ops = (
   'HAVING',
   'ORDER \s+ BY',
 );
+my $unrollable_ops_re = join ' | ', @unrollable_ops;
+$unrollable_ops_re = qr/$unrollable_ops_re/xio;
 
 sub is_same_sql_bind {
   my ($sql1, $bind_ref1, $sql2, $bind_ref2, $msg) = @_;
@@ -228,7 +230,7 @@ sub _parenthesis_unroll {
       }
 
       # if the parent operator explcitly allows it nuke the parenthesis
-      elsif ( grep { $ast->[0] =~ /^ $_ $/xi } @unrollable_ops ) {
+      elsif ( $ast->[0] =~ $unrollable_ops_re ) {
         push @children, $child->[1][0];
         $changes++;
       }
