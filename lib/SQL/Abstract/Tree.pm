@@ -282,7 +282,7 @@ sub _recurse_parse {
       }
     }
     # binary operator keywords
-    elsif ( $token =~ /^ $$binary_op_re $ /x ) {
+    elsif ( $token =~ /^ $binary_op_re $ /x ) {
       my $op = uc $token;
       my $right = $self->_recurse_parse($tokens, PARSE_RHS);
 
