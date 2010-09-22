@@ -141,6 +141,15 @@ sub _eq_sql {
   elsif (not defined $left) {
     return 1;
   }
+  # different amount of elements
+  elsif (@$left != @$right) {
+    $sql_differ = sprintf ("left: %s\nright: %s\n", map { $sqlat->unparse ($_) } ($left, $right) );
+    return 0;
+  }
+  # one is empty - so is the other
+  elsif (@$left == 0) {
+    return 1;
+  }
   # one is a list, the other is an op with a list
   elsif (ref $left->[0] xor ref $right->[0]) {
     $sql_differ = sprintf ("left: %s\nright: %s\n", map { $sqlat->unparse ($_) } ($left, $right) );
@@ -196,13 +205,14 @@ sub _parenthesis_unroll {
     $changes = 0;
 
     for my $child (@{$ast->[1]}) {
+      # the current node in this loop is *always* a PAREN
       if (not ref $child or not $child->[0] eq 'PAREN') {
         push @children, $child;
         next;
       }
 
       # unroll nested parenthesis
-      while ($child->[1][0][0] eq 'PAREN') {
+      while ( @{$child->[1]} && $child->[1][0][0] eq 'PAREN') {
         $child = $child->[1][0];
         $changes++;
       }
@@ -223,7 +233,7 @@ sub _parenthesis_unroll {
         $changes++;
       }
 
-      # only one LITERAL element in the parenthesis
+      # only *ONE* LITERAL element
       elsif (
         @{$child->[1]} == 1 && $child->[1][0][0] eq 'LITERAL'
       ) {
@@ -231,19 +241,49 @@ sub _parenthesis_unroll {
         $changes++;
       }
 
-      # only one element in the parenthesis which is a binary op with two LITERAL sub-children
+      # only one element in the parenthesis which is a binary op
+      # and has exactly two grandchildren
+      # the only time when we can *not* unroll this is when both
+      # the parent and the child are mathops (in which case we'll
+      # break precedence) or when the child is BETWEEN (special
+      # case)
       elsif (
         @{$child->[1]} == 1
           and
-        grep { $child->[1][0][0] =~ /^ $_ $/xi } (SQL::Abstract::Tree::_binary_op_keywords())
+        $child->[1][0][0] =~ SQL::Abstract::Tree::_binary_op_re()
           and
-        $child->[1][0][1][0][0] eq 'LITERAL'
+        $child->[1][0][0] ne 'BETWEEN'
           and
-        $child->[1][0][1][1][0] eq 'LITERAL'
+        @{$child->[1][0][1]} == 2
+          and
+        ! (
+          $child->[1][0][0] =~ SQL::Abstract::Tree::_math_op_re()
+            and
+          $ast->[0] =~ SQL::Abstract::Tree::_math_op_re()
+        )
       ) {
         push @children, $child->[1][0];
         $changes++;
       }
+
+      # a function binds tighter than a mathop - see if our ancestor is a
+      # mathop, and our content is a single non-mathop child with a single
+      # PAREN grandchild which would indicate mathop ( nonmathop ( ... ) )
+      elsif (
+        @{$child->[1]} == 1
+          and
+        @{$child->[1][0][1]} == 1
+          and
+        $child->[1][0][1][0][0] eq 'PAREN'
+          and
+        $ast->[0] =~ SQL::Abstract::Tree::_math_op_re()
+          and
+        $child->[1][0][0] !~ SQL::Abstract::Tree::_math_op_re
+      ) {
+        push @children, $child->[1][0];
+        $changes++;
+      }
+
 
       # otherwise no more mucking for this pass
       else {

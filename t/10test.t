@@ -21,9 +21,8 @@ if (not $author and not $ENV{SQLATEST_TESTER} and not $ENV{AUTOMATED_TESTING}) {
   plan skip_all => 'Skipping resource intensive self-tests, use SQLATEST_TESTER=1 to run';
 }
 
-
 my @sql_tests = (
-      # WHERE condition - equal      
+      # WHERE condition - equal
       {
         equal => 1,
         statements => [
@@ -592,6 +591,8 @@ my @sql_tests = (
           q/SELECT * FROM (SELECT * FROM bar WHERE ((b = 1) AND (c = 10))) AS foo WHERE (a = 2)/,
         ]
       },
+
+      # list permutations
       {
         equal => 0,
         statements => [
@@ -622,6 +623,40 @@ my @sql_tests = (
           'SELECT count(*) AS "bar" FROM foo',
           'SELECT count(a) FROM foo',
           'SELECT count(1) FROM foo',
+        ]
+      },
+      # func
+      {
+        equal => 1,
+        statements => [
+          'SELECT foo() bar FROM baz',
+          'SELECT foo (  )bar FROM baz',
+          'SELECT foo (())bar FROM baz',
+          'SELECT foo(( ) ) bar FROM baz',
+        ]
+      },
+      {
+        equal => 0,
+        statements => [
+          'SELECT foo() FROM bar',
+          'SELECT foo FROM bar',
+          'SELECT foo FROM bar ()',
+        ]
+      },
+      # math
+      {
+        equal => 0,
+        statements => [
+          'SELECT * FROM foo WHERE 1 = ( a > b)',
+          'SELECT * FROM foo WHERE 1 = a > b',
+          'SELECT * FROM foo WHERE (1 = a) > b',
+        ]
+      },
+      {
+        equal => 1,
+        statements => [
+          'SELECT * FROM foo WHERE bar = baz(buzz)',
+          'SELECT * FROM foo WHERE bar = (baz( buzz ))',
         ]
       },
 );
@@ -856,10 +891,14 @@ for my $test (@sql_tests) {
         }
 
         if ($equal ^ $test->{equal}) {
+          my ($ast1, $ast2) = map { SQL::Abstract::Test::parse ($_) } ($sql1, $sql2);
+
+          $_ = Dumper $_ for ($ast1, $ast2);
+
           diag("sql1: $sql1");
           diag("sql2: $sql2");
-          note('ast1: ' . Dumper SQL::Abstract::Test::parse ($sql1));
-          note('ast2: ' . Dumper SQL::Abstract::Test::parse ($sql2));
+          note("ast1: $ast1");
+          note("ast2: $ast2");
         }
       }
     }

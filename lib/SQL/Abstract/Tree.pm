@@ -4,8 +4,14 @@ use strict;
 use warnings;
 use Carp;
 
-use List::Util;
-use Hash::Merge;
+use Hash::Merge qw//;
+
+use base 'Class::Accessor::Grouped';
+
+__PACKAGE__->mk_group_accessors( simple => $_ ) for qw(
+   newline indent_string indent_amount colormap indentmap fill_in_placeholders
+   placeholder_surround
+);
 
 my $merger = Hash::Merge->new;
 
@@ -25,27 +31,27 @@ $merger->specify_behavior({
       ARRAY  => sub { [ values %{$_[0]}, @{$_[1]} ] },
       HASH   => sub { Hash::Merge::_merge_hashes( $_[0], $_[1] ) },
    },
-}, 'My Behavior' );
+}, 'SQLA::Tree Behavior' );
 
-use base 'Class::Accessor::Grouped';
-
-__PACKAGE__->mk_group_accessors( simple => $_ ) for qw(
-   newline indent_string indent_amount colormap indentmap fill_in_placeholders
-   placeholder_surround
-);
 
 # Parser states for _recurse_parse()
 use constant PARSE_TOP_LEVEL => 0;
 use constant PARSE_IN_EXPR => 1;
 use constant PARSE_IN_PARENS => 2;
 use constant PARSE_RHS => 3;
+use constant PARSE_IN_FUNC => 4;
+
+my $op_look_ahead = '(?: (?= [\s\)\(\;] ) | \z)';
+my $op_look_behind = '(?: (?<= [\s\)\(] ) | \A )';
+my $quote_left = qr/[\`\'\"\[]/;
+my $quote_right = qr/[\`\'\"\]]/;
 
 # These SQL keywords always signal end of the current expression (except inside
 # of a parenthesized subexpression).
-# Format: A list of strings that will be compiled to extended syntax (ie.
+# Format: A list of strings that will be compiled to extended syntax ie.
 # /.../x) regexes, without capturing parentheses. They will be automatically
-# anchored to word boundaries to match the whole token).
-my @expression_terminator_sql_keywords = (
+# anchored to op boundaries (excluding quotes) to match the whole token.
+my @expression_start_keywords = (
   'SELECT',
   'UPDATE',
   'INSERT \s+ INTO',
@@ -54,8 +60,8 @@ my @expression_terminator_sql_keywords = (
   'SET',
   '(?:
     (?:
-        (?: \b (?: LEFT | RIGHT | FULL ) \s+ )?
-        (?: \b (?: CROSS | INNER | OUTER ) \s+ )?
+        (?: (?: LEFT | RIGHT | FULL ) \s+ )?
+        (?: (?: CROSS | INNER | OUTER ) \s+ )?
     )?
     JOIN
   )',
@@ -76,35 +82,45 @@ my @expression_terminator_sql_keywords = (
   'ROW_NUMBER \s* \( \s* \) \s+ OVER',
 );
 
+my $exp_start_re = join ("\n\t|\n", @expression_start_keywords );
+$exp_start_re = qr/ $op_look_behind (?i: $exp_start_re ) $op_look_ahead /xo;
+
 # These are binary operator keywords always a single LHS and RHS
 # * AND/OR are handled separately as they are N-ary
 # * so is NOT as being unary
 # * BETWEEN without paranthesis around the ANDed arguments (which
 #   makes it a non-binary op) is detected and accomodated in
 #   _recurse_parse()
-my $stuff_around_mathops = qr/[\w\s\`\'\"\)]/;
-my @binary_op_keywords = (
-  ( map
-    {
-      ' ^ '  . quotemeta ($_) . "(?= \$ | $stuff_around_mathops ) ",
-      " (?<= $stuff_around_mathops)" . quotemeta ($_) . "(?= \$ | $stuff_around_mathops ) ",
-    }
-    (qw/< > != <> = <= >=/)
-  ),
-  ( map
-    { '\b (?: NOT \s+)?' . $_ . '\b' }
-    (qw/IN BETWEEN LIKE/)
-  ),
+
+# this will be included in the $binary_op_re, the distinction is interesting during
+# testing as one is tighter than the other, plus mathops have different look
+# ahead/behind (e.g. "x"="y" )
+my @math_op_keywords = (qw/ < > != <> = <= >= /);
+my $math_re = join ("\n\t|\n", map
+  { "(?: (?<= [\\w\\s] | $quote_right ) | \\A )"  . quotemeta ($_) . "(?: (?= [\\w\\s] | $quote_left ) | \\z )" }
+  @math_op_keywords
+);
+$math_re = qr/$math_re/xo;
+
+sub _math_op_re { $math_re }
+
+
+my $binary_op_re = '(?: NOT \s+)? (?:' . join ('|', qw/IN BETWEEN R?LIKE/) . ')';
+$binary_op_re = "(?: $op_look_behind (?i: $binary_op_re ) $op_look_ahead ) \n\t|\n $math_re";
+$binary_op_re = qr/$binary_op_re/xo;
+
+sub _binary_op_re { $binary_op_re }
+
+
+my $tokenizer_re = join("\n\t|\n",
+  $exp_start_re,
+  $binary_op_re,
+  "$op_look_behind (?i: AND|OR|NOT ) $op_look_ahead",
+  (map { quotemeta $_ } qw/( ) ? */),
 );
 
-my $tokenizer_re_str = join("\n\t|\n",
-  ( map { '\b' . $_ . '\b' } @expression_terminator_sql_keywords, 'AND', 'OR', 'NOT'),
-  @binary_op_keywords,
-);
-
-my $tokenizer_re = qr/ \s* ( $tokenizer_re_str | \( | \) | \? ) \s* /xi;
-
-sub _binary_op_keywords { @binary_op_keywords }
+#this one *is* capturing
+$tokenizer_re = qr/ \s* ( $tokenizer_re ) \s* /x;
 
 my %indents = (
    select        => 0,
@@ -232,11 +248,13 @@ sub _recurse_parse {
           or
         ($state == PARSE_IN_PARENS && $lookahead eq ')')
           or
-        ($state == PARSE_IN_EXPR && grep { $lookahead =~ /^ $_ $/xi } ('\)', @expression_terminator_sql_keywords ) )
+        ($state == PARSE_IN_EXPR && $lookahead =~ qr/ ^ (?: $exp_start_re | \) ) $ /x )
           or
-        ($state == PARSE_RHS && grep { $lookahead =~ /^ $_ $/xi } ('\)', @expression_terminator_sql_keywords, @binary_op_keywords, 'AND', 'OR', 'NOT' ) )
+        ($state == PARSE_RHS && $lookahead =~ qr/ ^ (?: $exp_start_re | $binary_op_re | (?i: AND | OR | NOT ) | \) ) $ /x )
+          or
+        ($state == PARSE_IN_FUNC && $lookahead ne '(')
     ) {
-      return $left;
+      return $left||();
     }
 
     my $token = shift @$tokens;
@@ -247,8 +265,8 @@ sub _recurse_parse {
       $token = shift @$tokens   or croak "missing closing ')' around block " . $self->unparse($right);
       $token eq ')'             or croak "unexpected token '$token' terminating block " . $self->unparse($right);
 
-      $left = $left ? [@$left, [PAREN => [$right] ]]
-                    : [PAREN  => [$right] ];
+      $left = $left ? [$left, [PAREN => [$right||()] ]]
+                    : [PAREN  => [$right||()] ];
     }
     # AND/OR
     elsif ($token =~ /^ (?: OR | AND ) $/xi )  {
@@ -264,7 +282,7 @@ sub _recurse_parse {
       }
     }
     # binary operator keywords
-    elsif (grep { $token =~ /^ $_ $/xi } @binary_op_keywords ) {
+    elsif ( $token =~ /^ $$binary_op_re $ /x ) {
       my $op = uc $token;
       my $right = $self->_recurse_parse($tokens, PARSE_RHS);
 
@@ -278,19 +296,26 @@ sub _recurse_parse {
       $left = [$op => [$left, $right] ];
     }
     # expression terminator keywords (as they start a new expression)
-    elsif (grep { $token =~ /^ $_ $/xi } @expression_terminator_sql_keywords ) {
+    elsif ( $token =~ / ^ $exp_start_re $ /x ) {
       my $op = uc $token;
       my $right = $self->_recurse_parse($tokens, PARSE_IN_EXPR);
       $left = $left ? [ $left,  [$op => [$right] ]]
-                    : [ $op => [$right] ];
+                   : [ $op => [$right] ];
     }
-    # NOT (last as to allow all other NOT X pieces first)
-    elsif ( $token =~ /^ not $/ix ) {
+    # NOT
+    elsif ( $token =~ /^ NOT $/ix ) {
       my $op = uc $token;
       my $right = $self->_recurse_parse ($tokens, PARSE_RHS);
       $left = $left ? [ @$left, [$op => [$right] ]]
                     : [ $op => [$right] ];
 
+    }
+    # generic function
+    elsif (@$tokens && $tokens->[0] eq '(') {
+      my $right = $self->_recurse_parse($tokens, PARSE_IN_FUNC);
+
+      $left = $left ? [ $left, [ $token => [$right||()] ]]
+                    : [ $token => [$right||()] ];
     }
     # literal (eat everything on the right until RHS termination)
     else {
@@ -356,12 +381,18 @@ sub unparse {
 
   $depth ||= 0;
 
-  if (not $tree ) {
+  if (not $tree or not @$tree) {
     return '';
   }
 
-  my $car = $tree->[0];
-  my $cdr = $tree->[1];
+  my ($car, $cdr) = @{$tree}[0,1];
+
+  if (! defined $car or (! ref $car and ! defined $cdr) ) {
+    require Data::Dumper;
+    Carp::confess( sprintf ( "Internal error - malformed branch at depth $depth:\n%s",
+      Data::Dumper::Dumper($tree)
+    ) );
+  }
 
   if (ref $car) {
     return join ('', map $self->unparse($_, $bindargs, $depth), @$tree);
@@ -378,7 +409,7 @@ sub unparse {
         map $self->unparse($_, $bindargs, $depth + 2), @{$cdr}) .
     ($self->_is_key($cdr)?( $self->newline||'' ).$self->indent($depth + 1):'') . ') ';
   }
-  elsif ($car eq 'OR' or $car eq 'AND' or (grep { $car =~ /^ $_ $/xi } @binary_op_keywords ) ) {
+  elsif ($car eq 'AND' or $car eq 'OR' or $car =~ / ^ $binary_op_re $ /x ) {
     return join (" $car ", map $self->unparse($_, $bindargs, $depth), @{$cdr});
   }
   else {
