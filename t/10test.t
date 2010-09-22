@@ -10,17 +10,6 @@ use Data::Dumper;
 $Data::Dumper::Terse = 1;
 $Data::Dumper::Sortkeys = 1;
 
-# equivalent to $Module::Install::AUTHOR
-my $author = (
-  ( not -d './inc' )
-    or
-  ( -e ($^O eq 'VMS' ? './inc/_author' : './inc/.author') )
-);
-
-if (not $author and not $ENV{SQLATEST_TESTER} and not $ENV{AUTOMATED_TESTING}) {
-  plan skip_all => 'Skipping resource intensive self-tests, use SQLATEST_TESTER=1 to run';
-}
-
 my @sql_tests = (
       # WHERE condition - equal
       {
