@@ -948,12 +948,14 @@ sub _where_field_IN {
           push @all_bind, @bind;
         }
 
-        my $sql = sprintf ('%s %s ( %s )',
-          $label,
-          $op,
-          join (', ', @all_sql)
+        return (
+          sprintf ('%s %s ( %s )',
+            $label,
+            $op,
+            join (', ', @all_sql)
+          ),
+          $self->_bindtype($k, @all_bind),
         );
-        return ($sql, @all_bind);
       }
       else { # empty list : some databases won't understand "IN ()", so DWIM
         my $sql = ($op =~ /\bnot\b/i) ? $self->{sqltrue} : $self->{sqlfalse};
