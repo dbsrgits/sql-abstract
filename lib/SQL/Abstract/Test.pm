@@ -27,7 +27,7 @@ my @unrollable_ops = (
   'ORDER \s+ BY',
 );
 my $unrollable_ops_re = join ' | ', @unrollable_ops;
-$unrollable_ops_re = qr/$unrollable_ops_re/xio;
+$unrollable_ops_re = qr/$unrollable_ops_re/xi;
 
 sub is_same_sql_bind {
   my ($sql1, $bind_ref1, $sql2, $bind_ref2, $msg) = @_;

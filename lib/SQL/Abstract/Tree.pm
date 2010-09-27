@@ -83,7 +83,7 @@ my @expression_start_keywords = (
 );
 
 my $exp_start_re = join ("\n\t|\n", @expression_start_keywords );
-$exp_start_re = qr/ $op_look_behind (?i: $exp_start_re ) $op_look_ahead /xo;
+$exp_start_re = qr/ $op_look_behind (?i: $exp_start_re ) $op_look_ahead /x;
 
 # These are binary operator keywords always a single LHS and RHS
 # * AND/OR are handled separately as they are N-ary
@@ -100,14 +100,14 @@ my $math_re = join ("\n\t|\n", map
   { "(?: (?<= [\\w\\s] | $quote_right ) | \\A )"  . quotemeta ($_) . "(?: (?= [\\w\\s] | $quote_left ) | \\z )" }
   @math_op_keywords
 );
-$math_re = qr/$math_re/xo;
+$math_re = qr/$math_re/x;
 
 sub _math_op_re { $math_re }
 
 
 my $binary_op_re = '(?: NOT \s+)? (?:' . join ('|', qw/IN BETWEEN R?LIKE/) . ')';
 $binary_op_re = "(?: $op_look_behind (?i: $binary_op_re ) $op_look_ahead ) \n\t|\n $math_re";
-$binary_op_re = qr/$binary_op_re/xo;
+$binary_op_re = qr/$binary_op_re/x;
 
 sub _binary_op_re { $binary_op_re }
 
