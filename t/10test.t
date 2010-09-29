@@ -632,6 +632,13 @@ my @sql_tests = (
           'SELECT foo FROM bar ()',
         ]
       },
+      {
+        equal => 0,
+        statements => [
+          'SELECT foo FROM bar WHERE foo IN (?, ?)',
+          'SELECT foo FROM bar WHERE foo IN ?, ?',
+        ]
+      },
       # math
       {
         equal => 0,
