@@ -1,5 +1,7 @@
 Revision history for SQL::Abstract
 
+    - Fix a silly bug which broke placeholder fill-in in DBIC
+    - Installs format-sql to format SQL passed in over STDIN
     - Switch the tokenizer to precompiled regexes (massive speedup)
     - Rudimentary handling of quotes ( 'WHERE' vs WHERE )
     - Fix extended argument parsing by IN/BETWEEN
