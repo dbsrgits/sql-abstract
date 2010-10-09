@@ -19,5 +19,11 @@ my @sql = (
 print "\n\n'" . $sqlat->format($_) . "'\n" for @sql;
 
 print "\n\n'" . $sqlat->format(
-   "UPDATE session SET expires = ?  WHERE (id = ?)", ['1', 1]
+   "UPDATE session SET expires = ? WHERE (id = ?)", ['2010-12-02', 1]
 ) . "'\n";
+
+
+print "\n\n'" . $sqlat->format(
+ "SELECT raw_scores FROM ( SELECT raw_scores, ROW_NUMBER() OVER ( ORDER BY ( SELECT (1))) AS rno__row__index FROM ( SELECT rpt_score.raw_scores FROM users me JOIN access access ON access.userid = me.userid JOIN mgmt mgmt ON mgmt.mgmtid = access.mgmtid JOIN [order] orders ON orders.mgmtid = mgmt.mgmtid JOIN shop shops ON shops.orderno = orders.orderno JOIN rpt_scores rpt_score ON rpt_score.shopno = shops.shopno WHERE ( datecompleted IS NOT NULL AND ( (shops.datecompleted BETWEEN ? AND ?)  AND (type = ? AND me.userid = ?)))) rpt_score) rpt_score WHERE rno__row__index BETWEEN ? AND ? )", ['2009-10-01', '2009-10-08', 1, 'frew', 1, 1]
+ ) . "'\n";
+
