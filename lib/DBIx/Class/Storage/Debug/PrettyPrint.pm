@@ -28,7 +28,7 @@ sub print {
   my $use_placeholders = !!$self->_sqlat->fill_in_placeholders;
 
   # DBIC pre-quotes bindargs
-  $bindargs = [map { s/^'//; s/'$//; } @{$bindargs}] if $use_placeholders;
+  $bindargs = [map { s/^'//; s/'$//; $_ } @{$bindargs}] if $use_placeholders;
 
   my $formatted = $self->_sqlat->format($string, $bindargs) . "\n";
 
