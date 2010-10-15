@@ -367,11 +367,11 @@ sub fill_in_placeholder {
    my ($self, $bindargs) = @_;
 
    if ($self->fill_in_placeholders) {
-      my $val = pop @{$bindargs} || '';
+      my $val = shift @{$bindargs} || '';
       my ($left, $right) = @{$self->placeholder_surround};
       $val =~ s/\\/\\\\/g;
       $val =~ s/'/\\'/g;
-      return qq('$left$val$right')
+      return qq($left$val$right)
    }
    return '?'
 }
