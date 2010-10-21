@@ -63,7 +63,7 @@ my @expression_start_keywords = (
   )',
   'ON',
   'WHERE',
-  'VALUES',
+  '(?: DEFAULT \s+ )? VALUES',
   'EXISTS',
   'GROUP \s+ BY',
   'HAVING',
@@ -318,8 +318,8 @@ sub _recurse_parse {
     elsif ( $token =~ / ^ $expr_start_re $ /x ) {
       my $op = uc $token;
       my $right = $self->_recurse_parse($tokens, PARSE_IN_EXPR);
-      $left = $left ? [ $left,  [$op => [$right] ]]
-                   : [ $op => [$right] ];
+      $left = $left ? [ $left,  [$op => [$right||()] ]]
+                   : [ $op => [$right||()] ];
     }
     # NOT
     elsif ( $token =~ /^ NOT $/ix ) {
