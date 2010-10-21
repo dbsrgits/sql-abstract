@@ -235,9 +235,13 @@ sub _parenthesis_unroll {
         $changes++;
       }
 
-      # only *ONE* LITERAL element
+      # only *ONE* LITERAL or placeholder element
       elsif (
-        @{$child->[1]} == 1 && $child->[1][0][0] eq 'LITERAL'
+        @{$child->[1]} == 1 && (
+          $child->[1][0][0] eq 'LITERAL'
+            or
+          $child->[1][0][0] eq 'PLACEHOLDER'
+        )
       ) {
         push @children, $child->[1][0];
         $changes++;
@@ -272,7 +276,8 @@ sub _parenthesis_unroll {
       # mathop, and our content is:
       # a single non-mathop child with a single PAREN grandchild which
       # would indicate mathop ( nonmathop ( ... ) )
-      # or a single non-mathop with a single LITERAL ( nonmathop ? )
+      # or a single non-mathop with a single LITERAL ( nonmathop foo )
+      # or a single non-mathop with a single PLACEHOLDER ( nonmathop ? )
       elsif (
         @{$child->[1]} == 1
           and
@@ -284,8 +289,10 @@ sub _parenthesis_unroll {
           and
         (
           $child->[1][0][1][0][0] eq 'PAREN'
-            or 
+            or
           $child->[1][0][1][0][0] eq 'LITERAL'
+            or
+          $child->[1][0][1][0][0] eq 'PLACEHOLDER'
         )
       ) {
         push @children, $child->[1][0];

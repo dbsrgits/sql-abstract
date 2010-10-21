@@ -40,6 +40,8 @@ my $op_look_behind = '(?: (?<= [\,\s\)\(] ) | \A )';
 my $quote_left = qr/[\`\'\"\[]/;
 my $quote_right = qr/[\`\'\"\]]/;
 
+my $placeholder_re = qr/(?: \? | \$\d+ )/x;
+
 # These SQL keywords always signal end of the current expression (except inside
 # of a parenthesized subexpression).
 # Format: A list of strings that will be compiled to extended syntax ie.
@@ -114,6 +116,7 @@ my $all_known_re = join("\n\t|\n",
   $binary_op_re,
   "$op_look_behind (?i: AND|OR|NOT ) $op_look_ahead",
   (map { quotemeta $_ } qw/, ( ) */),
+  $placeholder_re,
 );
 
 $all_known_re = qr/$all_known_re/x;
@@ -131,7 +134,7 @@ use constant PARSE_RHS => 4;
 
 my $expr_term_re = qr/ ^ (?: $expr_start_re | \) ) $/x;
 my $rhs_term_re = qr/ ^ (?: $expr_term_re | $binary_op_re | (?i: AND | OR | NOT | \, ) ) $/x;
-my $func_start_re = qr/^ (?: \? | \$\d+ | \( ) $/x;
+my $func_start_re = qr/^ (?: \* | $placeholder_re | \( ) $/x;
 
 my %indents = (
    select        => 0,
@@ -326,6 +329,10 @@ sub _recurse_parse {
                     : [ $op => [$right] ];
 
     }
+    elsif ( $token =~ $placeholder_re) {
+      $left = $left ? [ $left, [ PLACEHOLDER => [ $token ] ] ]
+                    : [ PLACEHOLDER => [ $token ] ];
+    }
     # we're now in "unknown token" land - start eating tokens until
     # we see something familiar
     else {
@@ -421,10 +428,10 @@ sub _unparse {
     return join (' ', map $self->_unparse($_, $bindargs, $depth), @$tree);
   }
   elsif ($car eq 'LITERAL') {
-    if ($cdr->[0] eq '?') {
-      return $self->fill_in_placeholder($bindargs)
-    }
     return $cdr->[0];
+  }
+  elsif ($car eq 'PLACEHOLDER') {
+    return $self->fill_in_placeholder($bindargs);
   }
   elsif ($car eq 'PAREN') {
     return '(' .
