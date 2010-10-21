@@ -21,7 +21,7 @@ my $sqlat = SQL::Abstract::Tree->new({
 
 for ( keys %{$sqlat->indentmap}) {
    my ($l, $r) = @{$sqlat->pad_keyword($_, 1)};
-   is($r, ' ', "right is a space for $_");
+   is($r, '', "right is empty for $_");
    is($l, "\n " . ' ' x $sqlat->indentmap->{$_}, "left calculated correctly for $_" );
 }
 

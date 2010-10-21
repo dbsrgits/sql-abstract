@@ -377,7 +377,7 @@ sub pad_keyword {
       $before = $self->newline . $self->indent($depth + $self->indentmap->{lc $keyword});
    }
    $before = '' if $depth == 0 and defined $starters{lc $keyword};
-   return [$before, ' '];
+   return [$before, ''];
 }
 
 sub indent { ($_[0]->indent_string||'') x ( ( $_[0]->indent_amount || 0 ) * $_[1] ) }
@@ -434,10 +434,14 @@ sub _unparse {
     return $self->fill_in_placeholder($bindargs);
   }
   elsif ($car eq 'PAREN') {
-    return '(' .
-      join(' ',
-        map $self->_unparse($_, $bindargs, $depth + 2), @{$cdr}) .
-    ($self->_is_key($cdr)?( $self->newline||'' ).$self->indent($depth + 1):'') . ') ';
+    return sprintf ('(%s)',
+      join (' ', map { $self->_unparse($_, $bindargs, $depth + 2) } @{$cdr} )
+        .
+      ($self->_is_key($cdr)
+        ? ( $self->newline||'' ) . $self->indent($depth + 1)
+        : ''
+      )
+    );
   }
   elsif ($car eq 'AND' or $car eq 'OR' or $car =~ / ^ $binary_op_re $ /x ) {
     return join (" $car ", map $self->_unparse($_, $bindargs, $depth), @{$cdr});
