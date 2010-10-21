@@ -280,7 +280,19 @@ sub update {
       },
       SCALARREF => sub {  # literal SQL without bind
         push @set, "$label = $$v";
-       },
+      },
+      HASHREF => sub {
+        my ($op, $arg, @rest) = %$v;
+
+        puke 'Operator calls in update must be in the form { -op => $arg }'
+          if (@rest or not $op =~ /^\-(.+)/);
+
+        local $self->{_nested_func_lhs} = $k;
+        my ($sql, @bind) = $self->_where_unary_op ($1, $arg);
+
+        push @set, "$label = $sql";
+        push @all_bind, @bind;
+      },
       SCALAR_or_UNDEF => sub {
         push @set, "$label = ?";
         push @all_bind, $self->_bindtype($k, $v);
@@ -471,29 +483,16 @@ sub _where_HASHREF {
         $op =~ s/^not_/NOT /i;
 
         $self->_debug("Unary OP(-$op) within hashref, recursing...");
+        my ($s, @b) = $self->_where_unary_op ($op, $v);
 
-        my $op_entry = List::Util::first {$op =~ $_->{regex}} @{$self->{unary_ops}};
-        if (my $handler = $op_entry->{handler}) {
-          if (not ref $handler) {
-            if ($op =~ s/ [_\s]? \d+ $//x ) {
-              belch 'Use of [and|or|nest]_N modifiers is deprecated and will be removed in SQLA v2.0. '
-                  . "You probably wanted ...-and => [ -$op => COND1, -$op => COND2 ... ]";
-              }
-            $self->$handler ($op, $v);
-          }
-          elsif (ref $handler eq 'CODE') {
-            $handler->($self, $op, $v);
-          }
-          else {
-            puke "Illegal handler for operator $k - expecting a method name or a coderef";
-          }
-        }
-        else {
-          $self->debug("Generic unary OP: $k - recursing as function");
-          my ($s, @b) = $self->_where_func_generic ($op, $v);
-          $s = "($s)" unless (defined($self->{_nested_func_lhs}) && ($self->{_nested_func_lhs} eq $k));  # top level vs nested
-          ($s, @b);
-        }
+        # top level vs nested
+        # we assume that handled unary ops will take care of their ()s
+        $s = "($s)" unless (
+          List::Util::first {$op =~ $_->{regex}} @{$self->{unary_ops}}
+            or
+          defined($self->{_nested_func_lhs}) && ($self->{_nested_func_lhs} eq $k)
+        );
+        ($s, @b);
       }
       else {
         my $method = $self->_METHOD_FOR_refkind("_where_hashpair", $v);
@@ -508,8 +507,28 @@ sub _where_HASHREF {
   return $self->_join_sql_clauses('and', \@sql_clauses, \@all_bind);
 }
 
-sub _where_func_generic {
+sub _where_unary_op {
   my ($self, $op, $rhs) = @_;
+
+  if (my $op_entry = List::Util::first {$op =~ $_->{regex}} @{$self->{unary_ops}}) {
+    my $handler = $op_entry->{handler};
+
+    if (not ref $handler) {
+      if ($op =~ s/ [_\s]? \d+ $//x ) {
+        belch 'Use of [and|or|nest]_N modifiers is deprecated and will be removed in SQLA v2.0. '
+            . "You probably wanted ...-and => [ -$op => COND1, -$op => COND2 ... ]";
+      }
+      return $self->$handler ($op, $rhs);
+    }
+    elsif (ref $handler eq 'CODE') {
+      return $handler->($self, $op, $rhs);
+    }
+    else {
+      puke "Illegal handler for operator $op - expecting a method name or a coderef";
+    }
+  }
+
+  $self->debug("Generic unary OP: $op - recursing as function");
 
   my ($sql, @bind) = $self->_SWITCH_refkind ($rhs, {
     SCALAR =>   sub {
@@ -714,7 +733,7 @@ sub _where_hashpair_HASHREF {
           # retain for proper column type bind
           $self->{_nested_func_lhs} ||= $k;
 
-          ($sql, @bind) = $self->_where_func_generic ($op, $val);
+          ($sql, @bind) = $self->_where_unary_op ($op, $val);
 
           $sql = join (' ',
             $self->_convert($self->_quote($k)),
@@ -886,7 +905,7 @@ sub _where_field_BETWEEN {
              puke ("Only simple { -func => arg } functions accepted as sub-arguments to BETWEEN")
                if (@rest or $func !~ /^ \- (.+)/x);
              local $self->{_nested_func_lhs} = $k;
-             $self->_where_func_generic ($1 => $arg);
+             $self->_where_unary_op ($1 => $arg);
            }
         });
         push @all_sql, $sql;
@@ -941,7 +960,7 @@ sub _where_field_IN {
               puke ("Only simple { -func => arg } functions accepted as sub-arguments to IN")
                 if (@rest or $func !~ /^ \- (.+)/x);
               local $self->{_nested_func_lhs} = $k;
-              $self->_where_func_generic ($1 => $arg);
+              $self->_where_unary_op ($1 => $arg);
             }
           });
           push @all_sql, $sql;

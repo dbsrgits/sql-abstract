@@ -11,6 +11,7 @@ Revision history for SQL::Abstract
     - Make sure unparse() does not destroy a passed in \@bindargs
     - Support ops with _'s in them (valid in Oracle)
     - Properly parse both types of default value inserts
+    - Allow { -func => $val } as arguments to UPDATE
 
 revision 1.68  2010-09-16
 ----------------------------
