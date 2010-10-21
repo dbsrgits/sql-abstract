@@ -328,8 +328,8 @@ my @handle_tests = (
        bind => [],
    },
    {
-       where => { timestamp => { '>=' => { -TO_DATE => '2009-12-21 00:00:00' } } },
-       stmt => " WHERE ( timestamp >= TO DATE ? )",
+       where => { timestamp => { '>=' => { -to_date => '2009-12-21 00:00:00' } } },
+       stmt => " WHERE ( timestamp >= TO_DATE ? )",
        bind => ['2009-12-21 00:00:00'],
    },
 
