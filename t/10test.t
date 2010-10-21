@@ -282,6 +282,17 @@ my @sql_tests = (
         ]
       },
 
+      # IS NULL (special LHS-only op)
+      {
+        equal => 1,
+        statements => [
+          q/WHERE a IS NOT NULL AND b IS NULL/,
+          q/WHERE (a IS NOT NULL) AND b IS NULL/,
+          q/WHERE a IS NOT NULL AND (b IS NULL)/,
+          q/WHERE (a IS NOT NULL) AND ((b IS NULL))/,
+        ],
+      },
+
       # JOIN condition - equal
       {
         equal => 1,
@@ -614,7 +625,7 @@ my @sql_tests = (
           'SELECT count(1) FROM foo',
         ]
       },
-      # func
+      # misc func
       {
         equal => 1,
         statements => [
@@ -632,6 +643,33 @@ my @sql_tests = (
           'SELECT foo FROM bar ()',
         ]
       },
+      # single ? of unknown funcs can unroll
+      # (think ...LIKE ?...)
+      {
+        equal => 1,
+        statements => [
+          'SELECT foo FROM bar WHERE bar > foo ?',
+          'SELECT foo FROM bar WHERE bar > foo (?)',
+          'SELECT foo FROM bar WHERE bar > foo( ? )',
+        ]
+      },
+      {
+        equal => 1,
+        statements => [
+          'SELECT foo FROM bar WHERE bar > (foo ?)',
+          'SELECT foo FROM bar WHERE bar > (foo( ? ))',
+          'SELECT foo FROM bar WHERE bar > (( foo (?) ))',
+        ]
+      },
+      {
+        equal => 1,
+        statements => [
+          'SELECT foo FROM bar WHERE bar foo ?',
+          'SELECT foo FROM bar WHERE bar foo (?)',
+          'SELECT foo FROM bar WHERE bar foo( (?))',
+        ]
+      },
+      # not so about multival
       {
         equal => 0,
         statements => [
@@ -888,13 +926,13 @@ for my $test (@sql_tests) {
 
         if ($equal ^ $test->{equal}) {
           my ($ast1, $ast2) = map { SQL::Abstract::Test::parse ($_) } ($sql1, $sql2);
-
           $_ = Dumper $_ for ($ast1, $ast2);
 
-          diag("sql1: $sql1");
-          diag("sql2: $sql2");
-          note("ast1: $ast1");
-          note("ast2: $ast2");
+          diag "sql1: $sql1";
+          diag "sql2: $sql2";
+          note $SQL::Abstract::Test::sql_differ;
+          note "ast1: $ast1";
+          note "ast2: $ast2";
         }
       }
     }

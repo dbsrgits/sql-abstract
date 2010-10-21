@@ -2,6 +2,7 @@ package SQL::Abstract::Tree;
 
 use strict;
 use warnings;
+no warnings 'qw';
 use Carp;
 
 use Hash::Merge qw//;
@@ -33,16 +34,9 @@ $merger->specify_behavior({
    },
 }, 'SQLA::Tree Behavior' );
 
-
-# Parser states for _recurse_parse()
-use constant PARSE_TOP_LEVEL => 0;
-use constant PARSE_IN_EXPR => 1;
-use constant PARSE_IN_PARENS => 2;
-use constant PARSE_RHS => 3;
-use constant PARSE_IN_FUNC => 4;
-
 my $op_look_ahead = '(?: (?= [\s\)\(\;] ) | \z)';
-my $op_look_behind = '(?: (?<= [\s\)\(] ) | \A )';
+my $op_look_behind = '(?: (?<= [\,\s\)\(] ) | \A )';
+
 my $quote_left = qr/[\`\'\"\[]/;
 my $quote_right = qr/[\`\'\"\]]/;
 
@@ -82,8 +76,8 @@ my @expression_start_keywords = (
   'ROW_NUMBER \s* \( \s* \) \s+ OVER',
 );
 
-my $exp_start_re = join ("\n\t|\n", @expression_start_keywords );
-$exp_start_re = qr/ $op_look_behind (?i: $exp_start_re ) $op_look_ahead /x;
+my $expr_start_re = join ("\n\t|\n", @expression_start_keywords );
+$expr_start_re = qr/ $op_look_behind (?i: $expr_start_re ) $op_look_ahead /x;
 
 # These are binary operator keywords always a single LHS and RHS
 # * AND/OR are handled separately as they are N-ary
@@ -106,21 +100,38 @@ sub _math_op_re { $math_re }
 
 
 my $binary_op_re = '(?: NOT \s+)? (?:' . join ('|', qw/IN BETWEEN R?LIKE/) . ')';
-$binary_op_re = "(?: $op_look_behind (?i: $binary_op_re ) $op_look_ahead ) \n\t|\n $math_re";
+$binary_op_re = join "\n\t|\n",
+  "$op_look_behind (?i: $binary_op_re ) $op_look_ahead",
+  $math_re,
+  $op_look_behind . 'IS (?:\s+ NOT)?' . "(?= \\s+ NULL \\b | $op_look_ahead )",
+;
 $binary_op_re = qr/$binary_op_re/x;
 
 sub _binary_op_re { $binary_op_re }
 
-
-my $tokenizer_re = join("\n\t|\n",
-  $exp_start_re,
+my $all_known_re = join("\n\t|\n",
+  $expr_start_re,
   $binary_op_re,
   "$op_look_behind (?i: AND|OR|NOT ) $op_look_ahead",
-  (map { quotemeta $_ } qw/( ) ? */),
+  (map { quotemeta $_ } qw/, ( ) */),
 );
 
-#this one *is* capturing
-$tokenizer_re = qr/ \s* ( $tokenizer_re ) \s* /x;
+$all_known_re = qr/$all_known_re/x;
+
+#this one *is* capturing for the split below
+# splits on whitespace if all else fails
+my $tokenizer_re = qr/ \s* ( $all_known_re ) \s* | \s+ /x;
+
+# Parser states for _recurse_parse()
+use constant PARSE_TOP_LEVEL => 0;
+use constant PARSE_IN_EXPR => 1;
+use constant PARSE_IN_PARENS => 2;
+use constant PARSE_IN_FUNC => 3;
+use constant PARSE_RHS => 4;
+
+my $expr_term_re = qr/ ^ (?: $expr_start_re | \) ) $/x;
+my $rhs_term_re = qr/ ^ (?: $expr_term_re | $binary_op_re | (?i: AND | OR | NOT | \, ) ) $/x;
+my $func_start_re = qr/^ (?: \? | \$\d+ | \( ) $/x;
 
 my %indents = (
    select        => 0,
@@ -230,11 +241,15 @@ sub parse {
   # tokenize string, and remove all optional whitespace
   my $tokens = [];
   foreach my $token (split $tokenizer_re, $s) {
-    push @$tokens, $token if (length $token) && ($token =~ /\S/);
+    push @$tokens, $token if (
+      defined $token
+        and
+      length $token
+        and 
+      $token =~ /\S/
+    );
   }
-
-  my $tree = $self->_recurse_parse($tokens, PARSE_TOP_LEVEL);
-  return $tree;
+  $self->_recurse_parse($tokens, PARSE_TOP_LEVEL);
 }
 
 sub _recurse_parse {
@@ -248,11 +263,11 @@ sub _recurse_parse {
           or
         ($state == PARSE_IN_PARENS && $lookahead eq ')')
           or
-        ($state == PARSE_IN_EXPR && $lookahead =~ qr/ ^ (?: $exp_start_re | \) ) $ /x )
+        ($state == PARSE_IN_EXPR && $lookahead =~ $expr_term_re )
           or
-        ($state == PARSE_RHS && $lookahead =~ qr/ ^ (?: $exp_start_re | $binary_op_re | (?i: AND | OR | NOT ) | \) ) $ /x )
+        ($state == PARSE_RHS && $lookahead =~ $rhs_term_re )
           or
-        ($state == PARSE_IN_FUNC && $lookahead ne '(')
+        ($state == PARSE_IN_FUNC && $lookahead !~ $func_start_re) # if there are multiple values - the parenthesis will switch the $state
     ) {
       return $left||();
     }
@@ -268,17 +283,18 @@ sub _recurse_parse {
       $left = $left ? [$left, [PAREN => [$right||()] ]]
                     : [PAREN  => [$right||()] ];
     }
-    # AND/OR
-    elsif ($token =~ /^ (?: OR | AND ) $/xi )  {
-      my $op = uc $token;
+    # AND/OR and LIST (,)
+    elsif ($token =~ /^ (?: OR | AND | \, ) $/xi )  {
+      my $op = ($token eq ',') ? 'LIST' : uc $token;
+
       my $right = $self->_recurse_parse($tokens, PARSE_IN_EXPR);
 
       # Merge chunks if logic matches
       if (ref $right and $op eq $right->[0]) {
-        $left = [ (shift @$right ), [$left, map { @$_ } @$right] ];
+        $left = [ (shift @$right ), [$left||(), map { @$_ } @$right] ];
       }
       else {
-       $left = [$op => [$left, $right]];
+        $left = [$op => [ $left||(), $right||() ]];
       }
     }
     # binary operator keywords
@@ -296,7 +312,7 @@ sub _recurse_parse {
       $left = [$op => [$left, $right] ];
     }
     # expression terminator keywords (as they start a new expression)
-    elsif ( $token =~ / ^ $exp_start_re $ /x ) {
+    elsif ( $token =~ / ^ $expr_start_re $ /x ) {
       my $op = uc $token;
       my $right = $self->_recurse_parse($tokens, PARSE_IN_EXPR);
       $left = $left ? [ $left,  [$op => [$right] ]]
@@ -310,18 +326,21 @@ sub _recurse_parse {
                     : [ $op => [$right] ];
 
     }
-    # generic function
-    elsif (@$tokens && $tokens->[0] eq '(') {
-      my $right = $self->_recurse_parse($tokens, PARSE_IN_FUNC);
-
-      $left = $left ? [ $left, [ $token => [$right||()] ]]
-                    : [ $token => [$right||()] ];
-    }
-    # literal (eat everything on the right until RHS termination)
+    # we're now in "unknown token" land - start eating tokens until
+    # we see something familiar
     else {
-      my $right = $self->_recurse_parse ($tokens, PARSE_RHS);
-      $left = $left ? [ $left, [LITERAL => [join ' ', $token, $self->unparse($right)||()] ] ]
-                    : [ LITERAL => [join ' ', $token, $self->unparse($right)||()] ];
+      my $right;
+
+      # check if the current token is an unknown op-start
+      if (@$tokens and $tokens->[0] =~ $func_start_re) {
+        $right = [ $token => [ $self->_recurse_parse($tokens, PARSE_IN_FUNC) || () ] ];
+      }
+      else {
+        $right = [ LITERAL => [ $token ] ];
+      }
+
+      $left = $left ? [ $left, $right ]
+                    : $right;
     }
   }
 }
@@ -395,7 +414,7 @@ sub unparse {
   }
 
   if (ref $car) {
-    return join ('', map $self->unparse($_, $bindargs, $depth), @$tree);
+    return join (' ', map $self->unparse($_, $bindargs, $depth), @$tree);
   }
   elsif ($car eq 'LITERAL') {
     if ($cdr->[0] eq '?') {
@@ -411,6 +430,9 @@ sub unparse {
   }
   elsif ($car eq 'AND' or $car eq 'OR' or $car =~ / ^ $binary_op_re $ /x ) {
     return join (" $car ", map $self->unparse($_, $bindargs, $depth), @{$cdr});
+  }
+  elsif ($car eq 'LIST' ) {
+    return join (', ', map $self->unparse($_, $bindargs, $depth), @{$cdr});
   }
   else {
     my ($l, $r) = @{$self->pad_keyword($car, $depth)};

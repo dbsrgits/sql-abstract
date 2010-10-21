@@ -269,18 +269,24 @@ sub _parenthesis_unroll {
       }
 
       # a function binds tighter than a mathop - see if our ancestor is a
-      # mathop, and our content is a single non-mathop child with a single
-      # PAREN grandchild which would indicate mathop ( nonmathop ( ... ) )
+      # mathop, and our content is:
+      # a single non-mathop child with a single PAREN grandchild which
+      # would indicate mathop ( nonmathop ( ... ) )
+      # or a single non-mathop with a single LITERAL ( nonmathop ? )
       elsif (
         @{$child->[1]} == 1
           and
         @{$child->[1][0][1]} == 1
           and
-        $child->[1][0][1][0][0] eq 'PAREN'
-          and
         $ast->[0] =~ SQL::Abstract::Tree::_math_op_re()
           and
         $child->[1][0][0] !~ SQL::Abstract::Tree::_math_op_re
+          and
+        (
+          $child->[1][0][1][0][0] eq 'PAREN'
+            or 
+          $child->[1][0][1][0][0] eq 'LITERAL'
+        )
       ) {
         push @children, $child->[1][0];
         $changes++;

@@ -75,7 +75,7 @@ my @in_between_tests = (
       ] },
     },
     stmt => "WHERE (
-          ( start0 BETWEEN ? AND upper ?          )
+          ( start0 BETWEEN ? AND UPPER ?          )
       AND ( start1 BETWEEN ? AND ?                )
       AND ( start2 BETWEEN lower(x) AND upper(y)  )
       AND ( start3 BETWEEN lower(x) AND upper(?)  )
