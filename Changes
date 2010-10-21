@@ -8,6 +8,7 @@ Revision history for SQL::Abstract
     - Add proper handling of lists (foo,bar,?)
     - Better handling of generic -function's during AST construction
     - Special handle IS NOT? NULL
+    - Make sure unparse() does not destroy a passed in \@bindargs
 
 revision 1.68  2010-09-16
 ----------------------------

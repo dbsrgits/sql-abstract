@@ -395,10 +395,14 @@ sub fill_in_placeholder {
    return '?'
 }
 
+# FIXME - terrible name for a user facing API
 sub unparse {
-  my ($self, $tree, $bindargs, $depth) = @_;
+  my ($self, $tree, $bindargs) = @_;
+  $self->_unparse($tree, [@{$bindargs||[]}], 0);
+}
 
-  $depth ||= 0;
+sub _unparse {
+  my ($self, $tree, $bindargs, $depth) = @_;
 
   if (not $tree or not @$tree) {
     return '';
@@ -414,7 +418,7 @@ sub unparse {
   }
 
   if (ref $car) {
-    return join (' ', map $self->unparse($_, $bindargs, $depth), @$tree);
+    return join (' ', map $self->_unparse($_, $bindargs, $depth), @$tree);
   }
   elsif ($car eq 'LITERAL') {
     if ($cdr->[0] eq '?') {
@@ -425,18 +429,18 @@ sub unparse {
   elsif ($car eq 'PAREN') {
     return '(' .
       join(' ',
-        map $self->unparse($_, $bindargs, $depth + 2), @{$cdr}) .
+        map $self->_unparse($_, $bindargs, $depth + 2), @{$cdr}) .
     ($self->_is_key($cdr)?( $self->newline||'' ).$self->indent($depth + 1):'') . ') ';
   }
   elsif ($car eq 'AND' or $car eq 'OR' or $car =~ / ^ $binary_op_re $ /x ) {
-    return join (" $car ", map $self->unparse($_, $bindargs, $depth), @{$cdr});
+    return join (" $car ", map $self->_unparse($_, $bindargs, $depth), @{$cdr});
   }
   elsif ($car eq 'LIST' ) {
-    return join (', ', map $self->unparse($_, $bindargs, $depth), @{$cdr});
+    return join (', ', map $self->_unparse($_, $bindargs, $depth), @{$cdr});
   }
   else {
     my ($l, $r) = @{$self->pad_keyword($car, $depth)};
-    return sprintf "$l%s %s$r", $self->format_keyword($car), $self->unparse($cdr, $bindargs, $depth);
+    return sprintf "$l%s %s$r", $self->format_keyword($car), $self->_unparse($cdr, $bindargs, $depth);
   }
 }
 
