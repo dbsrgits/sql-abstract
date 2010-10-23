@@ -167,7 +167,7 @@ my %profiles = (
         ? do {
           my $c = \&Term::ANSIColor::color;
           (
-            placeholder_surround => [$c->('black on_cyan'), $c->('reset')],
+            placeholder_surround => [q(') . $c->('black on_magenta'), $c->('reset') . q(')],
             colormap => {
               select        => [$c->('red'), $c->('reset')],
               'insert into' => [$c->('red'), $c->('reset')],
@@ -248,7 +248,7 @@ sub parse {
       defined $token
         and
       length $token
-        and 
+        and
       $token =~ /\S/
     );
   }
