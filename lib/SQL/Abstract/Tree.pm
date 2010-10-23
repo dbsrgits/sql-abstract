@@ -76,6 +76,12 @@ my @expression_start_keywords = (
   'UNION',
   'INTERSECT',
   'EXCEPT',
+  'BEGIN \s+ WORK',
+  'COMMIT',
+  'ROLLBACK \s+ TO \s+ SAVEPOINT',
+  'ROLLBACK',
+  'SAVEPOINT',
+  'RELEASE \s+ SAVEPOINT',
   'RETURNING',
   'ROW_NUMBER \s* \( \s* \) \s+ OVER',
 );
@@ -175,6 +181,13 @@ my %profiles = (
           (
             placeholder_surround => [q(') . $c->('black on_magenta'), $c->('reset') . q(')],
             colormap => {
+              'begin work'  => [$c->('black on_white'), $c->('reset')],
+              commit        => [$c->('black on_white'), $c->('reset')],
+              rollback      => [$c->('black on_white'), $c->('reset')],
+              savepoint     => [$c->('black on_white'), $c->('reset')],
+              'rollback to savepoint' => [$c->('black on_white'), $c->('reset')],
+              'release savepoint'     => [$c->('black on_white'), $c->('reset')],
+
               select        => [$c->('red'), $c->('reset')],
               'insert into' => [$c->('red'), $c->('reset')],
               update        => [$c->('red'), $c->('reset')],
@@ -239,6 +252,13 @@ my %profiles = (
          first         => ['<span class="first">',  '</span>'],
          limit         => ['<span class="limit">',  '</span>'],
          offset        => ['<span class="offset">', '</span>'],
+
+         'begin work'  => ['<span class="begin-work">', '</span>'],
+         commit        => ['<span class="commit">', '</span>'],
+         rollback      => ['<span class="rollback">', '</span>'],
+         savepoint     => ['<span class="savepoint">', '</span>'],
+         'rollback to savepoint' => ['<span class="rollback-to-savepoint">', '</span>'],
+         'release savepoint'     => ['<span class="release-savepoint">', '</span>'],
       },
       indentmap     => { %indents },
    },
