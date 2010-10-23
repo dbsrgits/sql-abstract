@@ -8,12 +8,24 @@ use base 'DBIx::Class::Storage::Statistics';
 use SQL::Abstract::Tree;
 
 __PACKAGE__->mk_group_accessors( simple => '_sqlat' );
+__PACKAGE__->mk_group_accessors( simple => 'clear_line_str' );
+__PACKAGE__->mk_group_accessors( simple => 'executing_str' );
 
 sub new {
    my $class = shift;
+   my $args  = shift;
 
-   my $sqlat = SQL::Abstract::Tree->new(shift @_);
+   my $clear_line = $args->{clear_line} || "\r[J";
+   my $executing  = $args->{executing}  || eval { require Term::ANSIColor } ? do {
+       my $c = \&Term::ANSIColor::color;
+       $c->('blink white on_black') . 'EXECUTING...' . $c->('reset');;
+   } : 'EXECUTING...';
+;
+
+   my $sqlat = SQL::Abstract::Tree->new($args);
    my $self = $class->next::method(@_);
+   $self->clear_line_str($clear_line);
+   $self->executing_str($executing);
 
    $self->_sqlat($sqlat);
 
@@ -25,6 +37,9 @@ sub print {
   my $string = shift;
   my $bindargs = shift || [];
 
+  my ($lw, $lr);
+  ($lw, $string, $lr) = $string =~ /^(\s*)(.+?)(\s*)$/s;
+
   return if defined $bindargs && defined $bindargs->[0] &&
     $bindargs->[0] eq q('__BULK_INSERT__');
 
@@ -33,12 +48,12 @@ sub print {
   # DBIC pre-quotes bindargs
   $bindargs = [map { s/^'//; s/'$//; $_ } @{$bindargs}] if $use_placeholders;
 
-  my $formatted = $self->_sqlat->format($string, $bindargs) . "\n";
+  my $formatted = $self->_sqlat->format($string, $bindargs);
 
   $formatted = "$formatted: " . join ', ', @{$bindargs}
      unless $use_placeholders;
 
-  $self->next::method($formatted, @_);
+  $self->next::method("$lw$formatted$lr", @_);
 }
 
 sub query_start {
@@ -50,7 +65,15 @@ sub query_start {
     return;
   }
 
-  $self->print($string, \@bind);
+  $string =~ s/\s+$//;
+
+  $self->print("$string\n", \@bind);
+
+  $self->debugfh->print($self->executing_str)
+}
+
+sub query_end {
+  $_[0]->debugfh->print($_[0]->clear_line_str);
 }
 
 1;

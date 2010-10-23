@@ -2,6 +2,7 @@ Revision history for SQL::Abstract
 
     - Hide bulk inserts from DBIx::Class
     - Highlight transaction keywords
+    - Add EXECUTING for clarity of long running SQL
 
 revision 1.69  2010-10-22
 ----------------------------
