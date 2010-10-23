@@ -25,6 +25,9 @@ sub print {
   my $string = shift;
   my $bindargs = shift || [];
 
+  return if defined $bindargs && defined $bindargs->[0] &&
+    $bindargs->[0] eq q('__BULK_INSERT__');
+
   my $use_placeholders = !!$self->_sqlat->fill_in_placeholders;
 
   # DBIC pre-quotes bindargs

@@ -1,5 +1,7 @@
 Revision history for SQL::Abstract
 
+    - Hide bulk inserts from DBIx::Class
+
 revision 1.69  2010-10-22
 ----------------------------
     - Add quotes for populated placeholders and make the background
