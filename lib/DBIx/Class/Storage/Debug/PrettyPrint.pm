@@ -42,8 +42,8 @@ sub print {
   my ($lw, $lr);
   ($lw, $string, $lr) = $string =~ /^(\s*)(.+?)(\s*)$/s;
 
-  return if defined $bindargs && defined $bindargs->[0] &&
-    $bindargs->[0] eq q('__BULK_INSERT__');
+  local $self->_sqlat->{fill_in_placeholders} = 0 if defined $bindargs
+    && defined $bindargs->[0] && $bindargs->[0] eq q('__BULK_INSERT__');
 
   my $use_placeholders = !!$self->_sqlat->fill_in_placeholders;
 
