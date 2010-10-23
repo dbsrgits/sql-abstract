@@ -8,8 +8,9 @@ use base 'DBIx::Class::Storage::Statistics';
 use SQL::Abstract::Tree;
 
 __PACKAGE__->mk_group_accessors( simple => '_sqlat' );
-__PACKAGE__->mk_group_accessors( simple => 'clear_line_str' );
-__PACKAGE__->mk_group_accessors( simple => 'executing_str' );
+__PACKAGE__->mk_group_accessors( simple => '_clear_line_str' );
+__PACKAGE__->mk_group_accessors( simple => '_executing_str' );
+__PACKAGE__->mk_group_accessors( simple => '_show_progress' );
 
 sub new {
    my $class = shift;
@@ -20,12 +21,13 @@ sub new {
        my $c = \&Term::ANSIColor::color;
        $c->('blink white on_black') . 'EXECUTING...' . $c->('reset');;
    } : 'EXECUTING...';
-;
+   my $show_progress = defined $args->{show_progress} ? $args->{show_progress} : 1;
 
    my $sqlat = SQL::Abstract::Tree->new($args);
    my $self = $class->next::method(@_);
-   $self->clear_line_str($clear_line);
-   $self->executing_str($executing);
+   $self->_clear_line_str($clear_line);
+   $self->_executing_str($executing);
+   $self->_show_progress($show_progress);
 
    $self->_sqlat($sqlat);
 
@@ -69,11 +71,11 @@ sub query_start {
 
   $self->print("$string\n", \@bind);
 
-  $self->debugfh->print($self->executing_str)
+  $self->debugfh->print($self->_executing_str) if $self->_show_progress
 }
 
 sub query_end {
-  $_[0]->debugfh->print($_[0]->clear_line_str);
+  $_[0]->debugfh->print($_[0]->_clear_line_str) if $_[0]->_show_progress
 }
 
 1;
