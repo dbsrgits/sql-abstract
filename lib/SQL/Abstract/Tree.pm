@@ -173,43 +173,51 @@ my %profiles = (
       indent_amount => 2,
       newline       => "\n",
       colormap      => {},
-      indentmap     => { %indents },
+      indentmap     => \%indents,
 
       eval { require Term::ANSIColor }
         ? do {
           my $c = \&Term::ANSIColor::color;
+
+          my $red     = [$c->('red')    , $c->('reset')];
+          my $cyan    = [$c->('cyan')   , $c->('reset')];
+          my $green   = [$c->('green')  , $c->('reset')];
+          my $yellow  = [$c->('yellow') , $c->('reset')];
+          my $blue    = [$c->('blue')   , $c->('reset')];
+          my $magenta = [$c->('magenta'), $c->('reset')];
+          my $b_o_w   = [$c->('black on_white'), $c->('reset')];
           (
             placeholder_surround => [q(') . $c->('black on_magenta'), $c->('reset') . q(')],
             colormap => {
-              'begin work'  => [$c->('black on_white'), $c->('reset')],
-              commit        => [$c->('black on_white'), $c->('reset')],
-              rollback      => [$c->('black on_white'), $c->('reset')],
-              savepoint     => [$c->('black on_white'), $c->('reset')],
-              'rollback to savepoint' => [$c->('black on_white'), $c->('reset')],
-              'release savepoint'     => [$c->('black on_white'), $c->('reset')],
+              'begin work'            => $b_o_w,
+              commit                  => $b_o_w,
+              rollback                => $b_o_w,
+              savepoint               => $b_o_w,
+              'rollback to savepoint' => $b_o_w,
+              'release savepoint'     => $b_o_w,
 
-              select        => [$c->('red'), $c->('reset')],
-              'insert into' => [$c->('red'), $c->('reset')],
-              update        => [$c->('red'), $c->('reset')],
-              'delete from' => [$c->('red'), $c->('reset')],
+              select                  => $red,
+              'insert into'           => $red,
+              update                  => $red,
+              'delete from'           => $red,
 
-              set           => [$c->('cyan'), $c->('reset')],
-              from          => [$c->('cyan'), $c->('reset')],
+              set                     => $cyan,
+              from                    => $cyan,
 
-              where         => [$c->('green'), $c->('reset')],
-              values        => [$c->('yellow'), $c->('reset')],
+              where                   => $green,
+              values                  => $yellow,
 
-              join          => [$c->('magenta'), $c->('reset')],
-              'left join'   => [$c->('magenta'), $c->('reset')],
-              on            => [$c->('blue'), $c->('reset')],
+              join                    => $magenta,
+              'left join'             => $magenta,
+              on                      => $blue,
 
-              'group by'    => [$c->('yellow'), $c->('reset')],
-              'order by'    => [$c->('yellow'), $c->('reset')],
+              'group by'              => $yellow,
+              'order by'              => $yellow,
 
-              skip          => [$c->('green'), $c->('reset')],
-              first         => [$c->('green'), $c->('reset')],
-              limit         => [$c->('green'), $c->('reset')],
-              offset        => [$c->('green'), $c->('reset')],
+              skip                    => $green,
+              first                   => $green,
+              limit                   => $green,
+              offset                  => $green,
             }
           );
         } : (),
@@ -221,7 +229,7 @@ my %profiles = (
       indent_amount => 2,
       newline       => "\n",
       colormap      => {},
-      indentmap     => { %indents },
+      indentmap     => \%indents,
    },
    html => {
       fill_in_placeholders => 1,
@@ -260,7 +268,7 @@ my %profiles = (
          'rollback to savepoint' => ['<span class="rollback-to-savepoint">', '</span>'],
          'release savepoint'     => ['<span class="release-savepoint">', '</span>'],
       },
-      indentmap     => { %indents },
+      indentmap     => \%indents,
    },
    none => {
       colormap      => {},
