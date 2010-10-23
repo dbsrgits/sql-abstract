@@ -2,6 +2,9 @@ Revision history for SQL::Abstract
 
 revision 1.69  2010-10-22
 ----------------------------
+    - Add quotes for populated placeholders and make the background
+      magenta instead of cyan
+    - Color and indent pagination keywords
     - Fix a silly bug which broke placeholder fill-in in DBIC
     - Installs format-sql to format SQL passed in over STDIN
     - Switch the tokenizer to precompiled regexes (massive speedup)

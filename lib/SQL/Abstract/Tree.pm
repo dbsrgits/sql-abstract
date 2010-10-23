@@ -68,6 +68,8 @@ my @expression_start_keywords = (
   'GROUP \s+ BY',
   'HAVING',
   'ORDER \s+ BY',
+  'SKIP',
+  'FIRST',
   'LIMIT',
   'OFFSET',
   'FOR',
@@ -151,6 +153,10 @@ my %indents = (
    set           => 1,
    into          => 1,
    values        => 1,
+   limit         => 1,
+   offset        => 1,
+   skip          => 1,
+   first         => 1,
 );
 
 my %profiles = (
@@ -186,6 +192,11 @@ my %profiles = (
 
               'group by'    => [$c->('yellow'), $c->('reset')],
               'order by'    => [$c->('yellow'), $c->('reset')],
+
+              skip          => [$c->('green'), $c->('reset')],
+              first         => [$c->('green'), $c->('reset')],
+              limit         => [$c->('green'), $c->('reset')],
+              offset        => [$c->('green'), $c->('reset')],
             }
           );
         } : (),
@@ -210,15 +221,24 @@ my %profiles = (
          'insert into' => ['<span class="insert-into">'  , '</span>'],
          update        => ['<span class="select">'  , '</span>'],
          'delete from' => ['<span class="delete-from">'  , '</span>'],
-         where         => ['<span class="where">'   , '</span>'],
+
+         set           => ['<span class="set">', '</span>'],
          from          => ['<span class="from">'    , '</span>'],
+
+         where         => ['<span class="where">'   , '</span>'],
+         values        => ['<span class="values">', '</span>'],
+
          join          => ['<span class="join">'    , '</span>'],
+         'left join'   => ['<span class="left-join">','</span>'],
          on            => ['<span class="on">'      , '</span>'],
+
          'group by'    => ['<span class="group-by">', '</span>'],
          'order by'    => ['<span class="order-by">', '</span>'],
-         set           => ['<span class="set">', '</span>'],
-         into          => ['<span class="into">', '</span>'],
-         values        => ['<span class="values">', '</span>'],
+
+         skip          => ['<span class="skip">',   '</span>'],
+         first         => ['<span class="first">',  '</span>'],
+         limit         => ['<span class="limit">',  '</span>'],
+         offset        => ['<span class="offset">', '</span>'],
       },
       indentmap     => { %indents },
    },
