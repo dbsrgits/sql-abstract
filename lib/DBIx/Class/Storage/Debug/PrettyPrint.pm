@@ -60,11 +60,11 @@ sub print {
   my $formatted;
   if ($self->squash_repeats && $self->_last_sql eq $string) {
      my ( $l, $r ) = @{ $sqlat->placeholder_surround };
-     $formatted = '... : ' . join(', ', map "$l$_$r", @$bindargs) . "\n";
+     $formatted = '... : ' . join(', ', map "$l$_$r", @$bindargs)
   } else {
      $self->_last_sql($string);
-     $formatted = $sqlat->format($string, $bindargs) . "\n";
-     $formatted = "$formatted: " . join ', ', @{$bindargs}
+     $formatted = $sqlat->format($string, $bindargs);
+     $formatted = "$formatted : " . join ', ', @{$bindargs}
         unless $use_placeholders;
   }
 
