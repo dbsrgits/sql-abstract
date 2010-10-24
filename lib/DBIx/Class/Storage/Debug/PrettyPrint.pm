@@ -12,7 +12,7 @@ __PACKAGE__->mk_group_accessors( simple => '_clear_line_str' );
 __PACKAGE__->mk_group_accessors( simple => '_executing_str' );
 __PACKAGE__->mk_group_accessors( simple => '_show_progress' );
 __PACKAGE__->mk_group_accessors( simple => '_last_sql' );
-__PACKAGE__->mk_group_accessors( simple => 'no_repeats' );
+__PACKAGE__->mk_group_accessors( simple => 'squash_repeats' );
 
 sub new {
    my $class = shift;
@@ -25,14 +25,14 @@ sub new {
    } : 'EXECUTING...';
    my $show_progress = defined $args->{show_progress} ? $args->{show_progress} : 1;
 
-   my $no_repeats = $args->{no_repeats};
+   my $squash_repeats = $args->{squash_repeats};
    my $sqlat = SQL::Abstract::Tree->new($args);
    my $self = $class->next::method(@_);
    $self->_clear_line_str($clear_line);
    $self->_executing_str($executing);
    $self->_show_progress($show_progress);
 
-   $self->no_repeats($no_repeats);
+   $self->squash_repeats($squash_repeats);
 
    $self->_sqlat($sqlat);
    $self->_last_sql('');
@@ -58,7 +58,7 @@ sub print {
 
   my $sqlat = $self->_sqlat;
   my $formatted;
-  if ($self->no_repeats && $self->_last_sql eq $string) {
+  if ($self->squash_repeats && $self->_last_sql eq $string) {
      my ( $l, $r ) = @{ $sqlat->placeholder_surround };
      $formatted = '... : ' . join(', ', map "$l$_$r", @$bindargs) . "\n";
   } else {

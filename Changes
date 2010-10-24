@@ -3,7 +3,7 @@ Revision history for SQL::Abstract
     - Hide bulk inserts from DBIx::Class
     - Highlight transaction keywords
     - Add EXECUTING for clarity of long running SQL
-    - Add "no_repeats" option to fix it such that repeated SQL gets ellided
+    - Add "squash_repeats" option to fix it such that repeated SQL gets ellided
       except for placeholders
 
 revision 1.69  2010-10-22
