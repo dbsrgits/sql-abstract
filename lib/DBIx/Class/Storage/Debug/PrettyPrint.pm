@@ -23,7 +23,7 @@ sub new {
        my $c = \&Term::ANSIColor::color;
        $c->('blink white on_black') . 'EXECUTING...' . $c->('reset');;
    } : 'EXECUTING...';
-   my $show_progress = defined $args->{show_progress} ? $args->{show_progress} : 1;
+   my $show_progress = $args->{show_progress};
 
    my $squash_repeats = $args->{squash_repeats};
    my $sqlat = SQL::Abstract::Tree->new($args);
