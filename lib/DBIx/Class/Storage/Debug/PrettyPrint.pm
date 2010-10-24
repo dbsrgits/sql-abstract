@@ -11,6 +11,8 @@ __PACKAGE__->mk_group_accessors( simple => '_sqlat' );
 __PACKAGE__->mk_group_accessors( simple => '_clear_line_str' );
 __PACKAGE__->mk_group_accessors( simple => '_executing_str' );
 __PACKAGE__->mk_group_accessors( simple => '_show_progress' );
+__PACKAGE__->mk_group_accessors( simple => '_last_sql' );
+__PACKAGE__->mk_group_accessors( simple => 'no_repeats' );
 
 sub new {
    my $class = shift;
@@ -23,13 +25,17 @@ sub new {
    } : 'EXECUTING...';
    my $show_progress = defined $args->{show_progress} ? $args->{show_progress} : 1;
 
+   my $no_repeats = $args->{no_repeats};
    my $sqlat = SQL::Abstract::Tree->new($args);
    my $self = $class->next::method(@_);
    $self->_clear_line_str($clear_line);
    $self->_executing_str($executing);
    $self->_show_progress($show_progress);
 
+   $self->no_repeats($no_repeats);
+
    $self->_sqlat($sqlat);
+   $self->_last_sql('');
 
    return $self
 }
@@ -50,10 +56,17 @@ sub print {
   # DBIC pre-quotes bindargs
   $bindargs = [map { s/^'//; s/'$//; $_ } @{$bindargs}] if $use_placeholders;
 
-  my $formatted = $self->_sqlat->format($string, $bindargs);
-
-  $formatted = "$formatted: " . join ', ', @{$bindargs}
-     unless $use_placeholders;
+  my $sqlat = $self->_sqlat;
+  my $formatted;
+  if ($self->no_repeats && $self->_last_sql eq $string) {
+     my ( $l, $r ) = @{ $sqlat->placeholder_surround };
+     $formatted = '... : ' . join(', ', map "$l$_$r", @$bindargs) . "\n";
+  } else {
+     $self->_last_sql($string);
+     $formatted = $sqlat->format($string, $bindargs) . "\n";
+     $formatted = "$formatted: " . join ', ', @{$bindargs}
+        unless $use_placeholders;
+  }
 
   $self->next::method("$lw$formatted$lr", @_);
 }
