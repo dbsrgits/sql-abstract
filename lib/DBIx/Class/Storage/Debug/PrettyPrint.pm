@@ -99,25 +99,33 @@ sub query_end {
 
 =head1 SYNOPSIS
 
- package MyApp::Schema;
+ DBIC_TRACE_PROFILE=~/dbic.json perl -Ilib ./foo.pl
 
- use parent 'DBIx::Class::Schema';
+Where dbic.json contains:
 
- use DBIx::Class::Storage::Debug::PrettyPrint;
+ {
+   "profile":"console",
+   "show_progress":1,
+   "squash_repeats":1
+ }
 
- __PACKAGE__->load_namespaces;
+=head1 METHODS
+
+=head2 new
 
  my $pp = DBIx::Class::Storage::Debug::PrettyPrint->new({
-   profile => 'console',
+   show_progress  => 1,        # tries it's best to make it clear that a SQL
+                               # statement is still running
+   executing      => '...',    # the string that is added to the end of SQL
+                               # if show_progress is on.  You probably don't
+                               # need to set this
+   clear_line     => '\r^[[J', # the string used to erase the string added
+                               # to SQL if show_progress is on.  Again, the
+                               # default is probably good enough.
+
+   squash_repeats => 1,        # set to true to make repeated SQL queries
+                               # be ellided and only show the new bind params
+   # any other args are passed through directly to SQL::Abstract::Tree
  });
 
- sub connection {
-   my $self = shift;
-
-   my $ret = $self->next::method(@_);
-
-   $self->storage->debugobj($pp);
-
-   $ret
- }
 
