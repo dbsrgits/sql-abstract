@@ -19,10 +19,12 @@ sub new {
    my $args  = shift;
 
    my $clear_line = $args->{clear_line} || "\r[J";
-   my $executing  = $args->{executing}  || eval { require Term::ANSIColor } ? do {
-       my $c = \&Term::ANSIColor::color;
-       $c->('blink white on_black') . 'EXECUTING...' . $c->('reset');;
-   } : 'EXECUTING...';
+   my $executing  = $args->{executing}  || (
+      eval { require Term::ANSIColor } ? do {
+          my $c = \&Term::ANSIColor::color;
+          $c->('blink white on_black') . 'EXECUTING...' . $c->('reset');
+      } : 'EXECUTING...'
+   );
    my $show_progress = $args->{show_progress};
 
    my $squash_repeats = $args->{squash_repeats};
