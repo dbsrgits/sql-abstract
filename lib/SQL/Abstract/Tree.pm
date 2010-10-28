@@ -154,6 +154,7 @@ my %indents = (
    join          => 1,
    'left join'   => 1,
    on            => 2,
+   having        => 0,
    'group by'    => 0,
    'order by'    => 0,
    set           => 1,
@@ -212,6 +213,7 @@ my %profiles = (
               on                      => $blue,
 
               'group by'              => $yellow,
+              having                  => $yellow,
               'order by'              => $yellow,
 
               skip                    => $green,
@@ -254,6 +256,7 @@ my %profiles = (
          on            => ['<span class="on">'      , '</span>'],
 
          'group by'    => ['<span class="group-by">', '</span>'],
+         having        => ['<span class="having">',   '</span>'],
          'order by'    => ['<span class="order-by">', '</span>'],
 
          skip          => ['<span class="skip">',   '</span>'],
