@@ -284,6 +284,9 @@ sub new {
    my $args  = shift || {};
 
    my $profile = delete $args->{profile} || 'none';
+
+   die "No such profile '$profile'!" unless exists $profiles{$profile};
+
    my $data = $merger->merge( $profiles{$profile}, $args );
 
    bless $data, $class

@@ -1,5 +1,6 @@
 Revision history for SQL::Abstract
 
+    - Add error checking on "profile" for SQLA::Tree
     - Hide bulk inserts from DBIx::Class
     - Highlight transaction keywords
     - Highlight HAVING
