@@ -7,6 +7,7 @@ Revision history for SQL::Abstract
     - Add EXECUTING for clarity of long running SQL
     - Add "squash_repeats" option to fix it such that repeated SQL gets ellided
       except for placeholders
+    - Fix missing doc (RT#62587)
 
 revision 1.69  2010-10-22
 ----------------------------

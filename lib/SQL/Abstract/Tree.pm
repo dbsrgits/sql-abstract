@@ -515,6 +515,10 @@ sub format { my $self = shift; $self->unparse($self->parse($_[0]), $_[1]) }
 
 =pod
 
+=head1 NAME
+
+SQL::Abstract::Tree - Represent SQL as an AST
+
 =head1 SYNOPSIS
 
  my $sqla_tree = SQL::Abstract::Tree->new({ profile => 'console' });

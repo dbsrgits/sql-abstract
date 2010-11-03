@@ -97,6 +97,10 @@ sub query_end {
 
 =pod
 
+=head1 NAME
+
+DBIx::Class::Storage::Debug::PrettyPrint - Pretty Printing DebugObj
+
 =head1 SYNOPSIS
 
  DBIC_TRACE_PROFILE=~/dbic.json perl -Ilib ./foo.pl
