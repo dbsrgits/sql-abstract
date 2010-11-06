@@ -2701,6 +2701,15 @@ a fast interface to returning and formatting data. I frequently
 use these three modules together to write complex database query
 apps in under 50 lines.
 
+=head1 REPO
+
+=over
+
+=item * gitweb: L<http://git.shadowcat.co.uk/gitweb/gitweb.cgi?p=dbsrgits/DBIx-Class.git>
+
+=item * git: L<git://git.shadowcat.co.uk/dbsrgits/DBIx-Class.git>
+
+=back
 
 =head1 CHANGES
 

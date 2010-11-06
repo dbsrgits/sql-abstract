@@ -7,6 +7,9 @@ use 5.006002;
 perl_version '5.006002';
 name 'SQL-Abstract';
 author 'Nathan Wiger <nate@wiger.org>';
+resources 'license'     => 'http://dev.perl.org/licenses/';
+resources 'repository'  => 'git://git.shadowcat.co.uk/dbsrgits/SQL-Abstract.git';
+resources 'bugtracker'  => 'http://rt.cpan.org/NoAuth/Bugs.html?Dist=SQL-Abstract';
 
 all_from 'lib/SQL/Abstract.pm';
 
