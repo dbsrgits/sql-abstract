@@ -8,6 +8,7 @@ Revision history for SQL::Abstract
     - Add "squash_repeats" option to fix it such that repeated SQL gets ellided
       except for placeholders
     - Fix missing doc (RT#62587)
+    - Format functions in MySQL-friendly manner foo( ... ) vs foo ( ... )
 
 revision 1.69  2010-10-22
 ----------------------------

@@ -19,7 +19,7 @@ $pp->debugfh($fh);
 $pp->query_start('INSERT INTO self_ref_alias (alias, self_ref) VALUES ( ?, ? )', qw('__BULK_INSERT__' '1'));
 is(
    $cap,
-   qq{INSERT INTO self_ref_alias (alias, self_ref) VALUES (?, ?) : '__BULK_INSERT__', '1'\n},
+   qq{INSERT INTO self_ref_alias( alias, self_ref ) VALUES( ?, ? ) : '__BULK_INSERT__', '1'\n},
    'SQL Logged'
 );
 

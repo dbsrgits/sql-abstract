@@ -34,7 +34,7 @@ use SQL::Abstract::Tree;
    });
 
    is $sqlat->format('SELECT ? as x, ? as y FROM Foo WHERE t > ? and z IN (?, ?, ?) ', [qw/frew ribasushi 2008-12-12 1 2 3/]),
-   q[SELECT 'frew' as x, 'ribasushi' as y FROM Foo WHERE t > '2008-12-12' AND z IN ('1', '2', '3')], 'Complex placeholders work';
+   q[SELECT 'frew' as x, 'ribasushi' as y FROM Foo WHERE t > '2008-12-12' AND z IN ( '1', '2', '3' )], 'Complex placeholders work';
 }
 
 done_testing;

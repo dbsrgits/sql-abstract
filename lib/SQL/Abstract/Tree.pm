@@ -488,7 +488,7 @@ sub _unparse {
     return $self->fill_in_placeholder($bindargs);
   }
   elsif ($car eq 'PAREN') {
-    return sprintf ('(%s)',
+    return sprintf ('( %s )',
       join (' ', map { $self->_unparse($_, $bindargs, $depth + 2) } @{$cdr} )
         .
       ($self->_is_key($cdr)
@@ -505,7 +505,15 @@ sub _unparse {
   }
   else {
     my ($l, $r) = @{$self->pad_keyword($car, $depth)};
-    return sprintf "$l%s %s$r", $self->format_keyword($car), $self->_unparse($cdr, $bindargs, $depth);
+
+    return sprintf "$l%s%s%s$r",
+      $self->format_keyword($car),
+      ( ref $cdr eq 'ARRAY' and ref $cdr->[0] eq 'ARRAY' and $cdr->[0][0] and $cdr->[0][0] eq 'PAREN' )
+        ? ''    # mysql--
+        : ' '
+      ,
+      $self->_unparse($cdr, $bindargs, $depth),
+    ;
   }
 }
 
