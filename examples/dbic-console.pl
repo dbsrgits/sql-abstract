@@ -4,7 +4,7 @@ use DBIx::Class::Storage::Debug::PrettyPrint;
 
 my $pp = DBIx::Class::Storage::Debug::PrettyPrint->new({
    profile => 'console',
-   show_progress => 0,
+   show_progress => 1,
 });
 
 $pp->txn_begin;
