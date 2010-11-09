@@ -2,6 +2,13 @@ use strict;
 use warnings;
 
 use Test::More;
+
+BEGIN {
+  # ask for a recent DBIC version to skip the 5.6.2 tests as well
+  plan skip_all => 'Test temporarily requires DBIx::Class'
+    unless eval { require DBIx::Class::Storage::Statistics; DBIx::Class->VERSION('0.08124') };
+}
+
 use DBIx::Class::Storage::Debug::PrettyPrint;
 
 my $cap;
