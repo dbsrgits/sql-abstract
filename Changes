@@ -1,13 +1,13 @@
 Revision history for SQL::Abstract
 
-    - Leave quotes from DBIC in bindargs
-    - Add error checking on "profile" for SQLA::Tree
-    - Hide bulk inserts from DBIx::Class
-    - Highlight transaction keywords
-    - Highlight HAVING
     - Add EXECUTING for clarity of long running SQL
     - Add "squash_repeats" option to fix it such that repeated SQL gets ellided
       except for placeholders
+    - Highlight transaction keywords
+    - Highlight HAVING
+    - Leave quotes from DBIC in bindargs
+    - Add error checking on "profile" for SQLA::Tree
+    - Hide bulk inserts from DBIx::Class
     - Fix missing doc (RT#62587)
     - Format functions in MySQL-friendly manner foo( ... ) vs foo ( ... )
 
