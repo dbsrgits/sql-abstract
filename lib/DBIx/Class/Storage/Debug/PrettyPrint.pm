@@ -18,7 +18,7 @@ sub new {
    my $class = shift;
    my $args  = shift;
 
-   my $clear_line = $args->{clear_line} || "\r[J";
+   my $clear_line = $args->{clear_line} || "\r\x1b[J";
    my $executing  = $args->{executing}  || (
       eval { require Term::ANSIColor } ? do {
           my $c = \&Term::ANSIColor::color;
@@ -115,17 +115,17 @@ Where dbic.json contains:
 =head2 new
 
  my $pp = DBIx::Class::Storage::Debug::PrettyPrint->new({
-   show_progress  => 1,        # tries it's best to make it clear that a SQL
-                               # statement is still running
-   executing      => '...',    # the string that is added to the end of SQL
-                               # if show_progress is on.  You probably don't
-                               # need to set this
-   clear_line     => '\r^[[J', # the string used to erase the string added
-                               # to SQL if show_progress is on.  Again, the
-                               # default is probably good enough.
+   show_progress  => 1,             # tries it's best to make it clear that a SQL
+                                    # statement is still running
+   executing      => '...',         # the string that is added to the end of SQL
+                                    # if show_progress is on.  You probably don't
+                                    # need to set this
+   clear_line     => '<CR><ESC>[J', # the string used to erase the string added
+                                    # to SQL if show_progress is on.  Again, the
+                                    # default is probably good enough.
 
-   squash_repeats => 1,        # set to true to make repeated SQL queries
-                               # be ellided and only show the new bind params
+   squash_repeats => 1,             # set to true to make repeated SQL queries
+                                    # be ellided and only show the new bind params
    # any other args are passed through directly to SQL::Abstract::Tree
  });
 
