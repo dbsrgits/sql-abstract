@@ -1,6 +1,6 @@
 Revision history for SQL::Abstract
 
-revision 1.70  2010-11-08
+revision 1.71  2010-11-09
 ----------------------------
     - Add EXECUTING for clarity of long running SQL
     - Add "squash_repeats" option to fix it such that repeated SQL gets ellided
