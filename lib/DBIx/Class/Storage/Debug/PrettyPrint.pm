@@ -55,9 +55,6 @@ sub print {
 
   my $use_placeholders = !!$self->_sqlat->fill_in_placeholders;
 
-  # DBIC pre-quotes bindargs
-  $bindargs = [map { s/^'//; s/'$//; $_ } @{$bindargs}] if $use_placeholders;
-
   my $sqlat = $self->_sqlat;
   my $formatted;
   if ($self->squash_repeats && $self->_last_sql eq $string) {

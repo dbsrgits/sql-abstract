@@ -11,7 +11,7 @@ my $pp = DBIx::Class::Storage::Debug::PrettyPrint->new({
    profile => 'none',
    squash_repeats => 1,
    fill_in_placeholders => 1,
-   placeholder_surround => [qw(' ')],
+   placeholder_surround => ['', ''],
    show_progress => 0,
 });
 

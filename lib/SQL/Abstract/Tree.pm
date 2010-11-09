@@ -188,7 +188,7 @@ my %profiles = (
           my $magenta = [$c->('magenta'), $c->('reset')];
           my $b_o_w   = [$c->('black on_white'), $c->('reset')];
           (
-            placeholder_surround => [q(') . $c->('black on_magenta'), $c->('reset') . q(')],
+            placeholder_surround => [$c->('black on_magenta'), $c->('reset')],
             colormap => {
               'begin work'            => $b_o_w,
               commit                  => $b_o_w,
@@ -448,10 +448,12 @@ sub fill_in_placeholder {
 
    if ($self->fill_in_placeholders) {
       my $val = shift @{$bindargs} || '';
+      $val =~ s/^(')(.*)(')$/$2/;
+      my ($lquo, $rquo) = ($1 || '', $3 || '');
       my ($left, $right) = @{$self->placeholder_surround};
       $val =~ s/\\/\\\\/g;
       $val =~ s/'/\\'/g;
-      return qq($left$val$right)
+      return qq($left$lquo$val$rquo$right)
    }
    return '?'
 }

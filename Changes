@@ -1,5 +1,6 @@
 Revision history for SQL::Abstract
 
+    - Leave quotes from DBIC in bindargs
     - Add error checking on "profile" for SQLA::Tree
     - Hide bulk inserts from DBIx::Class
     - Highlight transaction keywords
