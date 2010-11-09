@@ -122,8 +122,8 @@ sub _binary_op_re { $binary_op_re }
 my $all_known_re = join("\n\t|\n",
   $expr_start_re,
   $binary_op_re,
-  "$op_look_behind (?i: AND|OR|NOT ) $op_look_ahead",
-  (map { quotemeta $_ } qw/, ( ) */),
+  "$op_look_behind (?i: AND|OR|NOT|\\* ) $op_look_ahead",
+  (map { quotemeta $_ } qw/, ( )/),
   $placeholder_re,
 );
 

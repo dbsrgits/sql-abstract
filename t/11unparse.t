@@ -7,7 +7,7 @@ use SQL::Abstract::Tree;
 
 my $sqlat = SQL::Abstract::Tree->new;
 
-cmp_deeply($sqlat->parse("SELECT a, b, c FROM foo WHERE foo.a =1 and foo.b LIKE 'station'"), [
+cmp_deeply($sqlat->parse("SELECT a, b.*, * FROM foo WHERE foo.a =1 and foo.b LIKE 'station'"), [
   [
     [
       "SELECT",
@@ -24,13 +24,13 @@ cmp_deeply($sqlat->parse("SELECT a, b, c FROM foo WHERE foo.a =1 and foo.b LIKE 
             [
               "LITERAL",
               [
-                "b"
+                "b.*"
               ]
             ],
             [
               "LITERAL",
               [
-                "c"
+                "*"
               ]
             ]
           ]

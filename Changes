@@ -1,5 +1,7 @@
 Revision history for SQL::Abstract
 
+    - Fix parsing of foo.* in SQLA::Tree
+
 revision 1.71  2010-11-09
 ----------------------------
     - Add EXECUTING for clarity of long running SQL
