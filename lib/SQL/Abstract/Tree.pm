@@ -448,12 +448,12 @@ sub fill_in_placeholder {
 
    if ($self->fill_in_placeholders) {
       my $val = shift @{$bindargs} || '';
-      $val =~ s/^(')(.*)(')$/$2/;
-      my ($lquo, $rquo) = ($1 || '', $3 || '');
+      my $quoted = $val =~ s/^(['"])(.*)\1$/$2/;
       my ($left, $right) = @{$self->placeholder_surround};
       $val =~ s/\\/\\\\/g;
       $val =~ s/'/\\'/g;
-      return qq($left$lquo$val$rquo$right)
+      $val = qq('$val') if $quoted;
+      return qq($left$val$right)
    }
    return '?'
 }
