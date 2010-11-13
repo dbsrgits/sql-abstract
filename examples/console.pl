@@ -23,6 +23,7 @@ my @sql = (
    'SAVEPOINT station',
    'ROLLBACK TO SAVEPOINT station',
    'RELEASE SAVEPOINT station',
+   "SELECT COUNT( * ) FROM message_children me WHERE( ( me.phone_number NOT IN ( SELECT message_child.phone_number FROM blocked_destinations me JOIN message_children_status reason ON reason.id = me.reason_id JOIN message_children message_child ON message_child.id = reason.message_child_id) AND ( ( me.api_id IS NULL ) ) ) )"
 );
 
 print "\n\n'" . $sqlat->format($_) . "'\n" for @sql;

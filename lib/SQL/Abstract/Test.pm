@@ -18,17 +18,6 @@ our $parenthesis_significant = 0;
 our $sql_differ; # keeps track of differing portion between SQLs
 our $tb = __PACKAGE__->builder;
 
-# All of these keywords allow their parameters to be specified with or without parenthesis without changing the semantics
-my @unrollable_ops = (
-  'ON',
-  'WHERE',
-  'GROUP \s+ BY',
-  'HAVING',
-  'ORDER \s+ BY',
-);
-my $unrollable_ops_re = join ' | ', @unrollable_ops;
-$unrollable_ops_re = qr/$unrollable_ops_re/xi;
-
 sub is_same_sql_bind {
   my ($sql1, $bind_ref1, $sql2, $bind_ref2, $msg) = @_;
 
@@ -168,7 +157,7 @@ sub _eq_sql {
   else {
 
     # unroll parenthesis if possible/allowed
-    _parenthesis_unroll ($_) for ($left, $right);
+    $parenthesis_significant || $sqlat->_parenthesis_unroll($_) for $left, $right;
 
     # if operators are different
     if ( $left->[0] ne $right->[0] ) {
@@ -193,123 +182,6 @@ sub _eq_sql {
       }
     }
   }
-}
-
-sub _parenthesis_unroll {
-  my $ast = shift;
-
-  return if $parenthesis_significant;
-  return unless (ref $ast and ref $ast->[1]);
-
-  my $changes;
-  do {
-    my @children;
-    $changes = 0;
-
-    for my $child (@{$ast->[1]}) {
-      # the current node in this loop is *always* a PAREN
-      if (not ref $child or not $child->[0] eq 'PAREN') {
-        push @children, $child;
-        next;
-      }
-
-      # unroll nested parenthesis
-      while ( @{$child->[1]} && $child->[1][0][0] eq 'PAREN') {
-        $child = $child->[1][0];
-        $changes++;
-      }
-
-      # if the parenthesis are wrapped around an AND/OR matching the parent AND/OR - open the parenthesis up and merge the list
-      if (
-        ( $ast->[0] eq 'AND' or $ast->[0] eq 'OR')
-            and
-          $child->[1][0][0] eq $ast->[0]
-      ) {
-        push @children, @{$child->[1][0][1]};
-        $changes++;
-      }
-
-      # if the parent operator explcitly allows it nuke the parenthesis
-      elsif ( $ast->[0] =~ $unrollable_ops_re ) {
-        push @children, $child->[1][0];
-        $changes++;
-      }
-
-      # only *ONE* LITERAL or placeholder element
-      elsif (
-        @{$child->[1]} == 1 && (
-          $child->[1][0][0] eq 'LITERAL'
-            or
-          $child->[1][0][0] eq 'PLACEHOLDER'
-        )
-      ) {
-        push @children, $child->[1][0];
-        $changes++;
-      }
-
-      # only one element in the parenthesis which is a binary op
-      # and has exactly two grandchildren
-      # the only time when we can *not* unroll this is when both
-      # the parent and the child are mathops (in which case we'll
-      # break precedence) or when the child is BETWEEN (special
-      # case)
-      elsif (
-        @{$child->[1]} == 1
-          and
-        $child->[1][0][0] =~ SQL::Abstract::Tree::_binary_op_re()
-          and
-        $child->[1][0][0] ne 'BETWEEN'
-          and
-        @{$child->[1][0][1]} == 2
-          and
-        ! (
-          $child->[1][0][0] =~ SQL::Abstract::Tree::_math_op_re()
-            and
-          $ast->[0] =~ SQL::Abstract::Tree::_math_op_re()
-        )
-      ) {
-        push @children, $child->[1][0];
-        $changes++;
-      }
-
-      # a function binds tighter than a mathop - see if our ancestor is a
-      # mathop, and our content is:
-      # a single non-mathop child with a single PAREN grandchild which
-      # would indicate mathop ( nonmathop ( ... ) )
-      # or a single non-mathop with a single LITERAL ( nonmathop foo )
-      # or a single non-mathop with a single PLACEHOLDER ( nonmathop ? )
-      elsif (
-        @{$child->[1]} == 1
-          and
-        @{$child->[1][0][1]} == 1
-          and
-        $ast->[0] =~ SQL::Abstract::Tree::_math_op_re()
-          and
-        $child->[1][0][0] !~ SQL::Abstract::Tree::_math_op_re
-          and
-        (
-          $child->[1][0][1][0][0] eq 'PAREN'
-            or
-          $child->[1][0][1][0][0] eq 'LITERAL'
-            or
-          $child->[1][0][1][0][0] eq 'PLACEHOLDER'
-        )
-      ) {
-        push @children, $child->[1][0];
-        $changes++;
-      }
-
-
-      # otherwise no more mucking for this pass
-      else {
-        push @children, $child;
-      }
-    }
-
-    $ast->[1] = \@children;
-
-  } while ($changes);
-
 }
 
 sub parse { $sqlat->parse(@_) }
