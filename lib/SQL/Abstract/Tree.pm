@@ -545,7 +545,7 @@ sub _parenthesis_unroll {
 
     for my $child (@{$ast->[1]}) {
       # the current node in this loop is *always* a PAREN
-      if (not ref $child or not $child->[0] eq 'PAREN') {
+      if (! ref $child or ! @$child or $child->[0] ne 'PAREN') {
         push @children, $child;
         next;
       }
