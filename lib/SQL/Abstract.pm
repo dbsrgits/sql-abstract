@@ -890,7 +890,7 @@ sub _where_field_BETWEEN {
       foreach my $val (@$vals) {
         my ($sql, @bind) = $self->_SWITCH_refkind($val, {
            SCALAR => sub {
-             return ($placeholder, $val);
+             return ($placeholder, $self->_bindtype($k, $val) );
            },
            SCALARREF => sub {
              return $$val;
@@ -914,7 +914,7 @@ sub _where_field_BETWEEN {
 
       return (
         (join $and, @all_sql),
-        $self->_bindtype($k, @all_bind),
+        @all_bind
       );
     },
     FALLBACK => sub {
