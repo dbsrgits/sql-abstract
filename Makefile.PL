@@ -15,7 +15,7 @@ all_from 'lib/SQL/Abstract.pm';
 
 requires 'List::Util'   => 0;
 requires 'Scalar::Util' => 0;
-requires 'Class::Accessor::Grouped' => 0.09005;
+requires 'Class::Accessor::Grouped' => 0.10000;
 requires 'Getopt::Long::Descriptive' => 0.086;
 requires 'Hash::Merge' => 0.12;
 
@@ -31,5 +31,7 @@ no_index directory => 'examples';
 install_script 'format-sql';
 
 tests_recursive 't';
+
+auto_install();
 
 WriteAll();
