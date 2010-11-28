@@ -134,7 +134,6 @@ sub _eq_sql {
   }
   # different amount of elements
   elsif (@$left != @$right) {
-    $sql_differ = sprintf ("left: %s\nright: %s\n", map { $sqlat->unparse ($_) } ($left, $right) );
     return 0;
   }
   # one is empty - so is the other
