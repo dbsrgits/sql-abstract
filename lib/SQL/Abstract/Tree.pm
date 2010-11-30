@@ -461,7 +461,6 @@ sub fill_in_placeholder {
 # FIXME - terrible name for a user facing API
 sub unparse {
   my ($self, $tree, $bindargs) = @_;
-  $self->_parenthesis_unroll($tree);
   $self->_unparse($tree, [@{$bindargs||[]}], 0);
 }
 
@@ -472,6 +471,7 @@ sub _unparse {
     return '';
   }
 
+  $self->_parenthesis_unroll($tree);
   my ($car, $cdr) = @{$tree}[0,1];
 
   if (! defined $car or (! ref $car and ! defined $cdr) ) {
