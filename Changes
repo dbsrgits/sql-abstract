@@ -2,6 +2,7 @@ Revision history for SQL::Abstract
 
     - Fix parsing of foo.* in SQLA::Tree
     - Fix bindtype fail when using -between with arrayrefref literals
+    - Add handling for NULL for -in
 
 revision 1.71  2010-11-09
 ----------------------------

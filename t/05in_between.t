@@ -172,6 +172,18 @@ my @in_between_tests = (
     bind => [qw/A c/],
     test => '-in with an array of function array refs with args',
   },
+  {
+    where => { x => { -in => [ 1, undef ] } },
+    stmt => " WHERE ( x IN ( ?, NULL ) )",
+    bind => [ 1 ],
+    test => '-in with undef as an element', 
+  },
+  {
+    where => { x => { -in => [ 1, undef, 2, 3, undef ] } },
+    stmt => " WHERE ( x IN ( ?, NULL, ?, ?, NULL ) )",
+    bind => [ 1, 2, 3 ],
+    test => '-in with undef as an element',
+  },
 );
 
 plan tests => @in_between_tests*4;

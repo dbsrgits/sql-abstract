@@ -961,7 +961,10 @@ sub _where_field_IN {
                 if (@rest or $func !~ /^ \- (.+)/x);
               local $self->{_nested_func_lhs} = $k;
               $self->_where_unary_op ($1 => $arg);
-            }
+            },
+            UNDEF => sub {
+              return $self->_sqlcase('null');
+            },
           });
           push @all_sql, $sql;
           push @all_bind, @bind;
