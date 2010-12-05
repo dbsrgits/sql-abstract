@@ -527,6 +527,7 @@ my @unrollable_ops = (
   'GROUP \s+ BY',
   'HAVING',
   'ORDER \s+ BY',
+  'I?LIKE',
 );
 my $unrollable_ops_re = join ' | ', @unrollable_ops;
 $unrollable_ops_re = qr/$unrollable_ops_re/xi;
@@ -573,11 +574,14 @@ sub _parenthesis_unroll {
       }
 
       # only *ONE* LITERAL or placeholder element
+      # as an AND/OR/NOT argument
       elsif (
         @{$child->[1]} == 1 && (
           $child->[1][0][0] eq 'LITERAL'
             or
           $child->[1][0][0] eq 'PLACEHOLDER'
+        ) && (
+          $ast->[0] eq 'AND' or $ast->[0] eq 'OR' or $ast->[0] eq 'NOT'
         )
       ) {
         push @children, $child->[1][0];

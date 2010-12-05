@@ -643,33 +643,31 @@ my @sql_tests = (
           'SELECT foo FROM bar ()',
         ]
       },
-      # single ? of unknown funcs can unroll
-      # (think ...LIKE ?...)
       {
-        equal => 1,
+        equal => 0,
+        statements => [
+          'SELECT COUNT * FROM foo',
+          'SELECT COUNT( * ) FROM foo',
+        ]
+      },
+      # single ? of unknown funcs do not unroll unless
+      # explicitly allowed (e.g. Like)
+      {
+        equal => 0,
         statements => [
           'SELECT foo FROM bar WHERE bar > foo ?',
-          'SELECT foo FROM bar WHERE bar > foo (?)',
           'SELECT foo FROM bar WHERE bar > foo( ? )',
         ]
       },
       {
         equal => 1,
         statements => [
-          'SELECT foo FROM bar WHERE bar > (foo ?)',
-          'SELECT foo FROM bar WHERE bar > (foo( ? ))',
-          'SELECT foo FROM bar WHERE bar > (( foo (?) ))',
+          'SELECT foo FROM bar WHERE bar LIKE ?',
+          'SELECT foo FROM bar WHERE bar LiKe (?)',
+          'SELECT foo FROM bar WHERE bar lIkE( (?))',
         ]
       },
-      {
-        equal => 1,
-        statements => [
-          'SELECT foo FROM bar WHERE bar foo ?',
-          'SELECT foo FROM bar WHERE bar foo (?)',
-          'SELECT foo FROM bar WHERE bar foo( (?))',
-        ]
-      },
-      # not so about multival
+      # test multival
       {
         equal => 0,
         statements => [
