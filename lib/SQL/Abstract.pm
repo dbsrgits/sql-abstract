@@ -118,22 +118,26 @@ sub insert {
   my ($sql, @bind) = $self->$method($data);
   $sql = join " ", $self->_sqlcase('insert into'), $table, $sql;
 
-  if (my $ret = $options->{returning}) {
-    $sql .= $self->_insert_returning ($ret);
+  if ($options->{returning}) {
+    my ($s, @b) = $self->_insert_returning ($options);
+    $sql .= $s;
+    push @bind, @b;
   }
 
   return wantarray ? ($sql, @bind) : $sql;
 }
 
 sub _insert_returning {
-  my ($self, $fields) = @_;
+  my ($self, $options) = @_;
 
-  my $f = $self->_SWITCH_refkind($fields, {
-    ARRAYREF     => sub {join ', ', map { $self->_quote($_) } @$fields;},
-    SCALAR       => sub {$self->_quote($fields)},
-    SCALARREF    => sub {$$fields},
+  my $f = $options->{returning};
+
+  my $fieldlist = $self->_SWITCH_refkind($f, {
+    ARRAYREF     => sub {join ', ', map { $self->_quote($_) } @$f;},
+    SCALAR       => sub {$self->_quote($f)},
+    SCALARREF    => sub {$$f},
   });
-  return join (' ', $self->_sqlcase(' returning'), $f);
+  return $self->_sqlcase(' returning ') . $fieldlist;
 }
 
 sub _insert_HASHREF { # explicit list of fields and then values
