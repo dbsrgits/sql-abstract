@@ -538,8 +538,38 @@ my @tests = (
               stmt_q => 'SELECT * FROM `test` WHERE ( `Y` = ( MAX( LENGTH( MIN ? ) ) ) )',
               bind   => [[Y => 'x']],
       },
+      {
+              func   => 'select',
+              args   => ['jeff', '*', 
+                  { '-func' => ['substr', 1010, 5, 6,], },
+              ],
+              stmt   => 'SELECT * FROM jeff WHERE (substr(?, ?, ?))',
+              stmt_q => 'SELECT * FROM `jeff` WHERE (substr(?, ?, ?))',
+              bind => [1010,5,6],
+      },
+      {
+              func   => 'select',
+              args   => ['jeff', '*', 
+                  { 'a' => {
+                        -func => 
+                        [ 'foo', { -func => [ 'max', 'bar'], }, 
+                            \['(SELECT crate FROM baz)'],
+                        ],
+                      },
+                  }
+              ],
+              stmt   => 'SELECT * FROM jeff WHERE (a = foo((max(?)), (SELECT crate FROM baz)))',
+              stmt_q => 'SELECT * FROM `jeff` WHERE (`a` = foo((max(?)), (SELECT crate FROM baz)))',
+              bind => ['bar'],
+      },
+      {
+              func   => 'update',
+              args   => ['test', {'b' => { -func => ['max', 500]}}, { a => { -func => ['max', \'a',]}, b => { -func => ['present', \'t', 'sophie', 30] },},],
+              stmt   => 'UPDATE test SET b = max(?) WHERE ((a = max(a)) AND (b = present(t, ?, ?)))',
+              stmt_q  => 'UPDATE `test` SET `b` = max(?) WHERE ((`a` = max(a)) AND (`b` = present(t, ?, ?)))',
+              bind   => [500, 'sophie', 30],
+      },
 );
-
 
 plan tests => scalar(grep { !$_->{warning_like} } @tests) * 2
             + scalar(grep { $_->{warning_like} } @tests) * 4;
