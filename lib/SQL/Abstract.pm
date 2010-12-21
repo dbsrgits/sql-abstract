@@ -117,6 +117,17 @@ sub new {
   return bless \%opt, $class;
 }
 
+
+sub _assert_pass_injection_guard {
+  if ($_[1] =~ $_[0]->{injection_guard}) {
+    my $class = ref $_[0];
+    puke "Possible SQL injection attempt '$_[1]'. If this is indeed a part of the "
+     . "desired SQL use literal SQL ( \'...' or \[ '...' ] ) or supply your own "
+     . "{injection_guard} attribute to ${class}->new()"
+  }
+}
+
+
 #======================================================================
 # INSERT methods
 #======================================================================
@@ -547,13 +558,7 @@ sub _where_unary_op {
 
   $self->debug("Generic unary OP: $op - recursing as function");
 
-  if ($op =~ $self->{injection_guard}) {
-    my $class = ref $self;
-
-    puke "Possible SQL injection attempt '$op'. If this is indeed a part of the "
-     . "desired SQL use literal SQL ( \'...' or \[ '...' ] ) or supply your own "
-     . "{injection_guard} attribute to ${class}->new()"
-  }
+  $self->_assert_pass_injection_guard($op);
 
   my ($sql, @bind) = $self->_SWITCH_refkind ($rhs, {
     SCALAR =>   sub {
@@ -713,14 +718,7 @@ sub _where_hashpair_HASHREF {
     $op =~ s/^\s+|\s+$//g;# remove leading/trailing space
     $op =~ s/\s+/ /g;     # compress whitespace
 
-    if ($op =~ $self->{injection_guard}) {
-      my $class = ref $self;
-
-      puke "Possible SQL injection attempt '$op'. If this is indeed a part of the "
-       . "desired SQL use literal SQL ( \'...' or \[ '...' ] ) or supply your own "
-       . "{injection_guard} attribute to ${class}->new()"
-    }
-
+    $self->_assert_pass_injection_guard($op);
 
     # so that -not_foo works correctly
     $op =~ s/^not_/NOT /i;
@@ -1167,14 +1165,7 @@ sub _quote {
   return ${$_[1]} if ref($_[1]) eq 'SCALAR';
 
   unless ($_[0]->{quote_char}) {
-
-    if ($_[1] =~ $_[0]->{injection_guard}) {
-      my $class = ref $_[0];
-      puke "Possible SQL injection attempt '$_[1]'. If this is indeed a part of the "
-         . "desired SQL use literal SQL ( \'...' or \[ '...' ] ) or supply your own "
-         . "{injection_guard} attribute to ${class}->new()";
-    }
-
+    $_[0]->_assert_pass_injection_guard($_[1]);
     return $_[1];
   }
 

@@ -12,19 +12,19 @@ throws_ok( sub {
   $sqla->select(
     'foo',
     [ 'bar' ],
-    { 'boby; tables' => 'bar' },
+    { 'bobby; tables' => 'bar' },
   );
 }, qr/Possible SQL injection attempt/, 'Injection thwarted on unquoted column' );
 
 my ($sql, @bind) = $sqla_q->select(
   'foo',
   [ 'bar' ],
-  { 'boby; tables' => 'bar' },
+  { 'bobby; tables' => 'bar' },
 );
 
 is_same_sql_bind (
   $sql, \@bind,
-  'SELECT "bar" FROM "foo" WHERE ( "boby; tables" = ? )',
+  'SELECT "bar" FROM "foo" WHERE ( "bobby; tables" = ? )',
   [ 'bar' ],
   'Correct sql with quotes on'
 );
