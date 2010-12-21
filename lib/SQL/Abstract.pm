@@ -93,16 +93,29 @@ sub new {
 
   # special operators
   $opt{special_ops} ||= [];
+  # regexes are applied in order, thus push after user-defines
   push @{$opt{special_ops}}, @BUILTIN_SPECIAL_OPS;
 
   # unary operators
   $opt{unary_ops} ||= [];
   push @{$opt{unary_ops}}, @BUILTIN_UNARY_OPS;
 
+  # rudimentary saniy-check for user supplied bits treated as functions/operators
+  # If a purported  function matches this regular expression, an exception is thrown.
+  # Literal SQL is *NOT* subject to this check, only functions (and column names
+  # when quoting is not in effect)
+
+  # FIXME
+  # need to guard against ()'s in column names too, but this will break tons of
+  # hacks... ideas anyone?
+  $opt{injection_guard} ||= qr/
+    \;
+      |
+    ^ \s* go \s
+  /xmi;
+
   return bless \%opt, $class;
 }
-
-
 
 #======================================================================
 # INSERT methods
@@ -534,6 +547,14 @@ sub _where_unary_op {
 
   $self->debug("Generic unary OP: $op - recursing as function");
 
+  if ($op =~ $self->{injection_guard}) {
+    my $class = ref $self;
+
+    puke "Possible SQL injection attempt '$op'. If this is indeed a part of the "
+     . "desired SQL use literal SQL ( \'...' or \[ '...' ] ) or supply your own "
+     . "{injection_guard} attribute to ${class}->new()"
+  }
+
   my ($sql, @bind) = $self->_SWITCH_refkind ($rhs, {
     SCALAR =>   sub {
       puke "Illegal use of top-level '$op'"
@@ -691,6 +712,15 @@ sub _where_hashpair_HASHREF {
     $op =~ s/^-//;        # remove possible initial dash
     $op =~ s/^\s+|\s+$//g;# remove leading/trailing space
     $op =~ s/\s+/ /g;     # compress whitespace
+
+    if ($op =~ $self->{injection_guard}) {
+      my $class = ref $self;
+
+      puke "Possible SQL injection attempt '$op'. If this is indeed a part of the "
+       . "desired SQL use literal SQL ( \'...' or \[ '...' ] ) or supply your own "
+       . "{injection_guard} attribute to ${class}->new()"
+    }
+
 
     # so that -not_foo works correctly
     $op =~ s/^not_/NOT /i;
@@ -1136,7 +1166,17 @@ sub _quote {
   return '' unless defined $_[1];
   return ${$_[1]} if ref($_[1]) eq 'SCALAR';
 
-  return $_[1] unless $_[0]->{quote_char};
+  unless ($_[0]->{quote_char}) {
+
+    if ($_[1] =~ $_[0]->{injection_guard}) {
+      my $class = ref $_[0];
+      puke "Possible SQL injection attempt '$_[1]'. If this is indeed a part of the "
+         . "desired SQL use literal SQL ( \'...' or \[ '...' ] ) or supply your own "
+         . "{injection_guard} attribute to ${class}->new()";
+    }
+
+    return $_[1];
+  }
 
   my $qref = ref $_[0]->{quote_char};
   my ($l, $r);
@@ -1759,6 +1799,20 @@ necessary to specify this when the C<quote_char> option is selected,
 so that tables and column names can be individually quoted like this:
 
   SELECT `table`.`one_field` FROM `table` WHERE `table`.`other_field` = 1
+
+=item injection_guard
+
+A regular expression C<qr/.../> that is applied to any C<-function> and unquoted
+column name specified in a query structure. This is a safety mechanism to avoid
+injection attacks when mishandling user input e.g.:
+
+  my %condition_as_column_value_pairs = get_values_from_user();
+  $sqla->select( ... , \%condition_as_column_value_pairs );
+
+If the expression matches an exception is thrown. Note that literal SQL
+supplied via C<\'...'> or C<\['...']> is B<not> checked in any way.
+
+Defaults to checking for C<;> and the C<GO> keyword (TransactSQL)
 
 =item array_datatypes
 

@@ -1,5 +1,6 @@
 Revision history for SQL::Abstract
 
+    - Extra checks of search arguments for possible SQL injection attacks
     - Remove excess parentheses in debug SQL
     - Fix parsing of foo.* in SQLA::Tree
     - Fix bindtype fail when using -between with arrayrefref literals
