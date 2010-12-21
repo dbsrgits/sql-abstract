@@ -572,15 +572,23 @@ sub _where_op_ANDOR {
     },
 
     SCALARREF  => sub {
-      puke "-$op => \\\$scalar not supported, use -nest => ...";
+      puke "-$op => \\\$scalar makes little sense, use " .
+        ($op =~ /^or/i 
+          ? '[ \$scalar, \%rest_of_conditions ] instead'
+          : '-and => [ \$scalar, \%rest_of_conditions ] instead'
+        );
     },
 
     ARRAYREFREF => sub {
-      puke "-$op => \\[..] not supported, use -nest => ...";
+      puke "-$op => \\[...] makes little sense, use " .
+        ($op =~ /^or/i 
+          ? '[ \[...], \%rest_of_conditions ] instead'
+          : '-and => [ \[...], \%rest_of_conditions ] instead'
+        );
     },
 
     SCALAR => sub { # permissively interpreted as SQL
-      puke "-$op => 'scalar' not supported, use -nest => \\'scalar'";
+      puke "-$op => \$value makes little sense, use -bool => \$value instead";
     },
 
     UNDEF => sub {
@@ -2227,41 +2235,25 @@ This data structure would create the following:
     @bind = ('nwiger', 'pending', 'dispatched', 'robot', 'unassigned');
 
 
-There is also a special C<-nest>
-operator which adds an additional set of parens, to create a subquery.
-For example, to get something like this:
-
-    $stmt = "WHERE user = ? AND ( workhrs > ? OR geo = ? )";
-    @bind = ('nwiger', '20', 'ASIA');
-
-You would do:
-
-    my %where = (
-         user => 'nwiger',
-        -nest => [ workhrs => {'>', 20}, geo => 'ASIA' ],
-    );
-
-
-Finally, clauses in hashrefs or arrayrefs can be
-prefixed with an C<-and> or C<-or> to change the logic
-inside :
+Clauses in hashrefs or arrayrefs can be prefixed with an C<-and> or C<-or>
+to change the logic inside :
 
     my @where = (
          -and => [
             user => 'nwiger',
-            -nest => [
-                -and => [workhrs => {'>', 20}, geo => 'ASIA' ],
-                -and => [workhrs => {'<', 50}, geo => 'EURO' ]
+            [
+                -and => [ workhrs => {'>', 20}, geo => 'ASIA' ],
+                -or => { workhrs => {'<', 50}, geo => 'EURO' },
             ],
         ],
     );
 
 That would yield:
 
-    WHERE ( user = ? AND
-          ( ( workhrs > ? AND geo = ? )
-         OR ( workhrs < ? AND geo = ? ) ) )
-
+    WHERE ( user = ? AND (
+               ( workhrs > ? AND geo = ? )
+            OR ( workhrs < ? OR geo = ? )
+          ) )
 
 =head2 Algebraic inconsistency, for historical reasons
 
@@ -2413,10 +2405,10 @@ hash, like an EXISTS subquery :
 
   my ($sub_stmt, @sub_bind)
      = $sql->select("t1", "*", {c1 => 1, c2 => \"> t0.c0"});
-  my %where = (
+  my %where = ( -and => [
     foo   => 1234,
-    -nest => \["EXISTS ($sub_stmt)" => @sub_bind],
-  );
+    \["EXISTS ($sub_stmt)" => @sub_bind],
+  ]);
 
 which yields
 
@@ -2432,15 +2424,6 @@ Writing C<< c2 => {">" => "t0.c0"} >> would have generated
 C<< c2 > ? >> with bind value C<"t0.c0"> ... not exactly
 what we wanted here.
 
-Another use of the subquery technique is when some SQL clauses need
-parentheses, as it often occurs with some proprietary SQL extensions
-like for example fulltext expressions, geospatial expressions,
-NATIVE clauses, etc. Here is an example of a fulltext query in MySQL :
-
-  my %where = (
-    -nest => \["MATCH (col1, col2) AGAINST (?)" => qw/apples/]
-  );
-
 Finally, here is an example where a subquery is used
 for expressing unary negation:
 
@@ -2449,7 +2432,7 @@ for expressing unary negation:
   $sub_stmt =~ s/^ where //i; # don't want "WHERE" in the subclause
   my %where = (
         lname  => {like => '%son%'},
-        -nest  => \["NOT ($sub_stmt)" => @sub_bind],
+        \["NOT ($sub_stmt)" => @sub_bind],
     );
 
 This yields
@@ -2795,7 +2778,7 @@ so I have no idea who they are! But the people I do know are:
     Mike Fragassi (enhancements to "BETWEEN" and "LIKE")
     Dan Kubb (support for "quote_char" and "name_sep")
     Guillermo Roditi (patch to cleanup "IN" and "BETWEEN", fix and tests for _order_by)
-    Laurent Dami (internal refactoring, multiple -nest, extensible list of special operators, literal SQL)
+    Laurent Dami (internal refactoring, extensible list of special operators, literal SQL)
     Norbert Buchmuller (support for literal SQL in hashpair, misc. fixes & tests)
     Peter Rabbitson (rewrite of SQLA::Test, misc. fixes & tests)
     Oliver Charles (support for "RETURNING" after "INSERT")

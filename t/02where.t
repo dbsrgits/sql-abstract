@@ -201,6 +201,24 @@ my @handle_tests = (
         stmt => " WHERE ( (bar > ? AND bar < ?) AND foo IN (?, ?) )",
         bind => [44, 55, 22, 33],
     },
+
+    {
+        where => {
+          -and => [
+            user => 'nwiger',
+            [
+              -and => [ workhrs => {'>', 20}, geo => 'ASIA' ],
+              -or => { workhrs => {'<', 50}, geo => 'EURO' },
+            ],
+          ],
+        },
+        stmt => "WHERE ( user = ? AND (
+               ( workhrs > ? AND geo = ? )
+            OR ( geo = ? OR workhrs < ? )
+          ) )",
+        bind => [qw/nwiger 20 ASIA EURO 50/],
+    },
+
    {
        where => { -and => [{}, { 'me.id' => '1'}] },
        stmt => " WHERE ( ( me.id = ? ) )",

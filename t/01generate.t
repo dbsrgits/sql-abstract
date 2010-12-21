@@ -10,6 +10,15 @@ use SQL::Abstract::Test import => ['is_same_sql_bind'];
 
 use SQL::Abstract;
 
+#### WARNING ####
+#
+# -nest has been undocumented on purpose, but is still supported for the
+# foreseable future. Do not rip out the -nest tests before speaking to
+# someone on the DBIC mailing list or in irc.perl.org#dbix-class
+#
+#################
+
+
 my @tests = (
       {
               func   => 'select',

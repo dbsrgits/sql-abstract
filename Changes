@@ -4,6 +4,8 @@ Revision history for SQL::Abstract
     - Fix parsing of foo.* in SQLA::Tree
     - Fix bindtype fail when using -between with arrayrefref literals
     - Add handling for NULL for -in
+    - The -nest operator has entered semi-deprecated status and has been
+      undocumented. Please do not use it in new code
 
 revision 1.71  2010-11-09
 ----------------------------

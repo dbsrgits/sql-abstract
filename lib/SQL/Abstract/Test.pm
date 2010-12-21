@@ -307,7 +307,8 @@ If true, SQL comparisons will be case-sensitive. Default is false;
 =head2 $parenthesis_significant
 
 If true, SQL comparison will preserve and report difference in nested
-parenthesis. Useful for testing the C<-nest> modifier. Defaults to false;
+parenthesis. Useful while testing C<IN (( x ))> vs C<IN ( x )>.
+Defaults to false;
 
 =head2 $sql_differ
 
