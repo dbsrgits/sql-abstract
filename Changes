@@ -1,5 +1,7 @@
 Revision history for SQL::Abstract
 
+    - Fix parsing of NOT EXISTS
+
 revision 1.72  2010-12-21
 ----------------------------
     - Extra checks of search arguments for possible SQL injection attacks
