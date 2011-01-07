@@ -1,6 +1,8 @@
 #!/usr/bin/env perl
 
 use Test::More;
+use Test::Exception;
+
 use SQL::Abstract::Test import => ['is_same_sql'];
 use SQL::Abstract::Tree;
 
@@ -26,5 +28,20 @@ for (@sql) {
 # delete this test when mysql_functions gets implemented
 my $sql = 'SELECT COUNT( * ) FROM foo';
 is($sqlat->format($sql), $sql, 'Roundtripping to mysql-compatible paren. syntax');
+
+lives_ok { $sqlat->unparse( $sqlat->parse( <<'EOS' ) ) } 'Able to parse/unparse grossly malformed sql';
+SELECT
+  (
+    SELECT *, *  FROM EXISTS bar JOIN ON a = b
+    NOT WHERE c !!= d
+  ),
+  NOT x,
+  (
+    SELECT * FROM bar WHERE NOT NOT EXISTS (SELECT 1)
+  ),
+WHERE NOT NOT 1 AND OR foo IN (1,2,,,3,,,),
+GROUP BY bar
+
+EOS
 
 done_testing;
