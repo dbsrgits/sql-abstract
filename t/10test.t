@@ -615,6 +615,20 @@ my @sql_tests = (
           'SELECT * FROM foo WHERE a IN (3,2,1)',
         ]
       },
+
+      # list consistency
+      {
+        equal => 0,
+        statements => [
+          'SELECT a,b FROM foo',
+          'SELECT a,,b FROM foo',
+          'SELECT a,b, FROM foo',
+          'SELECT ,a,b, FROM foo',
+          'SELECT ,a,,b, FROM foo',
+        ],
+      },
+
+      # misc func
       {
         equal => 0,
         statements => [
@@ -625,7 +639,6 @@ my @sql_tests = (
           'SELECT count(1) FROM foo',
         ]
       },
-      # misc func
       {
         equal => 1,
         statements => [

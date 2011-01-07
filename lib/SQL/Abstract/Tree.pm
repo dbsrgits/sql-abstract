@@ -348,14 +348,14 @@ sub _recurse_parse {
     elsif ($token =~ /^ (?: OR | AND | \, ) $/xi )  {
       my $op = ($token eq ',') ? 'LIST' : uc $token;
 
-      my $right = $self->_recurse_parse($tokens, PARSE_IN_EXPR);
+      my $right = $self->_recurse_parse($tokens, PARSE_IN_EXPR) || [];
 
       # Merge chunks if logic matches
-      if (ref $right and $op eq $right->[0]) {
-        $left = [ (shift @$right ), [$left||(), map { @$_ } @$right] ];
+      if (ref $right and @$right and $op eq $right->[0]) {
+        $left = [ (shift @$right ), [$left||[], map { @$_ } @$right] ];
       }
       else {
-        $left = [$op => [ $left||(), $right||() ]];
+        $left = [$op => [ $left||[], $right ]];
       }
     }
     # binary operator keywords
