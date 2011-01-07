@@ -1,6 +1,7 @@
 Revision history for SQL::Abstract
 
     - Fix parsing of NOT EXISTS
+    - Fix deep recursion warnings while parsing obnoxiously long sql statements
 
 revision 1.72  2010-12-21
 ----------------------------

@@ -309,6 +309,10 @@ sub parse {
   $self->_recurse_parse($tokens, PARSE_TOP_LEVEL);
 }
 
+{
+# this is temporary, lists can be parsed *without* recursing, but
+# it requires a massive rewrite of the AST generator
+no warnings qw/recursion/;
 sub _recurse_parse {
   my ($self, $tokens, $state) = @_;
 
@@ -404,6 +408,7 @@ sub _recurse_parse {
                     : $right;
     }
   }
+}
 }
 
 sub format_keyword {

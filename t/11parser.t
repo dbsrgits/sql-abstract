@@ -3,6 +3,7 @@ use warnings;
 
 use Test::More;
 use Test::Deep;
+use Test::Warn;
 use SQL::Abstract::Tree;
 
 my $sqlat = SQL::Abstract::Tree->new;
@@ -698,5 +699,38 @@ cmp_deeply($sqlat->parse("SELECT x, y FROM foo WHERE x IN (?, ?, ?, ?)"), [
     ]
   ]
 ], 'Lists parsed correctly');
+
+# test for recursion warnings on huge selectors
+warnings_are {
+  my $sql = sprintf 'SELECT %s FROM foo', join (', ',  map { qq|"$_"| } 'aa' .. 'zz' );
+  my $tree = $sqlat->parse($sql);
+
+  is_deeply( $tree, [
+    [
+      "SELECT",
+      [
+        [
+          "LIST",
+          [
+            map { [ "LITERAL", [ qq|"$_"| ] ] } ('aa' .. 'zz')
+          ]
+        ]
+      ]
+    ],
+    [
+      "FROM",
+      [
+        [
+          "LITERAL",
+          [
+            "foo"
+          ]
+        ]
+      ]
+    ]
+  ], 'long list parsed correctly');
+
+  is( $sqlat->unparse($tree), $sql, 'roundtrip ok');
+} [], 'no recursion warnings on insane SQL';
 
 done_testing;
