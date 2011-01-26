@@ -601,7 +601,7 @@ sub _where_op_ANDOR {
 
     SCALARREF  => sub {
       puke "-$op => \\\$scalar makes little sense, use " .
-        ($op =~ /^or/i 
+        ($op =~ /^or/i
           ? '[ \$scalar, \%rest_of_conditions ] instead'
           : '-and => [ \$scalar, \%rest_of_conditions ] instead'
         );
@@ -609,7 +609,7 @@ sub _where_op_ANDOR {
 
     ARRAYREFREF => sub {
       puke "-$op => \\[...] makes little sense, use " .
-        ($op =~ /^or/i 
+        ($op =~ /^or/i
           ? '[ \[...], \%rest_of_conditions ] instead'
           : '-and => [ \[...], \%rest_of_conditions ] instead'
         );
@@ -987,62 +987,36 @@ sub _where_generic_FUNC {
   my $placeholder = $self->_convert('?');
   my $error = "special op 'func' accepts an arrayref with more than one value.";
 
-  my ($clause, @bind) = $self->_SWITCH_refkind($vals, {
-    ARRAYREFREF => sub {
-      my ($s, @b) = @$$vals;
-      $self->_assert_bindval_matches_bindtype(@b);
-      ($s, @b);
-    },
-    SCALARREF => sub {
-      puke $error;
-    },
-    ARRAYREF => sub {
-      puke $error
-        if @$vals < 1;
+  puke '-func must be an array' unless ref $vals eq 'ARRAY';
+  puke 'first arg for -func must be a scalar' unless !ref $vals->[0];
 
-      my (@all_sql, @all_bind);
+  my ($func,@rest_of_vals) = @$vals;
 
-      my ($func,@rest_of_vals) = @$vals;
+  $self->_assert_pass_injection_guard($func);
 
-      if ($func =~ m{\W})
-      {
-        puke "Function in -func may only contain alphanumeric characters.";
-      }
+  my (@all_sql, @all_bind);
+  foreach my $val (@rest_of_vals) {
+    my ($sql, @bind) = $self->_SWITCH_refkind($val, {
+       SCALAR => sub {
+         return ($placeholder, $self->_bindtype($k, $val) );
+       },
+       SCALARREF => sub {
+         return $$val;
+       },
+       ARRAYREFREF => sub {
+         my ($sql, @bind) = @$$val;
+         $self->_assert_bindval_matches_bindtype(@bind);
+         return ($sql, @bind);
+       },
+       HASHREF => sub {
+         $self->_recurse_where( $val );
+       }
+    });
+    push @all_sql, $sql;
+    push @all_bind, @bind;
+  }
 
-      foreach my $val (@rest_of_vals) {
-        my ($sql, @bind) = $self->_SWITCH_refkind($val, {
-           SCALAR => sub {
-             return ($placeholder, $self->_bindtype($k, $val) );
-           },
-           SCALARREF => sub {
-             return $$val;
-           },
-           ARRAYREFREF => sub {
-             my ($sql, @bind) = @$$val;
-             $self->_assert_bindval_matches_bindtype(@bind);
-             return ($sql, @bind);
-           },
-           HASHREF => sub {
-             my ($func, $arg, @rest) = %$val;
-             puke ("Only simple { -func => arg } functions accepted as sub-arguments to BETWEEN")
-               if (@rest or $func !~ /^ \- (.+)/x);
-             local $self->{_nested_func_lhs} = $k;
-             $self->_where_unary_op ($1 => $arg);
-           }
-        });
-        push @all_sql, $sql;
-        push @all_bind, @bind;
-      }
-
-      return (
-        ("$func(" . (join ",", @all_sql) . ")"),
-        @all_bind
-      );
-    },
-    FALLBACK => sub {
-      puke $error; 
-    },
-  });
+  my ($clause, @bind) = ("$func(" . (join ",", @all_sql) . ")", @all_bind);
 
   my $sql = $k ? "( $label = $clause )" : "( $clause )";
   return ($sql, @bind)
@@ -2307,7 +2281,7 @@ list can be expanded : see section L</"SPECIAL OPERATORS"> below.
 Another operator is C<-func> that allows you to call SQL functions with
 arguments. It receives an array reference containing the function name
 as the 0th argument and the other arguments being its parameters. For example:
-    
+
     my %where = {
       -func => ['substr', 'Hello', 50, 5],
     };
