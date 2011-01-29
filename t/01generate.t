@@ -538,9 +538,10 @@ my @tests = (
               stmt_q => 'SELECT * FROM `test` WHERE ( `Y` = ( MAX( LENGTH( MIN ? ) ) ) )',
               bind   => [[Y => 'x']],
       },
+      # -func
       {
               func   => 'select',
-              args   => ['jeff', '*', 
+              args   => ['jeff', '*',
                   { '-func' => ['substr', 1010, 5, 6,], },
               ],
               stmt   => 'SELECT * FROM jeff WHERE (substr(?, ?, ?))',
@@ -549,10 +550,10 @@ my @tests = (
       },
       {
               func   => 'select',
-              args   => ['jeff', '*', 
+              args   => ['jeff', '*',
                   { 'a' => {
-                        -func => 
-                        [ 'foo', { -func => [ 'max', 'bar'], }, 
+                        -func =>
+                        [ 'foo', { -func => [ 'max', 'bar'], },
                             \['(SELECT crate FROM baz)'],
                         ],
                       },
@@ -568,6 +569,38 @@ my @tests = (
               stmt   => 'UPDATE test SET b = max(?) WHERE ((a = max(a)) AND (b = present(t, ?, ?)))',
               stmt_q  => 'UPDATE `test` SET `b` = max(?) WHERE ((`a` = max(a)) AND (`b` = present(t, ?, ?)))',
               bind   => [500, 'sophie', 30],
+      },
+      # -op
+      {
+              func   => 'select',
+              args   => ['jeff', '*',
+                  { '-op' => ['=', 5, 5,], },
+              ],
+              stmt   => 'SELECT * FROM jeff WHERE (? = ?)',
+              stmt_q => 'SELECT * FROM `jeff` WHERE (? = ?)',
+              bind => [5, 5],
+      },
+      {
+              func   => 'select',
+              args   => ['jeff', '*',
+                  { 'a' => {
+                        -op =>
+                        [ '-', { -op => ['+', 5, 6], },
+                            \['(SELECT crate FROM baz)'],
+                        ],
+                      },
+                  }
+              ],
+              stmt   => 'SELECT * FROM jeff WHERE (( a = ( ? + ? ) - (SELECT crate FROM baz)))',
+              stmt_q => 'SELECT * FROM `jeff` WHERE (( `a` = ( ? + ? ) - (SELECT crate FROM baz)))',
+              bind => [5, 6],
+      },
+      {
+              func   => 'update',
+              args   => ['test', {'b' => { -op => ['-', 500, 600]}}, { a => { -op => ['+', \'b', \'c']}, b => { -op => ['*', \'t', \'z', 30] },},],
+              stmt   => 'UPDATE test SET b = ( ? - ? ) WHERE ( ( ( a = b + c ) AND (b = t * z * ?)))',
+              stmt_q => 'UPDATE `test` SET `b` = ( ? - ? ) WHERE ( ( ( `a` = b + c ) AND (`b` = t * z * ?)))',
+              bind   => [500, 600, 30],
       },
 );
 

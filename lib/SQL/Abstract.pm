@@ -28,6 +28,7 @@ my @BUILTIN_SPECIAL_OPS = (
   {regex => qr/^ (?: not \s )? between $/ix, handler => '_where_field_BETWEEN'},
   {regex => qr/^ (?: not \s )? in      $/ix, handler => '_where_field_IN'},
   {regex => qr/^ func $/ix, handler => '_where_field_FUNC'},
+  {regex => qr/^ op   $/ix, handler => '_where_op_OP'},
 );
 
 # unaryish operators - key maps to handler
@@ -38,6 +39,7 @@ my @BUILTIN_UNARY_OPS = (
   { regex => qr/^ nest (?: [_\s]? \d+ )? $/xi, handler => '_where_op_NEST' },
   { regex => qr/^ (?: not \s )? bool     $/xi, handler => '_where_op_BOOL' },
   { regex => qr/^ func $/ix,                   handler => '_where_op_FUNC' },
+  { regex => qr/^ op   $/ix,                   handler => '_where_op_OP' },
 );
 
 #======================================================================
@@ -985,7 +987,6 @@ sub _where_generic_FUNC {
 
   my $label       = $self->_convert($self->_quote($k));
   my $placeholder = $self->_convert('?');
-  my $error = "special op 'func' accepts an arrayref with more than one value.";
 
   puke '-func must be an array' unless ref $vals eq 'ARRAY';
   puke 'first arg for -func must be a scalar' unless !ref $vals->[0];
@@ -1017,6 +1018,59 @@ sub _where_generic_FUNC {
   }
 
   my ($clause, @bind) = ("$func(" . (join ",", @all_sql) . ")", @all_bind);
+
+  my $sql = $k ? "( $label = $clause )" : "( $clause )";
+  return ($sql, @bind)
+}
+
+sub _where_op_OP {
+  my ($self) = @_;
+
+  my ($k, $vals);
+
+  if (ref $_[2]) {
+     # $_[1] gets set to "op" ?
+     $vals = $_[2];
+     $k = '';
+  } else {
+     $k = $_[1];
+     # $_[2] gets set to "op" ?
+     $vals = $_[3];
+  }
+
+  my $label       = $self->_convert($self->_quote($k));
+  my $placeholder = $self->_convert('?');
+
+  puke '-op must be an array' unless ref $vals eq 'ARRAY';
+  puke 'first arg for -op must be a scalar' unless !ref $vals->[0];
+
+  my ($op, @rest_of_vals) = @$vals;
+
+  $self->_assert_pass_injection_guard($op);
+
+  my (@all_sql, @all_bind);
+  foreach my $val (@rest_of_vals) {
+    my ($sql, @bind) = $self->_SWITCH_refkind($val, {
+       SCALAR => sub {
+         return ($placeholder, $self->_bindtype($k, $val) );
+       },
+       SCALARREF => sub {
+         return $$val;
+       },
+       ARRAYREFREF => sub {
+         my ($sql, @bind) = @$$val;
+         $self->_assert_bindval_matches_bindtype(@bind);
+         return ($sql, @bind);
+       },
+       HASHREF => sub {
+         $self->_recurse_where( $val );
+       }
+    });
+    push @all_sql, $sql;
+    push @all_bind, @bind;
+  }
+
+  my ($clause, @bind) = ((join " $op ", @all_sql), @all_bind);
 
   my $sql = $k ? "( $label = $clause )" : "( $clause )";
   return ($sql, @bind)
@@ -2290,6 +2344,19 @@ Would give you:
 
    $stmt = "WHERE (substr(?,?,?))";
    @bind = ("Hello", 50, 5);
+
+Yet another operator is C<-op> that allows you to use SQL operators. It
+receives an array reference containing the operator 0th argument and the other
+arguments being its operands. For example:
+
+    my %where = {
+      foo => { -op => ['+', \'bar', 50, 5] },
+    };
+
+Would give you:
+
+   $stmt = "WHERE (foo = bar + ? + ?)";
+   @bind = (50, 5);
 
 =head2 Unary operators: bool
 
