@@ -1028,20 +1028,20 @@ sub _where_op_OP {
 
   my ($k, $vals);
 
-  if (ref $_[2]) {
-     # $_[1] gets set to "op" ?
+  if (@_ == 3) {
+     # $_[1] gets set to "op"
      $vals = $_[2];
      $k = '';
-  } else {
+  } elsif (@_ == 4) {
      $k = $_[1];
-     # $_[2] gets set to "op" ?
+     # $_[2] gets set to "op"
      $vals = $_[3];
   }
 
   my $label       = $self->_convert($self->_quote($k));
   my $placeholder = $self->_convert('?');
 
-  puke '-op must be an array' unless ref $vals eq 'ARRAY';
+  puke 'argument to -op must be an arrayref' unless ref $vals eq 'ARRAY';
   puke 'first arg for -op must be a scalar' unless !ref $vals->[0];
 
   my ($op, @rest_of_vals) = @$vals;
@@ -1063,7 +1063,8 @@ sub _where_op_OP {
          return ($sql, @bind);
        },
        HASHREF => sub {
-         $self->_recurse_where( $val );
+         my $method = $self->_METHOD_FOR_refkind("_where_hashpair", $val);
+         $self->$method('', $val);
        }
     });
     push @all_sql, $sql;
