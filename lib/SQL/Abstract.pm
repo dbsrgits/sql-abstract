@@ -1010,7 +1010,8 @@ sub _where_generic_FUNC {
          return ($sql, @bind);
        },
        HASHREF => sub {
-         $self->_recurse_where( $val );
+         my $method = $self->_METHOD_FOR_refkind("_where_hashpair", $val);
+         $self->$method('', $val);
        }
     });
     push @all_sql, $sql;
