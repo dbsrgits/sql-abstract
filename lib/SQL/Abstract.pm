@@ -5,9 +5,9 @@ package SQL::Abstract; # see doc at end of file
 # the test / diffusion / acceptance phase; those are marked with flag
 # 'LDNOTE' (note by laurent.dami AT free.fr)
 
-use Carp;
 use strict;
 use warnings;
+use Carp ();
 use List::Util ();
 use Scalar::Util ();
 
@@ -50,12 +50,12 @@ sub _debug {
 
 sub belch (@) {
   my($func) = (caller(1))[3];
-  carp "[$func] Warning: ", @_;
+  Carp::carp "[$func] Warning: ", @_;
 }
 
 sub puke (@) {
   my($func) = (caller(1))[3];
-  croak "[$func] Fatal: ", @_;
+  Carp::croak "[$func] Fatal: ", @_;
 }
 
 
