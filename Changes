@@ -5,6 +5,8 @@ Revision history for SQL::Abstract
     - Fix deep recursion warnings while parsing obnoxiously long sql statements
     - Fix incorrect comparison of malformed lists
     - Fix incorrect reporting of mismatch-members in SQLA::Test
+    - Migrate the -ident operator from DBIC into SQLA
+    - Migrate the -value operator from DBIC into SQLA
 
 revision 1.72  2010-12-21
 ----------------------------

@@ -27,6 +27,8 @@ our $AUTOLOAD;
 my @BUILTIN_SPECIAL_OPS = (
   {regex => qr/^ (?: not \s )? between $/ix, handler => '_where_field_BETWEEN'},
   {regex => qr/^ (?: not \s )? in      $/ix, handler => '_where_field_IN'},
+  {regex => qr/^ ident                 $/ix, handler => '_where_op_IDENT'},
+  {regex => qr/^ value                 $/ix, handler => '_where_op_VALUE'},
 );
 
 # unaryish operators - key maps to handler
@@ -36,6 +38,8 @@ my @BUILTIN_UNARY_OPS = (
   { regex => qr/^ or   (?: [_\s]? \d+ )? $/xi, handler => '_where_op_ANDOR' },
   { regex => qr/^ nest (?: [_\s]? \d+ )? $/xi, handler => '_where_op_NEST' },
   { regex => qr/^ (?: not \s )? bool     $/xi, handler => '_where_op_BOOL' },
+  { regex => qr/^ ident                  $/xi, handler => '_where_op_IDENT' },
+  { regex => qr/^ value                  $/ix, handler => '_where_op_VALUE' },
 );
 
 #======================================================================
@@ -667,6 +671,50 @@ sub _where_op_BOOL {
   ($s, @b);
 }
 
+
+sub _where_op_IDENT {
+  my $self = shift;
+  my ($op, $rhs) = splice @_, -2;
+  if (ref $rhs) {
+    puke "-$op takes a single scalar argument (a quotable identifier)";
+  }
+
+  # in case we are called as a top level special op (no '=')
+  my $lhs = shift;
+
+  $_ = $self->_convert($self->_quote($_)) for ($lhs, $rhs);
+
+  return $lhs
+    ? "$lhs = $rhs"
+    : $rhs
+  ;
+}
+
+sub _where_op_VALUE {
+  my $self = shift;
+  my ($op, $rhs) = splice @_, -2;
+
+  # in case we are called as a top level special op (no '=')
+  my $lhs = shift;
+
+  my @bind =
+    $self->_bindtype (
+      ($lhs || $self->{_nested_func_lhs}),
+      $rhs,
+    )
+  ;
+
+  return $lhs
+    ? (
+      $self->_convert($self->_quote($lhs)) . ' = ' . $self->_convert('?'),
+      @bind
+    )
+    : (
+      $self->_convert('?'),
+      @bind,
+    )
+  ;
+}
 
 sub _where_hashpair_ARRAYREF {
   my ($self, $k, $v) = @_;
@@ -1964,9 +2012,6 @@ Might give you:
 You get the idea. Strings get their case twiddled, but everything
 else remains verbatim.
 
-
-
-
 =head1 WHERE CLAUSES
 
 =head2 Introduction
@@ -2035,7 +2080,7 @@ To test if a column IS NOT NULL:
         user   => 'nwiger',
         status => { '!=', undef },
     );
-    
+
 =head2 Specific comparison operators
 
 If you want to specify a different type of operator for your comparison,
@@ -2306,7 +2351,7 @@ That would yield:
             OR ( workhrs < ? OR geo = ? )
           ) )
 
-=head2 Algebraic inconsistency, for historical reasons
+=head3 Algebraic inconsistency, for historical reasons
 
 C<Important note>: when connecting several conditions, the C<-and->|C<-or>
 operator goes C<outside> of the nested structure; whereas when connecting
@@ -2336,17 +2381,23 @@ seem algebraically equivalent, but they are not
   # yields : WHERE ( ( col LIKE ? OR col LIKE ? ) )
 
 
-=head2 Literal SQL
+=head2 Literal SQL and value type operators
 
-Finally, sometimes only literal SQL will do.
-To include literal SQL verbatim, you specify it as a scalar reference.
-Consider this only as a last resort. Usually there is a better way.
+The basic premise of SQL::Abstract is that in WHERE specifications the "left
+side" is a column name and the "right side" is a value (normally rendered as
+a placeholder). This holds true for both hashrefs and arrayref pairs as you
+see in the L</WHERE CLAUSES> examples above. Sometimes it is necessary to
+alter this behavior. There are several ways of doing so.
 
-Literal SQL is the only way to compare 2 columns to one another:
+=head3 -ident
+
+This is a virtual operator that signals the string to its right side is an
+identifier (a column name) and not a value. For example to compare two
+columns you would write:
 
     my %where = (
         priority => { '<', 2 },
-        requestor => \'= submittor'
+        requestor => { -ident => 'submitter' },
     );
 
 which creates:
@@ -2354,48 +2405,64 @@ which creates:
     $stmt = "WHERE priority < ? AND requestor = submitter";
     @bind = ('2');
 
+If you are maintaining legacy code you may see a different construct as
+described in L</Deprecated usage of Literal SQL>, please use C<-ident> in new
+code.
 
-There is a nicer way to test for NULL, but just for the sake of example:
+=head3 -value
 
-    my $inn = 'IS NOT NULL';
+This is a virtual operator that signals that the construct to its right side
+is a value to be passed to DBI. This is for example necessary when you want
+to write a where clause against an array (for RDBMS that support such
+datatypes). For example:
+
     my %where = (
-        priority => { '<', 2 },
-        requestor => \$inn
+        array => { -value => [1, 2, 3] }
     );
 
-This would create:
+will result in:
 
-    $stmt = "WHERE priority < ? AND requestor is Not Null";
-    @bind = ('2');
+    $stmt = 'WHERE array = ?';
+    @bind = ([1, 2, 3]);
+
+Note that if you were to simply say:
+
+    my %where = (
+        array => [1, 2, 3]
+    );
+
+the result would porbably be not what you wanted:
+
+    $stmt = 'WHERE array = ? OR array = ? OR array = ?';
+    @bind = (1, 2, 3);
+
+=head3 Literal SQL
+
+Finally, sometimes only literal SQL will do. To include a random snippet
+of SQL verbatim, you specify it as a scalar reference. Consider this only
+as a last resort. Usually there is a better way. For example:
+
+    my %where = (
+        priority => { '<', 2 },
+        requestor => { -in => \'(SELECT name FROM hitmen)' },
+    );
+
+Would create:
+
+    $stmt = "WHERE priority < ? AND requestor IN (SELECT name FROM hitmen)"
+    @bind = (2);
 
 Note that in this example, you only get one bind parameter back, since
 the verbatim SQL is passed as part of the statement.
 
-Of course, just to prove a point, the above can also be accomplished
-with this:
+=head4 CAVEAT
 
-    my %where = (
-        priority  => { '<', 2 },
-        requestor => { '!=', undef },
-    );
+  Never use untrusted input as a literal SQL argument - this is a massive
+  security risk (there is no way to check literal snippets for SQL
+  injections and other nastyness). If you need to deal with untrusted input
+  use literal SQL with placeholders as described next.
 
-
-Conditions on boolean columns can be expressed by passing
-a reference to an empty string, however using liternal SQL in this way
-is deprecated - the preferred method is to use the boolean operators -
-see L</"Unary operators: bool"> :
-
-    my %where = (
-        priority  => { '<', 2 },
-        is_ready  => \"";
-    );
-
-which yields
-
-    $stmt = "WHERE priority < ? AND is_ready";
-    @bind = ('2');
-
-=head2 Literal SQL with placeholders and bind values (subqueries)
+=head3 Literal SQL with placeholders and bind values (subqueries)
 
 If the literal SQL to be inserted has placeholders and bind values,
 use a reference to an arrayref (yes this is a double reference --
@@ -2493,7 +2560,47 @@ This yields
   $stmt = "lname LIKE ? AND NOT ( age < ? OR age > ? )"
   @bind = ('%son%', 10, 20)
 
+=head3 Deprecated usage of Literal SQL
 
+Below are some examples of archaic use of literal SQL. It is shown only as
+reference for those who deal with legacy code. Each example has a much
+better, cleaner and safer alternative that users should opt for in new code.
+
+=over
+
+=item *
+
+    my %where = ( requestor => \'IS NOT NULL' )
+
+    $stmt = "WHERE requestor IS NOT NULL"
+
+This used to be the way of generating NULL comparisons, before the handling
+of C<undef> got formalized. For new code please use the superior syntax as
+described in L</Tests for NULL values>.
+
+=item *
+
+    my %where = ( requestor => \'= submitter' )
+
+    $stmt = "WHERE requestor = submitter"
+
+This used to be the only way to compare columns. Use the superior L</-ident>
+method for all new code. For example an identifier declared in such a way
+will be properly quoted if L</quote_char> is properly set, while the legacy
+form will remain as supplied.
+
+=item *
+
+    my %where = ( is_ready  => \"", completed => { '>', '2012-12-21' } )
+
+    $stmt = "WHERE completed > ? AND is_ready"
+    @bind = ('2012-12-21')
+
+Using an empty string literal used to be the only way to express a boolean.
+For all new code please use the much more readable
+L<-bool|/Unary operators: bool> operator.
+
+=back
 
 =head2 Conclusion
 
@@ -2509,9 +2616,6 @@ variables gotten from forms or the command line. After all, if you
 knew everything ahead of time, you wouldn't have to worry about
 dynamically-generating SQL and could just hardwire it into your
 script.
-
-
-
 
 =head1 ORDER BY CLAUSES
 
@@ -2813,8 +2917,6 @@ we just avoid shifting arrays within that tree.
 dropped the C<_modlogic> function
 
 =back
-
-
 
 =head1 ACKNOWLEDGEMENTS
 
