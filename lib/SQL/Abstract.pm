@@ -599,7 +599,7 @@ sub _where_op_ANDOR {
 
     SCALARREF  => sub {
       puke "-$op => \\\$scalar makes little sense, use " .
-        ($op =~ /^or/i 
+        ($op =~ /^or/i
           ? '[ \$scalar, \%rest_of_conditions ] instead'
           : '-and => [ \$scalar, \%rest_of_conditions ] instead'
         );
@@ -607,7 +607,7 @@ sub _where_op_ANDOR {
 
     ARRAYREFREF => sub {
       puke "-$op => \\[...] makes little sense, use " .
-        ($op =~ /^or/i 
+        ($op =~ /^or/i
           ? '[ \[...], \%rest_of_conditions ] instead'
           : '-and => [ \[...], \%rest_of_conditions ] instead'
         );
@@ -1148,7 +1148,6 @@ sub _table  {
     ARRAYREF     => sub {join ', ', map { $self->_quote($_) } @$from;},
     SCALAR       => sub {$self->_quote($from)},
     SCALARREF    => sub {$$from},
-    ARRAYREFREF  => sub {join ', ', @$from;},
   });
 }
 
