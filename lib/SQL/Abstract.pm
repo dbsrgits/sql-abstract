@@ -2075,13 +2075,13 @@ To get an OR instead, you can combine it with the arrayref idea:
 
     my %where => (
          user => 'nwiger',
-         priority => [ {'=', 2}, {'!=', 1} ]
+         priority => [ { '=', 2 }, { '>', 5 } ]
     );
 
 Which would generate:
 
-    $stmt = "WHERE user = ? AND priority = ? OR priority != ?";
-    @bind = ('nwiger', '2', '1');
+    $stmt = "WHERE ( priority = ? OR priority > ? ) AND user = ?";
+    @bind = ('2', '5', 'nwiger');
 
 If you want to include literal SQL (with or without bind values), just use a
 scalar reference or array reference as the value:
