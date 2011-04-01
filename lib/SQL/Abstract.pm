@@ -2739,9 +2739,9 @@ apps in under 50 lines.
 
 =over
 
-=item * gitweb: L<http://git.shadowcat.co.uk/gitweb/gitweb.cgi?p=dbsrgits/DBIx-Class.git>
+=item * gitweb: L<http://git.shadowcat.co.uk/gitweb/gitweb.cgi?p=dbsrgits/SQL-Abstract.git>
 
-=item * git: L<git://git.shadowcat.co.uk/dbsrgits/DBIx-Class.git>
+=item * git: L<git://git.shadowcat.co.uk/dbsrgits/SQL-Abstract.git>
 
 =back
 
