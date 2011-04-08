@@ -556,7 +556,7 @@ sub _where_unary_op {
     }
   }
 
-  $self->debug("Generic unary OP: $op - recursing as function");
+  $self->_debug("Generic unary OP: $op - recursing as function");
 
   $self->_assert_pass_injection_guard($op);
 
