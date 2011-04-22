@@ -2029,6 +2029,13 @@ becomes:
     $stmt = "WHERE user = ? AND status IS NULL";
     @bind = ('nwiger');
 
+To test if a column IS NOT NULL:
+
+    my %where  = (
+        user   => 'nwiger',
+        status => { '!=', undef },
+    );
+    
 =head2 Specific comparison operators
 
 If you want to specify a different type of operator for your comparison,
@@ -2331,10 +2338,26 @@ seem algebraically equivalent, but they are not
 
 =head2 Literal SQL
 
-Finally, sometimes only literal SQL will do. If you want to include
-literal SQL verbatim, you can specify it as a scalar reference, namely:
+Finally, sometimes only literal SQL will do.
+To include literal SQL verbatim, you specify it as a scalar reference.
+Consider this only as a last resort. Usually there is a better way.
 
-    my $inn = 'is Not Null';
+Literal SQL is the only way to compare 2 columns to one another:
+
+    my %where = (
+        priority => { '<', 2 },
+        requestor => \'= submittor'
+    );
+
+which creates:
+
+    $stmt = "WHERE priority < ? AND requestor = submitter";
+    @bind = ('2');
+
+
+There is a nicer way to test for NULL, but just for the sake of example:
+
+    my $inn = 'IS NOT NULL';
     my %where = (
         priority => { '<', 2 },
         requestor => \$inn
@@ -2357,9 +2380,7 @@ with this:
     );
 
 
-TMTOWTDI
-
-Conditions on boolean columns can be expressed in the same way, passing
+Conditions on boolean columns can be expressed by passing
 a reference to an empty string, however using liternal SQL in this way
 is deprecated - the preferred method is to use the boolean operators -
 see L</"Unary operators: bool"> :
@@ -2372,18 +2393,6 @@ see L</"Unary operators: bool"> :
 which yields
 
     $stmt = "WHERE priority < ? AND is_ready";
-    @bind = ('2');
-
-Literal SQL is also the only way to compare 2 columns to one another:
-
-    my %where = (
-        priority => { '<', 2 },
-        requestor => \'= submittor'
-    );
-
-which creates:
-
-    $stmt = "WHERE priority < ? AND requestor = submitter";
     @bind = ('2');
 
 =head2 Literal SQL with placeholders and bind values (subqueries)
