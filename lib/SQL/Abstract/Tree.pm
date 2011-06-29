@@ -733,7 +733,7 @@ structure of the returned tree.  It may be stable at some point, but not yet.
 
 =head2 unparse
 
- $sqlat->parse($tree_structure, \@bindargs)
+ $sqlat->unparse($tree_structure, \@bindargs)
 
 Transform "tree" into SQL, applying various transforms on the way.
 
