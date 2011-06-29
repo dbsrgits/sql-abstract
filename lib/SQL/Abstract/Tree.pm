@@ -513,7 +513,8 @@ sub _unparse {
     return join (" $car ", map $self->_unparse($_, $bindargs, $depth), @{$cdr});
   }
   elsif ($car eq 'LIST' ) {
-    return join (', ', map $self->_unparse($_, $bindargs, $depth), @{$cdr});
+      return ($self->newline||'') . join (', ' . ($self->newline||''),
+          map $self->indent($depth + 1) . $self->_unparse($_, $bindargs, $depth), @{$cdr});
   }
   else {
     my ($l, $r) = @{$self->pad_keyword($car, $depth)};
