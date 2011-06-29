@@ -505,7 +505,11 @@ sub _unparse {
       )
     );
   }
-  elsif ($car eq 'AND' or $car eq 'OR' or $car =~ / ^ $binary_op_re $ /x ) {
+  elsif ($car eq 'AND' or $car eq 'OR') {
+    return ($self->newline||'') . join (" $car ". ($self->newline||''),
+        map  $self->indent($depth + 1) . $self->_unparse($_, $bindargs, $depth), @{$cdr});
+  }
+  elsif ($car =~ / ^ $binary_op_re $ /x ) {
     return join (" $car ", map $self->_unparse($_, $bindargs, $depth), @{$cdr});
   }
   elsif ($car eq 'LIST' ) {
