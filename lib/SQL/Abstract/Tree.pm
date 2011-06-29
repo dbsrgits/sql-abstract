@@ -606,7 +606,8 @@ sub _unparse {
     return join (" $op ", map $self->_unparse($_, $bindargs, $depth), @{$args});
   }
   elsif ($op eq '-LIST' ) {
-    return join (', ', map $self->_unparse($_, $bindargs, $depth), @{$args});
+    return ($self->newline||'') . join (', ' . ($self->newline||''),
+      map $self->indent($depth + 1) . $self->_unparse($_, $bindargs, $depth), @{$args});
   }
   elsif ($op eq '-MISC' ) {
     return join (' ', map $self->_unparse($_, $bindargs, $depth), @{$args});
