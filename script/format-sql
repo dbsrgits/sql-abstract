@@ -13,4 +13,5 @@ my ($opt, $usage) = describe_options(
 
 my $sqlat = SQL::Abstract::Tree->new({ profile => $opt->profile });
 
-print $sqlat->format($_) . "\n" while <>;
+my $sql = <>;
+print $sqlat->format($sql) . "\n";

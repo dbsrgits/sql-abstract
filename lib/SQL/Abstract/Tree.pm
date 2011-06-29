@@ -149,7 +149,7 @@ my %indents = (
    update        => 0,
    'insert into' => 0,
    'delete from' => 0,
-   from          => 1,
+   from          => 0,
    where         => 0,
    join          => 1,
    'left join'   => 1,
@@ -505,11 +505,16 @@ sub _unparse {
       )
     );
   }
-  elsif ($car eq 'AND' or $car eq 'OR' or $car =~ / ^ $binary_op_re $ /x ) {
+  elsif ($car eq 'AND' or $car eq 'OR') {
+    return ($self->newline||'') . join (" $car ". ($self->newline||''),
+        map  $self->indent($depth + 1) . $self->_unparse($_, $bindargs, $depth), @{$cdr});
+  }
+  elsif ($car =~ / ^ $binary_op_re $ /x ) {
     return join (" $car ", map $self->_unparse($_, $bindargs, $depth), @{$cdr});
   }
   elsif ($car eq 'LIST' ) {
-    return join (', ', map $self->_unparse($_, $bindargs, $depth), @{$cdr});
+      return ($self->newline||'') . join (', ' . ($self->newline||''),
+          map $self->indent($depth + 1) . $self->_unparse($_, $bindargs, $depth), @{$cdr});
   }
   else {
     my ($l, $r) = @{$self->pad_keyword($car, $depth)};
@@ -733,7 +738,7 @@ structure of the returned tree.  It may be stable at some point, but not yet.
 
 =head2 unparse
 
- $sqlat->parse($tree_structure, \@bindargs)
+ $sqlat->unparse($tree_structure, \@bindargs)
 
 Transform "tree" into SQL, applying various transforms on the way.
 
