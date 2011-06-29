@@ -598,7 +598,11 @@ sub _unparse {
       )
     );
   }
-  elsif ($op eq 'AND' or $op eq 'OR' or $op =~ $binary_op_re ) {
+  elsif ($op eq 'AND' or $op eq 'OR') {
+    return ($self->newline||'') . join (" $op ". ($self->newline||''),
+        map  $self->indent($depth + 1) . $self->_unparse($_, $bindargs, $depth), @{$args});
+  }
+  elsif ($op =~ / ^ $binary_op_re $ /x ) {
     return join (" $op ", map $self->_unparse($_, $bindargs, $depth), @{$args});
   }
   elsif ($op eq '-LIST' ) {
