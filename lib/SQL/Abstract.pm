@@ -10,7 +10,9 @@ use warnings;
 use Carp ();
 use List::Util ();
 use Scalar::Util ();
-use Data::Query::Constants qw(DQ_IDENTIFIER DQ_OPERATOR DQ_VALUE);
+use Data::Query::Constants qw(
+  DQ_IDENTIFIER DQ_OPERATOR DQ_VALUE DQ_LITERAL
+);
 
 #======================================================================
 # GLOBALS
@@ -1220,7 +1222,13 @@ sub _table  {
         elements => [ split /\Q$self->{name_sep}/, $from ],
       })
     },
-    SCALARREF    => sub {$$from},
+    SCALARREF    => sub {
+      $self->_render_dq({
+        type => DQ_LITERAL,
+        subtype => 'SQL',
+        literal => $$from
+      })
+    },
   });
 }
 
