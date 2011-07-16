@@ -10,6 +10,7 @@ use warnings;
 use Carp ();
 use List::Util ();
 use Scalar::Util ();
+use Data::Query::Constants qw(DQ_IDENTIFIER DQ_OPERATOR DQ_VALUE);
 
 #======================================================================
 # GLOBALS
@@ -118,9 +119,28 @@ sub new {
     ^ \s* go \s
   /xmi;
 
+  $opt{name_sep} ||= '.';
+
+  $opt{renderer} ||= do {
+    require Data::Query::Renderer::SQL::Naive;
+    my ($always, $chars);
+    for ($opt{quote_char}) {
+      $chars = defined() ? (ref() ? $_ : [$_]) : ['',''];
+      $always = defined;
+    }
+    Data::Query::Renderer::SQL::Naive->new({
+      quote_chars => $chars, always_quote => $always,
+    });
+  };
+
   return bless \%opt, $class;
 }
 
+sub _render_dq {
+  my ($self, $dq) = @_;
+  my ($sql, @bind) = @{$self->{renderer}->render($dq)};
+  wantarray ? ($sql, map $_->{value}, @bind) : $sql;
+}
 
 sub _assert_pass_injection_guard {
   if ($_[1] =~ $_[0]->{injection_guard}) {
@@ -1194,7 +1214,12 @@ sub _table  {
   my $from = shift;
   $self->_SWITCH_refkind($from, {
     ARRAYREF     => sub {join ', ', map { $self->_quote($_) } @$from;},
-    SCALAR       => sub {$self->_quote($from)},
+    SCALAR       => sub {
+      $self->_render_dq({
+        type => DQ_IDENTIFIER,
+        elements => [ split /\Q$self->{name_sep}/, $from ],
+      })
+    },
     SCALARREF    => sub {$$from},
   });
 }
