@@ -384,7 +384,7 @@ sub select {
 
   my($where_sql, @bind) = $self->where($where, $order);
 
-  my $select = $self->_render_dq({
+  my $sql = $self->_render_dq({
     type => DQ_SELECT,
     select => [
       map +{
@@ -392,9 +392,12 @@ sub select {
         elements => [ split /\Q$self->{name_sep}/, $_ ],
       }, ref($fields) eq 'ARRAY' ? @$fields : $fields
     ],
+    from => {
+      type => DQ_LITERAL,
+      subtype => 'SQL',
+      literal => $table.$where_sql
+    }
   });
-  my $sql = join(' ', $select, $self->_sqlcase('from'),   $table)
-          . $where_sql;
 
   return wantarray ? ($sql, @bind) : $sql;
 }
