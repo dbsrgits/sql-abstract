@@ -11,8 +11,9 @@ use Carp ();
 use List::Util ();
 use Scalar::Util ();
 use Data::Query::Constants qw(
-  DQ_IDENTIFIER DQ_OPERATOR DQ_VALUE DQ_LITERAL DQ_JOIN DQ_SELECT
+  DQ_IDENTIFIER DQ_OPERATOR DQ_VALUE DQ_LITERAL DQ_JOIN DQ_SELECT DQ_ORDER
 );
+use Data::Query::ExprHelpers qw(perl_scalar_value);
 
 #======================================================================
 # GLOBALS
@@ -141,7 +142,27 @@ sub new {
 sub _render_dq {
   my ($self, $dq) = @_;
   my ($sql, @bind) = @{$self->{renderer}->render($dq)};
-  wantarray ? ($sql, map $_->{value}, @bind) : $sql;
+  wantarray ?
+    ($self->{bindtype} eq 'normal'
+      ? ($sql, map $_->{value}, @bind)
+      : ($sql, map [ $_->{meta}, $_->{value} ], @bind)
+    )
+    : $sql;
+}
+
+sub _bind_to_dq {
+  my ($self, @bind) = @_;
+  $self->{bindtype} eq 'normal'
+    ? map perl_scalar_value($_), @bind
+    : map perl_scalar_value(reverse @$_), @bind
+}
+
+sub _ident_to_dq {
+  my ($self, $ident) = @_;
+  +{
+    type => DQ_IDENTIFIER,
+    elements => [ split /\Q$self->{name_sep}/, $ident ],
+  };
 }
 
 sub _assert_pass_injection_guard {
@@ -387,12 +408,10 @@ sub select {
   my $sql = $self->_render_dq({
     type => DQ_SELECT,
     select => [
-      map +{
-        type => DQ_IDENTIFIER,
-        elements => [ split /\Q$self->{name_sep}/, $_ ],
-      }, ref($fields) eq 'ARRAY' ? @$fields : $fields
+      map $self->_ident_to_dq($_),
+        ref($fields) eq 'ARRAY' ? @$fields : $fields
     ],
-    from => $self->_table_dq($table),
+    from => $self->_table_to_dq($table),
   });
 
   $sql .= $where_sql;
@@ -1137,82 +1156,71 @@ sub _open_outer_paren {
 
 sub _order_by {
   my ($self, $arg) = @_;
-
-  my (@sql, @bind);
-  for my $c ($self->_order_by_chunks ($arg) ) {
-    $self->_SWITCH_refkind ($c, {
-      SCALAR => sub { push @sql, $c },
-      ARRAYREF => sub { push @sql, shift @$c; push @bind, @$c },
-    });
+  if (my $dq = $self->_order_by_to_dq($arg)) {
+    # SQLA generates ' ORDER BY foo'. The hilarity.
+    wantarray
+      ? do { my @r = $self->_render_dq($dq); $r[0] = ' '.$r[0]; @r }
+      : ' '.$self->_render_dq($dq);
+  } else {
+    '';
   }
-
-  my $sql = @sql
-    ? sprintf ('%s %s',
-        $self->_sqlcase(' order by'),
-        join (', ', @sql)
-      )
-    : ''
-  ;
-
-  return wantarray ? ($sql, @bind) : $sql;
 }
 
-sub _order_by_chunks {
-  my ($self, $arg) = @_;
+sub _order_by_to_dq {
+  my ($self, $arg, $dir) = @_;
 
-  return $self->_SWITCH_refkind($arg, {
+  return unless $arg;
 
-    ARRAYREF => sub {
-      map { $self->_order_by_chunks ($_ ) } @$arg;
-    },
+  my $dq = {
+    type => DQ_ORDER,
+    ($dir ? (direction => $dir) : ()),
+  };
 
-    ARRAYREFREF => sub {
-      my ($s, @b) = @$$arg;
-      $self->_assert_bindval_matches_bindtype(@b);
-      [ $s, @b ];
-    },
+  if (!ref($arg)) {
+    $dq->{by} = $self->_ident_to_dq($arg);
+  } elsif (ref($arg) eq 'ARRAY') {
+    return unless @$arg;
+    local our $Order_Inner unless our $Order_Recursing;
+    local $Order_Recursing = 1;
+    my ($outer, $inner);
+    foreach my $member (@$arg) {
+      local $Order_Inner;
+      my $next = $self->_order_by_to_dq($member, $dir);
+      $outer ||= $next;
+      $inner->{from} = $next if $inner;
+      $inner = $Order_Inner || $next;
+    }
+    $Order_Inner = $inner;
+    return $outer;
+  } elsif (ref($arg) eq 'REF' and ref($$arg) eq 'ARRAY') {
+    my ($sql, @bind) = @{$$arg};
+    $dq->{by} = {
+      type => DQ_LITERAL,
+      subtype => 'SQL',
+      literal => $sql,
+      values => [ $self->_bind_to_dq(@bind) ],
+    };
+  } elsif (ref($arg) eq 'SCALAR') {
+    $dq->{by} = {
+      type => DQ_LITERAL,
+      subtype => 'SQL',
+      literal => $$arg,
+    };
+  } elsif (ref($arg) eq 'HASH') {
+    my ($key, $val, @rest) = %$arg;
 
-    SCALAR    => sub {$self->_quote($arg)},
+    return unless $key;
 
-    UNDEF     => sub {return () },
-
-    SCALARREF => sub {$$arg}, # literal SQL, no quoting
-
-    HASHREF   => sub {
-      # get first pair in hash
-      my ($key, $val, @rest) = %$arg;
-
-      return () unless $key;
-
-      if ( @rest or not $key =~ /^-(desc|asc)/i ) {
-        puke "hash passed to _order_by must have exactly one key (-desc or -asc)";
-      }
-
-      my $direction = $1;
-
-      my @ret;
-      for my $c ($self->_order_by_chunks ($val)) {
-        my ($sql, @bind);
-
-        $self->_SWITCH_refkind ($c, {
-          SCALAR => sub {
-            $sql = $c;
-          },
-          ARRAYREF => sub {
-            ($sql, @bind) = @$c;
-          },
-        });
-
-        $sql = $sql . ' ' . $self->_sqlcase($direction);
-
-        push @ret, [ $sql, @bind];
-      }
-
-      return @ret;
-    },
-  });
+    if (@rest or not $key =~ /^-(desc|asc)/i) {
+      puke "hash passed to _order_by must have exactly one key (-desc or -asc)";
+    }
+    my $dir = uc $1;
+    return $self->_order_by_to_dq($val, $dir);
+  } else {
+    die "Can't handle $arg in _order_by_to_dq";
+  }
+  return $dq;
 }
-
 
 #======================================================================
 # DATASOURCE (FOR NOW, JUST PLAIN TABLE OR LIST OF TABLES)
@@ -1220,35 +1228,24 @@ sub _order_by_chunks {
 
 sub _table  {
   my ($self, $from) = @_;
-  $self->_render_dq($self->_table_dq($from));
+  $self->_render_dq($self->_table_to_dq($from));
 }
 
-sub _table_dq {
+sub _table_to_dq {
   my ($self, $from) = @_;
   $self->_SWITCH_refkind($from, {
     ARRAYREF     => sub {
       die "Empty FROM list" unless my @f = @$from;
-      my $dq = {
-        type => DQ_IDENTIFIER,
-        elements => [ split /\Q$self->{name_sep}/, shift @f ],
-      };
+      my $dq = $self->_ident_to_dq(shift @f);
       while (my $x = shift @f) {
         $dq = {
           type => DQ_JOIN,
-          join => [ $dq, {
-                      type => DQ_IDENTIFIER,
-                      elements => [ split /\Q$self->{name_sep}/, $x ],
-          } ],
+          join => [ $dq, $self->_ident_to_dq($x) ]
         };
       }
       $dq;
     },
-    SCALAR       => sub {
-      +{
-        type => DQ_IDENTIFIER,
-        elements => [ split /\Q$self->{name_sep}/, $from ],
-      }
-    },
+    SCALAR       => sub { $self->_ident_to_dq($from) },
     SCALARREF    => sub {
       +{
         type => DQ_LITERAL,
