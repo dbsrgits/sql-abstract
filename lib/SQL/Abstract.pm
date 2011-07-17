@@ -11,7 +11,7 @@ use Carp ();
 use List::Util ();
 use Scalar::Util ();
 use Data::Query::Constants qw(
-  DQ_IDENTIFIER DQ_OPERATOR DQ_VALUE DQ_LITERAL
+  DQ_IDENTIFIER DQ_OPERATOR DQ_VALUE DQ_LITERAL DQ_JOIN
 );
 
 #======================================================================
@@ -1215,7 +1215,23 @@ sub _table  {
   my $self = shift;
   my $from = shift;
   $self->_SWITCH_refkind($from, {
-    ARRAYREF     => sub {join ', ', map { $self->_quote($_) } @$from;},
+    ARRAYREF     => sub {
+      die "Empty FROM list" unless my @f = @$from;
+      my $dq = {
+        type => DQ_IDENTIFIER,
+        elements => [ split /\Q$self->{name_sep}/, shift @f ],
+      };
+      while (my $x = shift @f) {
+        $dq = {
+          type => DQ_JOIN,
+          join => [ $dq, {
+                      type => DQ_IDENTIFIER,
+                      elements => [ split /\Q$self->{name_sep}/, $x ],
+          } ],
+        };
+      }
+      $self->_render_dq($dq);
+    },
     SCALAR       => sub {
       $self->_render_dq({
         type => DQ_IDENTIFIER,
