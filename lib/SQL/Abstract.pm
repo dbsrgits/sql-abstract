@@ -11,7 +11,7 @@ use Carp ();
 use List::Util ();
 use Scalar::Util ();
 use Data::Query::Constants qw(
-  DQ_IDENTIFIER DQ_OPERATOR DQ_VALUE DQ_LITERAL DQ_JOIN
+  DQ_IDENTIFIER DQ_OPERATOR DQ_VALUE DQ_LITERAL DQ_JOIN DQ_SELECT
 );
 
 #======================================================================
@@ -384,10 +384,16 @@ sub select {
 
   my($where_sql, @bind) = $self->where($where, $order);
 
-  my $f = (ref $fields eq 'ARRAY') ? join ', ', map { $self->_quote($_) } @$fields
-                                   : $fields;
-  my $sql = join(' ', $self->_sqlcase('select'), $f,
-                      $self->_sqlcase('from'),   $table)
+  my $select = $self->_render_dq({
+    type => DQ_SELECT,
+    select => [
+      map +{
+        type => DQ_IDENTIFIER,
+        elements => [ split /\Q$self->{name_sep}/, $_ ],
+      }, ref($fields) eq 'ARRAY' ? @$fields : $fields
+    ],
+  });
+  my $sql = join(' ', $select, $self->_sqlcase('from'),   $table)
           . $where_sql;
 
   return wantarray ? ($sql, @bind) : $sql;
