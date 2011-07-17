@@ -1214,38 +1214,40 @@ sub _order_by_chunks {
 sub _table  {
   my $self = shift;
   my $from = shift;
-  $self->_SWITCH_refkind($from, {
-    ARRAYREF     => sub {
-      die "Empty FROM list" unless my @f = @$from;
-      my $dq = {
-        type => DQ_IDENTIFIER,
-        elements => [ split /\Q$self->{name_sep}/, shift @f ],
-      };
-      while (my $x = shift @f) {
-        $dq = {
-          type => DQ_JOIN,
-          join => [ $dq, {
-                      type => DQ_IDENTIFIER,
-                      elements => [ split /\Q$self->{name_sep}/, $x ],
-          } ],
+  $self->_render_dq(
+    $self->_SWITCH_refkind($from, {
+      ARRAYREF     => sub {
+        die "Empty FROM list" unless my @f = @$from;
+        my $dq = {
+          type => DQ_IDENTIFIER,
+          elements => [ split /\Q$self->{name_sep}/, shift @f ],
         };
-      }
-      $self->_render_dq($dq);
-    },
-    SCALAR       => sub {
-      $self->_render_dq({
-        type => DQ_IDENTIFIER,
-        elements => [ split /\Q$self->{name_sep}/, $from ],
-      })
-    },
-    SCALARREF    => sub {
-      $self->_render_dq({
-        type => DQ_LITERAL,
-        subtype => 'SQL',
-        literal => $$from
-      })
-    },
-  });
+        while (my $x = shift @f) {
+          $dq = {
+            type => DQ_JOIN,
+            join => [ $dq, {
+                        type => DQ_IDENTIFIER,
+                        elements => [ split /\Q$self->{name_sep}/, $x ],
+            } ],
+          };
+        }
+        $dq;
+      },
+      SCALAR       => sub {
+        +{
+          type => DQ_IDENTIFIER,
+          elements => [ split /\Q$self->{name_sep}/, $from ],
+        }
+      },
+      SCALARREF    => sub {
+        +{
+          type => DQ_LITERAL,
+          subtype => 'SQL',
+          literal => $$from
+        }
+      },
+    })
+  );
 }
 
 
