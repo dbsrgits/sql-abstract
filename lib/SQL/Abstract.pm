@@ -377,7 +377,7 @@ sub update {
 
 sub select {
   my $self   = shift;
-  my $table  = $self->_table(shift);
+  my $table  = shift;
   my $fields = shift || '*';
   my $where  = shift;
   my $order  = shift;
@@ -392,12 +392,10 @@ sub select {
         elements => [ split /\Q$self->{name_sep}/, $_ ],
       }, ref($fields) eq 'ARRAY' ? @$fields : $fields
     ],
-    from => {
-      type => DQ_LITERAL,
-      subtype => 'SQL',
-      literal => $table.$where_sql
-    }
+    from => $self->_table_dq($table),
   });
+
+  $sql .= $where_sql;
 
   return wantarray ? ($sql, @bind) : $sql;
 }
@@ -1221,42 +1219,44 @@ sub _order_by_chunks {
 #======================================================================
 
 sub _table  {
-  my $self = shift;
-  my $from = shift;
-  $self->_render_dq(
-    $self->_SWITCH_refkind($from, {
-      ARRAYREF     => sub {
-        die "Empty FROM list" unless my @f = @$from;
-        my $dq = {
-          type => DQ_IDENTIFIER,
-          elements => [ split /\Q$self->{name_sep}/, shift @f ],
+  my ($self, $from) = @_;
+  $self->_render_dq($self->_table_dq($from));
+}
+
+sub _table_dq {
+  my ($self, $from) = @_;
+  $self->_SWITCH_refkind($from, {
+    ARRAYREF     => sub {
+      die "Empty FROM list" unless my @f = @$from;
+      my $dq = {
+        type => DQ_IDENTIFIER,
+        elements => [ split /\Q$self->{name_sep}/, shift @f ],
+      };
+      while (my $x = shift @f) {
+        $dq = {
+          type => DQ_JOIN,
+          join => [ $dq, {
+                      type => DQ_IDENTIFIER,
+                      elements => [ split /\Q$self->{name_sep}/, $x ],
+          } ],
         };
-        while (my $x = shift @f) {
-          $dq = {
-            type => DQ_JOIN,
-            join => [ $dq, {
-                        type => DQ_IDENTIFIER,
-                        elements => [ split /\Q$self->{name_sep}/, $x ],
-            } ],
-          };
-        }
-        $dq;
-      },
-      SCALAR       => sub {
-        +{
-          type => DQ_IDENTIFIER,
-          elements => [ split /\Q$self->{name_sep}/, $from ],
-        }
-      },
-      SCALARREF    => sub {
-        +{
-          type => DQ_LITERAL,
-          subtype => 'SQL',
-          literal => $$from
-        }
-      },
-    })
-  );
+      }
+      $dq;
+    },
+    SCALAR       => sub {
+      +{
+        type => DQ_IDENTIFIER,
+        elements => [ split /\Q$self->{name_sep}/, $from ],
+      }
+    },
+    SCALARREF    => sub {
+      +{
+        type => DQ_LITERAL,
+        subtype => 'SQL',
+        literal => $$from
+      }
+    },
+  });
 }
 
 
