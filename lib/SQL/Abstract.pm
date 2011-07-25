@@ -503,10 +503,19 @@ sub _recurse_where {
 sub _where_to_dq {
   my ($self, $where, $logic) = @_;
 
-  # dispatch on appropriate method according to refkind of $where
-  my $method = $self->_METHOD_FOR_refkind("_where_to_dq", $where);
-
-  return $self->$method($where, $logic);
+  if (ref($where) eq 'ARRAY') {
+    return $self->_where_to_dq_ARRAYREF($where, $logic);
+  } elsif (ref($where) eq 'HASH') {
+    return $self->_where_to_dq_HASHREF($where, $logic);
+  } elsif (
+    ref($where) eq 'SCALAR'
+    or (ref($where) eq 'REF' and ref($$where) eq 'ARRAY')
+  ) {
+    return $self->_literal_to_dq($$where);
+  } elsif (!ref($where)) {
+    return $self->_value_to_dq($where);
+  }
+  die "Can't handle $where";
 }
 
 sub _where_to_dq_ARRAYREF {
@@ -536,16 +545,6 @@ sub _where_to_dq_ARRAYREF {
     operator => { 'SQL.Naive' => $logic },
     args => [ $first_dq, $self->_where_to_dq_ARRAYREF(\@rest, $logic) ]
   };
-}
-
-sub _where_to_dq_ARRAYREFREF {
-  my ($self, $where) = @_;
-  return $self->_literal_to_dq($$where);
-}
-
-sub _where_to_dq_SCALARREF {
-  my ($self, $where) = @_;
-  return $self->_literal_to_dq($$where);
 }
 
 sub _where_to_dq_HASHREF {
