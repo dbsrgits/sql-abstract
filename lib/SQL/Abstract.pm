@@ -6,8 +6,8 @@ package SQL::Abstract; # see doc at end of file
 # 'LDNOTE' (note by laurent.dami AT free.fr)
 
 use strict;
-use warnings;
 use Carp ();
+use warnings FATAL => 'all';
 use List::Util ();
 use Scalar::Util ();
 use Data::Query::Constants qw(
@@ -150,11 +150,45 @@ sub _render_dq {
     : $sql;
 }
 
+sub _literal_to_dq {
+  my ($self, $literal) = @_;
+  my @bind;
+  ($literal, @bind) = @$literal if ref($literal) eq 'ARRAY';
+  +{
+    type => DQ_LITERAL,
+    subtype => 'SQL',
+    literal => $literal,
+    (@bind ? (values => [ $self->_bind_to_dq(@bind) ]) : ()),
+  };
+}
+
+sub _literal_with_prepend_to_dq {
+  my ($self, $prepend, $literal) = @_;
+  if (ref($literal)) {
+    $self->_literal_to_dq(
+      [ join(' ', $prepend, $literal->[0]), @{$literal}[1..$#$literal] ]
+    );
+  } else {
+    $self->_literal_to_dq(
+      join(' ', $prepend, $literal)
+    );
+  }
+}
+
 sub _bind_to_dq {
   my ($self, @bind) = @_;
+  return unless @bind;
   $self->{bindtype} eq 'normal'
     ? map perl_scalar_value($_), @bind
-    : map perl_scalar_value(reverse @$_), @bind
+    : do {
+        $self->_assert_bindval_matches_bindtype(@bind);
+        map perl_scalar_value(reverse @$_), @bind
+      }
+}
+
+sub _value_to_dq {
+  my ($self, $value) = @_;
+  perl_scalar_value($value);
 }
 
 sub _ident_to_dq {
@@ -463,262 +497,84 @@ sub where {
 sub _recurse_where {
   my ($self, $where, $logic) = @_;
 
-  # dispatch on appropriate method according to refkind of $where
-  my $method = $self->_METHOD_FOR_refkind("_where", $where);
-
-  my ($sql, @bind) =  $self->$method($where, $logic);
-
-  # DBIx::Class directly calls _recurse_where in scalar context, so
-  # we must implement it, even if not in the official API
-  return wantarray ? ($sql, @bind) : $sql;
+  return $self->_render_dq($self->_where_to_dq($where, $logic));
 }
 
-
-
-#======================================================================
-# WHERE: top-level ARRAYREF
-#======================================================================
-
-
-sub _where_ARRAYREF {
+sub _where_to_dq {
   my ($self, $where, $logic) = @_;
 
-  $logic = uc($logic || $self->{logic});
+  # dispatch on appropriate method according to refkind of $where
+  my $method = $self->_METHOD_FOR_refkind("_where_to_dq", $where);
+
+  return $self->$method($where, $logic);
+}
+
+sub _where_to_dq_ARRAYREF {
+  my ($self, $where, $logic) = @_;
+
+  $logic = uc($logic || 'OR');
   $logic eq 'AND' or $logic eq 'OR' or puke "unknown logic: $logic";
 
-  my @clauses = @$where;
+  return unless @$where;
 
-  my (@sql_clauses, @all_bind);
-  # need to use while() so can shift() for pairs
-  while (my $el = shift @clauses) {
+  my ($first, @rest) = @$where;
 
-    # switch according to kind of $el and get corresponding ($sql, @bind)
-    my ($sql, @bind) = $self->_SWITCH_refkind($el, {
+  return $self->_where_to_dq($first) unless @rest;
 
-      # skip empty elements, otherwise get invalid trailing AND stuff
-      ARRAYREF  => sub {$self->_recurse_where($el)        if @$el},
-
-      ARRAYREFREF => sub {
-        my ($s, @b) = @$$el;
-        $self->_assert_bindval_matches_bindtype(@b);
-        ($s, @b);
-      },
-
-      HASHREF   => sub {$self->_recurse_where($el, 'and') if %$el},
-           # LDNOTE : previous SQLA code for hashrefs was creating a dirty
-           # side-effect: the first hashref within an array would change
-           # the global logic to 'AND'. So [ {cond1, cond2}, [cond3, cond4] ]
-           # was interpreted as "(cond1 AND cond2) OR (cond3 AND cond4)",
-           # whereas it should be "(cond1 AND cond2) OR (cond3 OR cond4)".
-
-      SCALARREF => sub { ($$el);                                 },
-
-      SCALAR    => sub {# top-level arrayref with scalars, recurse in pairs
-                        $self->_recurse_where({$el => shift(@clauses)})},
-
-      UNDEF     => sub {puke "not supported : UNDEF in arrayref" },
-    });
-
-    if ($sql) {
-      push @sql_clauses, $sql;
-      push @all_bind, @bind;
+  my $first_dq = do {
+    if (!ref($first)) {
+      $self->_where_hashpair_to_dq($first => shift(@rest));
+    } else {
+      $self->_where_to_dq($first);
     }
-  }
+  };
 
-  return $self->_join_sql_clauses($logic, \@sql_clauses, \@all_bind);
+  return $self->_where_to_dq_ARRAYREF(\@rest, $logic) unless $first_dq;
+
+  +{
+    type => DQ_OPERATOR,
+    operator => { 'SQL.Naive' => $logic },
+    args => [ $first_dq, $self->_where_to_dq_ARRAYREF(\@rest, $logic) ]
+  };
 }
 
-#======================================================================
-# WHERE: top-level ARRAYREFREF
-#======================================================================
-
-sub _where_ARRAYREFREF {
-    my ($self, $where) = @_;
-    my ($sql, @bind) = @$$where;
-    $self->_assert_bindval_matches_bindtype(@bind);
-    return ($sql, @bind);
-}
-
-#======================================================================
-# WHERE: top-level HASHREF
-#======================================================================
-
-sub _where_HASHREF {
+sub _where_to_dq_ARRAYREFREF {
   my ($self, $where) = @_;
-  my (@sql_clauses, @all_bind);
-
-  for my $k (sort keys %$where) {
-    my $v = $where->{$k};
-
-    # ($k => $v) is either a special unary op or a regular hashpair
-    my ($sql, @bind) = do {
-      if ($k =~ /^-./) {
-        # put the operator in canonical form
-        my $op = $k;
-        $op = substr $op, 1;  # remove initial dash
-        $op =~ s/^\s+|\s+$//g;# remove leading/trailing space
-        $op =~ s/\s+/ /g;     # compress whitespace
-
-        # so that -not_foo works correctly
-        $op =~ s/^not_/NOT /i;
-
-        $self->_debug("Unary OP(-$op) within hashref, recursing...");
-        my ($s, @b) = $self->_where_unary_op ($op, $v);
-
-        # top level vs nested
-        # we assume that handled unary ops will take care of their ()s
-        $s = "($s)" unless (
-          List::Util::first {$op =~ $_->{regex}} @{$self->{unary_ops}}
-            or
-          defined($self->{_nested_func_lhs}) && ($self->{_nested_func_lhs} eq $k)
-        );
-        ($s, @b);
-      }
-      else {
-        my $method = $self->_METHOD_FOR_refkind("_where_hashpair", $v);
-        $self->$method($k, $v);
-      }
-    };
-
-    push @sql_clauses, $sql;
-    push @all_bind, @bind;
-  }
-
-  return $self->_join_sql_clauses('and', \@sql_clauses, \@all_bind);
+  return $self->_literal_to_dq($$where);
 }
 
-sub _where_unary_op {
-  my ($self, $op, $rhs) = @_;
+sub _where_to_dq_SCALARREF {
+  my ($self, $where) = @_;
+  return $self->_literal_to_dq($$where);
+}
 
-  if (my $op_entry = List::Util::first {$op =~ $_->{regex}} @{$self->{unary_ops}}) {
-    my $handler = $op_entry->{handler};
+sub _where_to_dq_HASHREF {
+  my ($self, $where, $logic) = @_;
 
-    if (not ref $handler) {
-      if ($op =~ s/ [_\s]? \d+ $//x ) {
-        belch 'Use of [and|or|nest]_N modifiers is deprecated and will be removed in SQLA v2.0. '
-            . "You probably wanted ...-and => [ -$op => COND1, -$op => COND2 ... ]";
-      }
-      return $self->$handler ($op, $rhs);
-    }
-    elsif (ref $handler eq 'CODE') {
-      return $handler->($self, $op, $rhs);
-    }
-    else {
-      puke "Illegal handler for operator $op - expecting a method name or a coderef";
+  $logic = uc($logic || 'AND');
+
+  my @dq = map {
+    $self->_where_hashpair_to_dq($_ => $where->{$_})
+  } sort keys %$where;
+
+  return $dq[0] unless @dq > 1;
+
+  my $final = pop(@dq);
+
+  foreach my $dq (reverse @dq) {
+    $final = +{
+     type => DQ_OPERATOR,
+     operator => { 'SQL.Naive' => $logic },
+     args => [ $dq, $final ]
     }
   }
 
-  $self->_debug("Generic unary OP: $op - recursing as function");
-
-  $self->_assert_pass_injection_guard($op);
-
-  my ($sql, @bind) = $self->_SWITCH_refkind ($rhs, {
-    SCALAR =>   sub {
-      puke "Illegal use of top-level '$op'"
-        unless $self->{_nested_func_lhs};
-
-      return (
-        $self->_convert('?'),
-        $self->_bindtype($self->{_nested_func_lhs}, $rhs)
-      );
-    },
-    FALLBACK => sub {
-      $self->_recurse_where ($rhs)
-    },
-  });
-
-  $sql = sprintf ('%s %s',
-    $self->_sqlcase($op),
-    $sql,
-  );
-
-  return ($sql, @bind);
+  return $final;
 }
 
-sub _where_op_ANDOR {
-  my ($self, $op, $v) = @_;
-
-  $self->_SWITCH_refkind($v, {
-    ARRAYREF => sub {
-      return $self->_where_ARRAYREF($v, $op);
-    },
-
-    HASHREF => sub {
-      return ( $op =~ /^or/i )
-        ? $self->_where_ARRAYREF( [ map { $_ => $v->{$_} } ( sort keys %$v ) ], $op )
-        : $self->_where_HASHREF($v);
-    },
-
-    SCALARREF  => sub {
-      puke "-$op => \\\$scalar makes little sense, use " .
-        ($op =~ /^or/i
-          ? '[ \$scalar, \%rest_of_conditions ] instead'
-          : '-and => [ \$scalar, \%rest_of_conditions ] instead'
-        );
-    },
-
-    ARRAYREFREF => sub {
-      puke "-$op => \\[...] makes little sense, use " .
-        ($op =~ /^or/i
-          ? '[ \[...], \%rest_of_conditions ] instead'
-          : '-and => [ \[...], \%rest_of_conditions ] instead'
-        );
-    },
-
-    SCALAR => sub { # permissively interpreted as SQL
-      puke "-$op => \$value makes little sense, use -bool => \$value instead";
-    },
-
-    UNDEF => sub {
-      puke "-$op => undef not supported";
-    },
-   });
+sub _where_to_dq_SCALAR {
+  shift->_value_to_dq(@_);
 }
-
-sub _where_op_NEST {
-  my ($self, $op, $v) = @_;
-
-  $self->_SWITCH_refkind($v, {
-
-    SCALAR => sub { # permissively interpreted as SQL
-      belch "literal SQL should be -nest => \\'scalar' "
-          . "instead of -nest => 'scalar' ";
-      return ($v);
-    },
-
-    UNDEF => sub {
-      puke "-$op => undef not supported";
-    },
-
-    FALLBACK => sub {
-      $self->_recurse_where ($v);
-    },
-
-   });
-}
-
-
-sub _where_op_BOOL {
-  my ($self, $op, $v) = @_;
-
-  my ($s, @b) = $self->_SWITCH_refkind($v, {
-    SCALAR => sub { # interpreted as SQL column
-      $self->_convert($self->_quote($v));
-    },
-
-    UNDEF => sub {
-      puke "-$op => undef not supported";
-    },
-
-    FALLBACK => sub {
-      $self->_recurse_where ($v);
-    },
-  });
-
-  $s = "(NOT $s)" if $op =~ /^not/i;
-  ($s, @b);
-}
-
 
 sub _where_op_IDENT {
   my $self = shift;
@@ -764,391 +620,108 @@ sub _where_op_VALUE {
   ;
 }
 
-sub _where_hashpair_ARRAYREF {
+sub _where_hashpair_to_dq {
   my ($self, $k, $v) = @_;
 
-  if( @$v ) {
-    my @v = @$v; # need copy because of shift below
-    $self->_debug("ARRAY($k) means distribute over elements");
-
-    # put apart first element if it is an operator (-and, -or)
-    my $op = (
-       (defined $v[0] && $v[0] =~ /^ - (?: AND|OR ) $/ix)
-         ? shift @v
-         : ''
-    );
-    my @distributed = map { {$k =>  $_} } @v;
-
-    if ($op) {
-      $self->_debug("OP($op) reinjected into the distributed array");
-      unshift @distributed, $op;
-    }
-
-    my $logic = $op ? substr($op, 1) : '';
-
-    return $self->_recurse_where(\@distributed, $logic);
-  }
-  else {
-    # LDNOTE : not sure of this one. What does "distribute over nothing" mean?
-    $self->_debug("empty ARRAY($k) means 0=1");
-    return ($self->{sqlfalse});
-  }
-}
-
-sub _where_hashpair_HASHREF {
-  my ($self, $k, $v, $logic) = @_;
-  $logic ||= 'and';
-
-  local $self->{_nested_func_lhs} = $self->{_nested_func_lhs};
-
-  my ($all_sql, @all_bind);
-
-  for my $orig_op (sort keys %$v) {
-    my $val = $v->{$orig_op};
-
-    # put the operator in canonical form
-    my $op = $orig_op;
-
-    # FIXME - we need to phase out dash-less ops
-    $op =~ s/^-//;        # remove possible initial dash
-    $op =~ s/^\s+|\s+$//g;# remove leading/trailing space
-    $op =~ s/\s+/ /g;     # compress whitespace
-
-    $self->_assert_pass_injection_guard($op);
-
-    # so that -not_foo works correctly
-    $op =~ s/^not_/NOT /i;
-
-    my ($sql, @bind);
-
-    # CASE: col-value logic modifiers
-    if ( $orig_op =~ /^ \- (and|or) $/xi ) {
-      ($sql, @bind) = $self->_where_hashpair_HASHREF($k, $val, $1);
-    }
-    # CASE: special operators like -in or -between
-    elsif ( my $special_op = List::Util::first {$op =~ $_->{regex}} @{$self->{special_ops}} ) {
-      my $handler = $special_op->{handler};
-      if (! $handler) {
-        puke "No handler supplied for special operator $orig_op";
+  if ($k =~ /-(.*)/) {
+    my $op = uc($1);
+    if ($op eq 'AND' or $op eq 'OR') {
+      return $self->_where_to_dq($v, $op);
+    } elsif ($op eq 'NEST') {
+      return $self->_where_to_dq($v);
+    } elsif ($op eq 'NOT') {
+      return +{
+        type => DQ_OPERATOR,
+        operator => { 'SQL.Naive' => 'NOT' },
+        args => [ $self->_where_to_dq($v) ]
       }
-      elsif (not ref $handler) {
-        ($sql, @bind) = $self->$handler ($k, $op, $val);
-      }
-      elsif (ref $handler eq 'CODE') {
-        ($sql, @bind) = $handler->($self, $k, $op, $val);
-      }
-      else {
-        puke "Illegal handler for special operator $orig_op - expecting a method name or a coderef";
-      }
+    } elsif ($op eq 'BOOL') {
+      return ref($v) ? $self->_where_to_dq($v) : $self->_ident_to_dq($v);
+    } elsif ($op eq 'NOT_BOOL') {
+      return +{
+        type => DQ_OPERATOR,
+        operator => { 'SQL.Naive' => 'NOT' },
+        args => [ ref($v) ? $self->_where_to_dq($v) : $self->_ident_to_dq($v) ]
+      };
+    } else {
+      die "Not done this bit yet";
     }
-    else {
-      $self->_SWITCH_refkind($val, {
-
-        ARRAYREF => sub {       # CASE: col => {op => \@vals}
-          ($sql, @bind) = $self->_where_field_op_ARRAYREF($k, $op, $val);
-        },
-
-        ARRAYREFREF => sub {    # CASE: col => {op => \[$sql, @bind]} (literal SQL with bind)
-          my ($sub_sql, @sub_bind) = @$$val;
-          $self->_assert_bindval_matches_bindtype(@sub_bind);
-          $sql  = join ' ', $self->_convert($self->_quote($k)),
-                            $self->_sqlcase($op),
-                            $sub_sql;
-          @bind = @sub_bind;
-        },
-
-        UNDEF => sub {          # CASE: col => {op => undef} : sql "IS (NOT)? NULL"
-          my $is = ($op =~ $self->{equality_op})   ? 'is'     :
-                   ($op =~ $self->{inequality_op}) ? 'is not' :
-               puke "unexpected operator '$orig_op' with undef operand";
-          $sql = $self->_quote($k) . $self->_sqlcase(" $is null");
-        },
-
-        FALLBACK => sub {       # CASE: col => {op/func => $stuff}
-
-          # retain for proper column type bind
-          $self->{_nested_func_lhs} ||= $k;
-
-          ($sql, @bind) = $self->_where_unary_op ($op, $val);
-
-          $sql = join (' ',
-            $self->_convert($self->_quote($k)),
-            $self->{_nested_func_lhs} eq $k ? $sql : "($sql)",  # top level vs nested
-          );
-        },
-      });
-    }
-
-    ($all_sql) = (defined $all_sql and $all_sql) ? $self->_join_sql_clauses($logic, [$all_sql, $sql], []) : $sql;
-    push @all_bind, @bind;
-  }
-  return ($all_sql, @all_bind);
-}
-
-
-
-sub _where_field_op_ARRAYREF {
-  my ($self, $k, $op, $vals) = @_;
-
-  my @vals = @$vals;  #always work on a copy
-
-  if(@vals) {
-    $self->_debug(sprintf '%s means multiple elements: [ %s ]',
-      $vals,
-      join (', ', map { defined $_ ? "'$_'" : 'NULL' } @vals ),
-    );
-
-    # see if the first element is an -and/-or op
-    my $logic;
-    if (defined $vals[0] && $vals[0] =~ /^ - ( AND|OR ) $/ix) {
-      $logic = uc $1;
-      shift @vals;
-    }
-
-    # distribute $op over each remaining member of @vals, append logic if exists
-    return $self->_recurse_where([map { {$k => {$op, $_}} } @vals], $logic);
-
-    # LDNOTE : had planned to change the distribution logic when
-    # $op =~ $self->{inequality_op}, because of Morgan laws :
-    # with {field => {'!=' => [22, 33]}}, it would be ridiculous to generate
-    # WHERE field != 22 OR  field != 33 : the user probably means
-    # WHERE field != 22 AND field != 33.
-    # To do this, replace the above to roughly :
-    # my $logic = ($op =~ $self->{inequality_op}) ? 'AND' : 'OR';
-    # return $self->_recurse_where([map { {$k => {$op, $_}} } @vals], $logic);
-
-  }
-  else {
-    # try to DWIM on equality operators
-    # LDNOTE : not 100% sure this is the correct thing to do ...
-    return ($self->{sqlfalse}) if $op =~ $self->{equality_op};
-    return ($self->{sqltrue})  if $op =~ $self->{inequality_op};
-
-    # otherwise
-    puke "operator '$op' applied on an empty array (field '$k')";
-  }
-}
-
-
-sub _where_hashpair_SCALARREF {
-  my ($self, $k, $v) = @_;
-  $self->_debug("SCALAR($k) means literal SQL: $$v");
-  my $sql = $self->_quote($k) . " " . $$v;
-  return ($sql);
-}
-
-# literal SQL with bind
-sub _where_hashpair_ARRAYREFREF {
-  my ($self, $k, $v) = @_;
-  $self->_debug("REF($k) means literal SQL: @${$v}");
-  my ($sql, @bind) = @$$v;
-  $self->_assert_bindval_matches_bindtype(@bind);
-  $sql  = $self->_quote($k) . " " . $sql;
-  return ($sql, @bind );
-}
-
-# literal SQL without bind
-sub _where_hashpair_SCALAR {
-  my ($self, $k, $v) = @_;
-  $self->_debug("NOREF($k) means simple key=val: $k $self->{cmp} $v");
-  my $sql = join ' ', $self->_convert($self->_quote($k)),
-                      $self->_sqlcase($self->{cmp}),
-                      $self->_convert('?');
-  my @bind =  $self->_bindtype($k, $v);
-  return ( $sql, @bind);
-}
-
-
-sub _where_hashpair_UNDEF {
-  my ($self, $k, $v) = @_;
-  $self->_debug("UNDEF($k) means IS NULL");
-  my $sql = $self->_quote($k) . $self->_sqlcase(' is null');
-  return ($sql);
-}
-
-#======================================================================
-# WHERE: TOP-LEVEL OTHERS (SCALARREF, SCALAR, UNDEF)
-#======================================================================
-
-
-sub _where_SCALARREF {
-  my ($self, $where) = @_;
-
-  # literal sql
-  $self->_debug("SCALAR(*top) means literal SQL: $$where");
-  return ($$where);
-}
-
-
-sub _where_SCALAR {
-  my ($self, $where) = @_;
-
-  # literal sql
-  $self->_debug("NOREF(*top) means literal SQL: $where");
-  return ($where);
-}
-
-
-sub _where_UNDEF {
-  my ($self) = @_;
-  return ();
-}
-
-
-#======================================================================
-# WHERE: BUILTIN SPECIAL OPERATORS (-in, -between)
-#======================================================================
-
-
-sub _where_field_BETWEEN {
-  my ($self, $k, $op, $vals) = @_;
-
-  my ($label, $and, $placeholder);
-  $label       = $self->_convert($self->_quote($k));
-  $and         = ' ' . $self->_sqlcase('and') . ' ';
-  $placeholder = $self->_convert('?');
-  $op               = $self->_sqlcase($op);
-
-  my ($clause, @bind) = $self->_SWITCH_refkind($vals, {
-    ARRAYREFREF => sub {
-      my ($s, @b) = @$$vals;
-      $self->_assert_bindval_matches_bindtype(@b);
-      ($s, @b);
-    },
-    SCALARREF => sub {
-      return $$vals;
-    },
-    ARRAYREF => sub {
-      puke "special op 'between' accepts an arrayref with exactly two values"
-        if @$vals != 2;
-
-      my (@all_sql, @all_bind);
-      foreach my $val (@$vals) {
-        my ($sql, @bind) = $self->_SWITCH_refkind($val, {
-           SCALAR => sub {
-             return ($placeholder, $self->_bindtype($k, $val) );
-           },
-           SCALARREF => sub {
-             return $$val;
-           },
-           ARRAYREFREF => sub {
-             my ($sql, @bind) = @$$val;
-             $self->_assert_bindval_matches_bindtype(@bind);
-             return ($sql, @bind);
-           },
-           HASHREF => sub {
-             my ($func, $arg, @rest) = %$val;
-             puke ("Only simple { -func => arg } functions accepted as sub-arguments to BETWEEN")
-               if (@rest or $func !~ /^ \- (.+)/x);
-             local $self->{_nested_func_lhs} = $k;
-             $self->_where_unary_op ($1 => $arg);
-           }
-        });
-        push @all_sql, $sql;
-        push @all_bind, @bind;
+  } else {
+    if (ref($v) eq 'ARRAY') {
+      if (!@$v) {
+        return $self->_literal_to_dq($self->{sqlfalse});
+      } elsif (defined($v->[0]) && $v->[0] =~ /-(and|or)/i) {
+        return $self->_where_to_dq_ARRAYREF([
+          map +{ $k => $_ }, @{$v}[1..$#$v]
+        ], uc($1));
       }
-
-      return (
-        (join $and, @all_sql),
-        @all_bind
-      );
-    },
-    FALLBACK => sub {
-      puke "special op 'between' accepts an arrayref with two values, or a single literal scalarref/arrayref-ref";
-    },
-  });
-
-  my $sql = "( $label $op $clause )";
-  return ($sql, @bind)
-}
-
-
-sub _where_field_IN {
-  my ($self, $k, $op, $vals) = @_;
-
-  # backwards compatibility : if scalar, force into an arrayref
-  $vals = [$vals] if defined $vals && ! ref $vals;
-
-  my ($label)       = $self->_convert($self->_quote($k));
-  my ($placeholder) = $self->_convert('?');
-  $op               = $self->_sqlcase($op);
-
-  my ($sql, @bind) = $self->_SWITCH_refkind($vals, {
-    ARRAYREF => sub {     # list of choices
-      if (@$vals) { # nonempty list
-        my (@all_sql, @all_bind);
-
-        for my $val (@$vals) {
-          my ($sql, @bind) = $self->_SWITCH_refkind($val, {
-            SCALAR => sub {
-              return ($placeholder, $val);
-            },
-            SCALARREF => sub {
-              return $$val;
-            },
-            ARRAYREFREF => sub {
-              my ($sql, @bind) = @$$val;
-              $self->_assert_bindval_matches_bindtype(@bind);
-              return ($sql, @bind);
-            },
-            HASHREF => sub {
-              my ($func, $arg, @rest) = %$val;
-              puke ("Only simple { -func => arg } functions accepted as sub-arguments to IN")
-                if (@rest or $func !~ /^ \- (.+)/x);
-              local $self->{_nested_func_lhs} = $k;
-              $self->_where_unary_op ($1 => $arg);
-            },
-            UNDEF => sub {
-              return $self->_sqlcase('null');
-            },
-          });
-          push @all_sql, $sql;
-          push @all_bind, @bind;
+      return $self->_where_to_dq_ARRAYREF([
+        map +{ $k => $_ }, @$v
+      ]);
+    } elsif (ref($v) eq 'SCALAR' or (ref($v) eq 'REF' and ref($$v) eq 'ARRAY')) {
+      return $self->_literal_with_prepend_to_dq($k, $$v);
+    }
+    my ($op, $rhs) = do {
+      if (ref($v) eq 'HASH') {
+        if (keys %$v > 1) {
+          return $self->_where_to_dq_ARRAYREF([
+            map +{ $k => { $_ => $v->{$_} } }, keys %$v
+          ], 'AND');
         }
-
-        return (
-          sprintf ('%s %s ( %s )',
-            $label,
-            $op,
-            join (', ', @all_sql)
-          ),
-          $self->_bindtype($k, @all_bind),
+        (uc((keys %$v)[0]), (values %$v)[0]);
+      } else {
+        ('=', $v);
+      }
+    };
+    s/^-//, s/_/ /g for $op;
+    if ($op eq 'BETWEEN' or $op eq 'IN' or $op eq 'NOT IN' or $op eq 'NOT BETWEEN') {
+      if (ref($rhs) ne 'ARRAY') {
+        return $self->_literal_with_prepend_to_dq("$k $op", $$rhs);
+      }
+      return +{
+        type => DQ_OPERATOR,
+        operator => { 'SQL.Naive' => $op },
+        args => [ $self->_ident_to_dq($k), map $self->_where_to_dq($_), @$rhs ]
+      }
+    } elsif ($op =~ s/^NOT (?!LIKE)//) {
+      return $self->_where_hashpair_to_dq(-not => { $k => { $op => $rhs } });
+    } elsif (!defined($rhs)) {
+      my $null_op = do {
+        if ($op eq '=' or $op eq 'LIKE') {
+          'IS NULL'
+        } elsif ($op eq '!=') {
+          'IS NOT NULL'
+        } else {
+          die "Can't do undef -> NULL transform for operator ${op}";
+        }
+      };
+      return +{
+        type => DQ_OPERATOR,
+        operator => { 'SQL.Naive' => $null_op },
+        args => [ $self->_ident_to_dq($k) ]
+       };
+    }
+    if (ref($rhs) eq 'ARRAY') {
+      if (!@$rhs) {
+        return $self->_literal_to_dq(
+          $op eq '!=' ? $self->{sqltrue} : $self->{sqlfalse}
         );
+      } elsif (defined($rhs->[0]) and $rhs->[0] =~ /-(and|or)/i) {
+        return $self->_where_to_dq_ARRAYREF([
+          map +{ $k => { $op => $_ } }, @{$rhs}[1..$#$rhs]
+        ], uc($1));
       }
-      else { # empty list : some databases won't understand "IN ()", so DWIM
-        my $sql = ($op =~ /\bnot\b/i) ? $self->{sqltrue} : $self->{sqlfalse};
-        return ($sql);
-      }
-    },
-
-    SCALARREF => sub {  # literal SQL
-      my $sql = $self->_open_outer_paren ($$vals);
-      return ("$label $op ( $sql )");
-    },
-    ARRAYREFREF => sub {  # literal SQL with bind
-      my ($sql, @bind) = @$$vals;
-      $self->_assert_bindval_matches_bindtype(@bind);
-      $sql = $self->_open_outer_paren ($sql);
-      return ("$label $op ( $sql )", @bind);
-    },
-
-    FALLBACK => sub {
-      puke "special op 'in' requires an arrayref (or scalarref/arrayref-ref)";
-    },
-  });
-
-  return ($sql, @bind);
+      return $self->_where_to_dq_ARRAYREF([
+        map +{ $k => { $op => $_ } }, @$rhs
+      ]);
+    }
+    return +{
+      type => DQ_OPERATOR,
+      operator => { 'SQL.Naive' => $op },
+      args => [ $self->_ident_to_dq($k), $self->_where_to_dq($rhs) ]
+    }
+  }
 }
-
-# Some databases (SQLite) treat col IN (1, 2) different from
-# col IN ( (1, 2) ). Use this to strip all outer parens while
-# adding them back in the corresponding method
-sub _open_outer_paren {
-  my ($self, $sql) = @_;
-  $sql = $1 while $sql =~ /^ \s* \( (.*) \) \s* $/xs;
-  return $sql;
-}
-
 
 #======================================================================
 # ORDER BY
@@ -1193,19 +766,9 @@ sub _order_by_to_dq {
     $Order_Inner = $inner;
     return $outer;
   } elsif (ref($arg) eq 'REF' and ref($$arg) eq 'ARRAY') {
-    my ($sql, @bind) = @{$$arg};
-    $dq->{by} = {
-      type => DQ_LITERAL,
-      subtype => 'SQL',
-      literal => $sql,
-      values => [ $self->_bind_to_dq(@bind) ],
-    };
+    $dq->{by} = $self->_literal_to_dq($$arg);
   } elsif (ref($arg) eq 'SCALAR') {
-    $dq->{by} = {
-      type => DQ_LITERAL,
-      subtype => 'SQL',
-      literal => $$arg,
-    };
+    $dq->{by} = $self->_literal_to_dq($$arg);
   } elsif (ref($arg) eq 'HASH') {
     my ($key, $val, @rest) = %$arg;
 

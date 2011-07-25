@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 use Test::More;
-use Test::Exception;
+use Test::Fatal;
 use SQL::Abstract::Test import => ['is_same_sql_bind'];
 
 use Data::Dumper;
@@ -408,14 +408,17 @@ for my $case (@handle_tests) {
     local $Data::Dumper::Terse = 1;
     my $sql = SQL::Abstract->new;
     my($stmt, @bind);
-    lives_ok (sub { 
+    ok(!(my $e = exception { 
       ($stmt, @bind) = $sql->where($case->{where}, $case->{order});
       is_same_sql_bind($stmt, \@bind, $case->{stmt}, $case->{bind})
         || diag "Search term:\n" . Dumper $case->{where};
-    });
+    }));
+    if ($e) {
+       fail "Died: $e: Search term:\n" . Dumper $case->{where};
+    }
 }
 
-dies_ok {
+ok(exception {
     my $sql = SQL::Abstract->new;
     $sql->where({ foo => { '>=' => [] }},);
-};
+});
