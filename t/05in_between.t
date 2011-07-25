@@ -75,7 +75,7 @@ my @in_between_tests = (
       ] },
     },
     stmt => "WHERE (
-          ( start0 BETWEEN ? AND UPPER ?          )
+          ( start0 BETWEEN ? AND UPPER(?)         )
       AND ( start1 BETWEEN ? AND ?                )
       AND ( start2 BETWEEN lower(x) AND upper(y)  )
       AND ( start3 BETWEEN lower(x) AND upper(?)  )
@@ -95,7 +95,7 @@ my @in_between_tests = (
       ] },
     },
     stmt => "WHERE (
-          ( start0 BETWEEN ? AND UPPER ?          )
+          ( start0 BETWEEN ? AND UPPER(?)         )
       AND ( start1 BETWEEN ? AND ?                )
       AND ( start2 BETWEEN lower(x) AND upper(y)  )
       AND ( start3 BETWEEN lower(x) AND upper(?)  )
@@ -134,7 +134,7 @@ my @in_between_tests = (
   {
     parenthesis_significant => 1,
     where => { x => { -in => \['( ( ?,?,lower(y) ) )', 1, 2] } },
-    stmt => "WHERE ( x IN ( ?,?,lower(y) ) )",  # note that outer parens are opened even though literal was requested (RIBASUSHI)
+    stmt => "WHERE ( x IN ( ( ?,?,lower(y) ) ) )",  # note that outer parens are opened even though literal was requested (RIBASUSHI)
     bind => [1, 2],
     test => '-in with a literal arrayrefref',
   },
@@ -152,10 +152,10 @@ my @in_between_tests = (
     parenthesis_significant => 1,
     where => {
       customer => { -in => \[
-        'SELECT cust_id FROM cust WHERE balance > ?',
+        '( SELECT cust_id FROM cust WHERE balance > ? )',
         2000,
       ]},
-      status => { -in => \'SELECT status_codes FROM states' },
+      status => { -in => \'( SELECT status_codes FROM states )' },
     },
     stmt => "
       WHERE ((
@@ -168,7 +168,7 @@ my @in_between_tests = (
   },
   {
     where => { x => { -in => [ \['LOWER(?)', 'A' ], \'LOWER(b)', { -lower => 'c' } ] } },
-    stmt => " WHERE ( x IN ( LOWER(?), LOWER(b), LOWER ? ) )",
+    stmt => " WHERE ( x IN ( LOWER(?), LOWER(b), LOWER(?) ) )",
     bind => [qw/A c/],
     test => '-in with an array of function array refs with args',
   },

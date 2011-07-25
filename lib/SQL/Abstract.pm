@@ -145,7 +145,7 @@ sub _render_dq {
   wantarray ?
     ($self->{bindtype} eq 'normal'
       ? ($sql, map $_->{value}, @bind)
-      : ($sql, map [ $_->{meta}, $_->{value} ], @bind)
+      : ($sql, map [ $_->{value_meta}, $_->{value} ], @bind)
     )
     : $sql;
 }
@@ -188,7 +188,7 @@ sub _bind_to_dq {
 
 sub _value_to_dq {
   my ($self, $value) = @_;
-  perl_scalar_value($value);
+  perl_scalar_value($value, our $Cur_Col_Meta);
 }
 
 sub _ident_to_dq {
@@ -644,9 +644,17 @@ sub _where_hashpair_to_dq {
         args => [ ref($v) ? $self->_where_to_dq($v) : $self->_ident_to_dq($v) ]
       };
     } else {
-      die "Not done this bit yet";
+      return +{
+        type => DQ_OPERATOR,
+        operator => { 'SQL.Naive' => 'apply' },
+        args => [
+          $self->_ident_to_dq($op),
+          (map $self->_where_to_dq($_), (ref($v) eq 'ARRAY' ? @$v : $v))
+        ],
+      };
     }
   } else {
+    local our $Cur_Col_Meta = $k;
     if (ref($v) eq 'ARRAY') {
       if (!@$v) {
         return $self->_literal_to_dq($self->{sqlfalse});
@@ -676,8 +684,22 @@ sub _where_hashpair_to_dq {
     s/^-//, s/_/ /g for $op;
     if ($op eq 'BETWEEN' or $op eq 'IN' or $op eq 'NOT IN' or $op eq 'NOT BETWEEN') {
       if (ref($rhs) ne 'ARRAY') {
+        if ($op =~ /IN$/) {
+          # have to add parens if none present because -in => \"SELECT ..."
+          # got documented. mst hates everything.
+          if (ref($rhs) eq 'SCALAR') {
+            my $x = $$rhs;
+            $x = "($x)" unless $x =~ /^\s*\(/;
+            $rhs = \$x;
+          } else {
+            my ($x, @rest) = @{$$rhs};
+            $x = "($x)" unless $x =~ /^\s*\(/;
+            $rhs = \[ $x, @rest ];
+          }
+        }
         return $self->_literal_with_prepend_to_dq("$k $op", $$rhs);
       }
+      return $self->_literal_to_dq($self->{sqlfalse}) unless @$rhs;
       return +{
         type => DQ_OPERATOR,
         operator => { 'SQL.Naive' => $op },
