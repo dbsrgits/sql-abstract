@@ -347,7 +347,7 @@ my @handle_tests = (
    },
    {
        where => { timestamp => { '>=' => { -to_date => '2009-12-21 00:00:00' } } },
-       stmt => " WHERE ( timestamp >= TO_DATE ? )",
+       stmt => " WHERE ( timestamp >= TO_DATE(?) )",
        bind => ['2009-12-21 00:00:00'],
    },
 
@@ -400,9 +400,14 @@ my @handle_tests = (
         stmt  => " WHERE ( (NOT ( c AND (NOT ( (NOT a = ?) AND (NOT b) )) )) ) ",
         bind => [ 1 ],
     },
+    {
+        where => { foo => { '>=', [] } },
+        stmt  => " WHERE 0=1",
+        bind => [ ],
+    },
 );
 
-plan tests => ( @handle_tests * 2 ) + 1;
+plan tests => ( @handle_tests * 2 );
 
 for my $case (@handle_tests) {
     local $Data::Dumper::Terse = 1;
@@ -417,8 +422,3 @@ for my $case (@handle_tests) {
        fail "Died: $e: Search term:\n" . Dumper $case->{where};
     }
 }
-
-ok(exception {
-    my $sql = SQL::Abstract->new;
-    $sql->where({ foo => { '>=' => [] }},);
-});

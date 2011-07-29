@@ -512,7 +512,7 @@ sub _where_to_dq {
     or (ref($where) eq 'REF' and ref($$where) eq 'ARRAY')
   ) {
     return $self->_literal_to_dq($$where);
-  } elsif (!ref($where)) {
+  } elsif (!ref($where) or Scalar::Util::blessed($where)) {
     return $self->_value_to_dq($where);
   }
   die "Can't handle $where";
@@ -643,12 +643,26 @@ sub _where_hashpair_to_dq {
         args => [ ref($v) ? $self->_where_to_dq($v) : $self->_ident_to_dq($v) ]
       };
     } else {
+      my @args = do {
+        if (ref($v) eq 'HASH' and keys(%$v) == 1 and (keys %$v)[0] =~ /-(.*)/) {
+          my ($inner) = values %$v;
+          +{
+            type => DQ_OPERATOR,
+            operator => { 'SQL.Naive' => uc($1) },
+            args => [ 
+              (map $self->_where_to_dq($_),
+                (ref($inner) eq 'ARRAY' ? @$inner : $inner))
+            ]
+          };
+        } else {
+          (map $self->_where_to_dq($_), (ref($v) eq 'ARRAY' ? @$v : $v))
+        }
+      };
       return +{
         type => DQ_OPERATOR,
         operator => { 'SQL.Naive' => 'apply' },
         args => [
-          $self->_ident_to_dq($op),
-          (map $self->_where_to_dq($_), (ref($v) eq 'ARRAY' ? @$v : $v))
+          $self->_ident_to_dq($op), @args
         ],
       };
     }
