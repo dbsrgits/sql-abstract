@@ -481,8 +481,11 @@ sub delete {
 sub where {
   my ($self, $where, $order) = @_;
 
+  my $sql = '';
+  my @bind;
+
   # where ?
-  my ($sql, @bind) = $self->_recurse_where($where);
+  ($sql, @bind) = $self->_recurse_where($where) if defined($where);
   $sql = $sql ? $self->_sqlcase(' where ') . "( $sql )" : '';
 
   # order by?
@@ -680,7 +683,11 @@ sub _where_hashpair_to_dq {
         map +{ $k => $_ }, @$v
       ]);
     } elsif (ref($v) eq 'SCALAR' or (ref($v) eq 'REF' and ref($$v) eq 'ARRAY')) {
-      return $self->_literal_with_prepend_to_dq($k, $$v);
+      # we have to do the quoting here, since Data::Query only understands
+      # literals that form a complete part of the SQL - there's no current
+      # way to say "render these bits and interpolate into the literal". I'm
+      # not as yet convinced that this is a problem; we'll see.
+      return $self->_literal_with_prepend_to_dq($self->_quote($k), $$v);
     }
     my ($op, $rhs) = do {
       if (ref($v) eq 'HASH') {
@@ -691,7 +698,7 @@ sub _where_hashpair_to_dq {
         }
         (uc((keys %$v)[0]), (values %$v)[0]);
       } else {
-        ('=', $v);
+        ($self->{cmp}, $v);
       }
     };
     s/^-//, s/_/ /g for $op;
