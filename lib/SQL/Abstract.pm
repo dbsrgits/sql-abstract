@@ -128,6 +128,7 @@ sub new {
     }
     Data::Query::Renderer::SQL::Naive->new({
       quote_chars => $chars, always_quote => $always,
+      ($opt{case} ? (lc_keywords => 1) : ()), # always 'lower' if it exists
     });
   };
 
@@ -170,17 +171,33 @@ sub _bind_to_dq {
 
 sub _value_to_dq {
   my ($self, $value) = @_;
-  perl_scalar_value($value, our $Cur_Col_Meta);
+  $self->_maybe_convert_dq(perl_scalar_value($value, our $Cur_Col_Meta));
 }
 
 sub _ident_to_dq {
   my ($self, $ident) = @_;
   $self->_assert_pass_injection_guard($ident)
     unless $self->{renderer}{always_quote};
-  +{
+  $self->_maybe_convert_dq({
     type => DQ_IDENTIFIER,
     elements => [ split /\Q$self->{name_sep}/, $ident ],
-  };
+  });
+}
+
+sub _maybe_convert_dq {
+  my ($self, $dq) = @_;
+  if (my $c = $self->{where_convert}) {
+    +{
+       type => DQ_OPERATOR,
+       operator => { 'SQL.Naive' => 'apply' },
+       args => [
+         { type => DQ_IDENTIFIER, elements => [ $self->_sqlcase($c) ] },
+         $dq
+       ]
+     };
+  } else {
+    $dq;
+  }
 }
 
 sub _op_to_dq {
@@ -493,6 +510,9 @@ sub where {
 
 sub _recurse_where {
   my ($self, $where, $logic) = @_;
+
+  # turn the convert misfeature on - only used in WHERE clauses
+  local $self->{where_convert} = $self->{convert};
 
   return $self->_render_dq($self->_where_to_dq($where, $logic));
 }
