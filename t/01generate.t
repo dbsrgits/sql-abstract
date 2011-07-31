@@ -333,13 +333,12 @@ my @tests = (
               stmt_q => 'SELECT * FROM `test` WHERE ( `a` < to_date(?, \'MM/DD/YY\') AND `b` = ? )',
               bind   => ['02/02/02', 8],
       },
-      { #TODO in SQLA >= 2.0 it will die instead (we kept this just because old SQLA passed it through)
+      {
               func   => 'insert',
-              args   => ['test', {a => 1, b => 2, c => 3, d => 4, e => { answer => 42 }}],
-              stmt   => 'INSERT INTO test (a, b, c, d, e) VALUES (?, ?, ?, ?, ?)',
-              stmt_q => 'INSERT INTO `test` (`a`, `b`, `c`, `d`, `e`) VALUES (?, ?, ?, ?, ?)',
-              bind   => [qw/1 2 3 4/, { answer => 42}],
-              warning_like => qr/HASH ref as bind value in insert is not supported/i,
+              args   => ['test', {a => 1, b => 2, c => 3, d => 4, e => { -answer => 42 }}],
+              stmt   => 'INSERT INTO test (a, b, c, d, e) VALUES (?, ?, ?, ?, ANSWER(?))',
+              stmt_q => 'INSERT INTO `test` (`a`, `b`, `c`, `d`, `e`) VALUES (?, ?, ?, ?, ANSWER(?))',
+              bind   => [qw/1 2 3 4 42/],
       },
       {
               func   => 'update',

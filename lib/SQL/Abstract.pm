@@ -12,7 +12,7 @@ use List::Util ();
 use Scalar::Util ();
 use Data::Query::Constants qw(
   DQ_IDENTIFIER DQ_OPERATOR DQ_VALUE DQ_LITERAL DQ_JOIN DQ_SELECT DQ_ORDER
-  DQ_WHERE DQ_DELETE DQ_UPDATE
+  DQ_WHERE DQ_DELETE DQ_UPDATE DQ_INSERT
 );
 use Data::Query::ExprHelpers qw(perl_scalar_value);
 
@@ -229,138 +229,57 @@ sub _assert_pass_injection_guard {
 #======================================================================
 
 sub insert {
-  my $self    = shift;
-  my $table   = $self->_table(shift);
-  my $data    = shift || return;
-  my $options = shift;
+  my $self = shift;
+  $self->_render_dq($self->_insert_to_dq(@_));
+}
 
-  my $method       = $self->_METHOD_FOR_refkind("_insert", $data);
-  my ($sql, @bind) = $self->$method($data);
-  $sql = join " ", $self->_sqlcase('insert into'), $table, $sql;
-
-  if ($options->{returning}) {
-    my ($s, @b) = $self->_insert_returning ($options);
-    $sql .= $s;
-    push @bind, @b;
+sub _insert_to_dq {
+  my ($self, $table, $data, $options) = @_;
+  my (@names, @values);
+  if (ref($data) eq 'HASH') {
+    @names = sort keys %$data;
+    foreach my $k (@names) {
+      local our $Cur_Col_Meta = $k;
+      push @values, $self->_mutation_rhs_to_dq($data->{$k});
+    }
+  } elsif (ref($data) eq 'ARRAY') {
+    local our $Cur_Col_Meta;
+    @values = map $self->_mutation_rhs_to_dq($_), @$data;
+  } else {
+    die "Not handled yet";
   }
-
-  return wantarray ? ($sql, @bind) : $sql;
-}
-
-sub _insert_returning {
-  my ($self, $options) = @_;
-
-  my $f = $options->{returning};
-
-  my $fieldlist = $self->_SWITCH_refkind($f, {
-    ARRAYREF     => sub {join ', ', map { $self->_quote($_) } @$f;},
-    SCALAR       => sub {$self->_quote($f)},
-    SCALARREF    => sub {$$f},
-  });
-  return $self->_sqlcase(' returning ') . $fieldlist;
-}
-
-sub _insert_HASHREF { # explicit list of fields and then values
-  my ($self, $data) = @_;
-
-  my @fields = sort keys %$data;
-
-  my ($sql, @bind) = $self->_insert_values($data);
-
-  # assemble SQL
-  $_ = $self->_quote($_) foreach @fields;
-  $sql = "( ".join(", ", @fields).") ".$sql;
-
-  return ($sql, @bind);
-}
-
-sub _insert_ARRAYREF { # just generate values(?,?) part (no list of fields)
-  my ($self, $data) = @_;
-
-  # no names (arrayref) so can't generate bindtype
-  $self->{bindtype} ne 'columns'
-    or belch "can't do 'columns' bindtype when called with arrayref";
-
-  # fold the list of values into a hash of column name - value pairs
-  # (where the column names are artificially generated, and their
-  # lexicographical ordering keep the ordering of the original list)
-  my $i = "a";  # incremented values will be in lexicographical order
-  my $data_in_hash = { map { ($i++ => $_) } @$data };
-
-  return $self->_insert_values($data_in_hash);
-}
-
-sub _insert_ARRAYREFREF { # literal SQL with bind
-  my ($self, $data) = @_;
-
-  my ($sql, @bind) = @${$data};
-  $self->_assert_bindval_matches_bindtype(@bind);
-
-  return ($sql, @bind);
-}
-
-
-sub _insert_SCALARREF { # literal SQL without bind
-  my ($self, $data) = @_;
-
-  return ($$data);
-}
-
-sub _insert_values {
-  my ($self, $data) = @_;
-
-  my (@values, @all_bind);
-  foreach my $column (sort keys %$data) {
-    my $v = $data->{$column};
-
-    $self->_SWITCH_refkind($v, {
-
-      ARRAYREF => sub {
-        if ($self->{array_datatypes}) { # if array datatype are activated
-          push @values, '?';
-          push @all_bind, $self->_bindtype($column, $v);
-        }
-        else {                          # else literal SQL with bind
-          my ($sql, @bind) = @$v;
-          $self->_assert_bindval_matches_bindtype(@bind);
-          push @values, $sql;
-          push @all_bind, @bind;
-        }
-      },
-
-      ARRAYREFREF => sub { # literal SQL with bind
-        my ($sql, @bind) = @${$v};
-        $self->_assert_bindval_matches_bindtype(@bind);
-        push @values, $sql;
-        push @all_bind, @bind;
-      },
-
-      # THINK : anything useful to do with a HASHREF ?
-      HASHREF => sub {  # (nothing, but old SQLA passed it through)
-        #TODO in SQLA >= 2.0 it will die instead
-        belch "HASH ref as bind value in insert is not supported";
-        push @values, '?';
-        push @all_bind, $self->_bindtype($column, $v);
-      },
-
-      SCALARREF => sub {  # literal SQL without bind
-        push @values, $$v;
-      },
-
-      SCALAR_or_UNDEF => sub {
-        push @values, '?';
-        push @all_bind, $self->_bindtype($column, $v);
-      },
-
-     });
-
+  my $returning;
+  if (my $r_source = $options->{returning}) {
+    $returning = [
+      map +(ref($_) ? $self->_expr_to_dq($_) : $self->_ident_to_dq($_)),
+        (ref($r_source) eq 'ARRAY' ? @$r_source : $r_source),
+    ];
   }
-
-  my $sql = $self->_sqlcase('values')." ( ".join(", ", @values)." )";
-  return ($sql, @all_bind);
+  +{
+    type => DQ_INSERT,
+    target => $self->_ident_to_dq($table),
+    (@names ? (names => [ map $self->_ident_to_dq($_), @names ]) : ()),
+    values => [ \@values ],
+    ($returning ? (returning => $returning) : ()),
+  };
 }
 
+sub _mutation_rhs_to_dq {
+  my ($self, $v) = @_;
+  if (ref($v) eq 'ARRAY') {
+    if ($self->{array_datatypes}) {
+      return $self->_value_to_dq($v);
+    }
+    $v = \do { my $x = $v };
+  }
+  if (ref($v) eq 'HASH') {
+    my ($op, $arg, @rest) = %$v;
 
+    puke 'Operator calls in update/insert must be in the form { -op => $arg }'
+      if (@rest or not $op =~ /^\-(.+)/);
+  }
+  return $self->_expr_to_dq($v);
+}
 
 #======================================================================
 # UPDATE methods
@@ -380,24 +299,10 @@ sub _update_to_dq {
 
   my @set;
 
-  KEY: for my $k (sort keys %$data) {
+  foreach my $k (sort keys %$data) {
     my $v = $data->{$k};
     local our $Cur_Col_Meta = $k;
-
-    if (ref($v) eq 'ARRAY') {
-      if ($self->{array_datatypes}) {
-        push @set, [ $self->_ident_to_dq($k), $self->_value_to_dq($v) ];
-        next KEY;
-      }
-      $v = \$v;
-    }
-    if (ref($v) eq 'HASH') {
-      my ($op, $arg, @rest) = %$v;
-
-      puke 'Operator calls in update must be in the form { -op => $arg }'
-        if (@rest or not $op =~ /^\-(.+)/);
-    }
-    push @set, [ $self->_ident_to_dq($k), $self->_expr_to_dq($v) ];
+    push @set, [ $self->_ident_to_dq($k), $self->_mutation_rhs_to_dq($v) ];
   }
 
   return +{
@@ -407,8 +312,6 @@ sub _update_to_dq {
     where => $self->_where_to_dq($where),
   };
 }
-
-
 
 
 #======================================================================
@@ -1161,12 +1064,12 @@ sub generate {
 
 sub DESTROY { 1 }
 
-sub AUTOLOAD {
-    # This allows us to check for a local, then _form, attr
-    my $self = shift;
-    my($name) = $AUTOLOAD =~ /.*::(.+)/;
-    return $self->generate($name, @_);
-}
+#sub AUTOLOAD {
+#    # This allows us to check for a local, then _form, attr
+#    my $self = shift;
+#    my($name) = $AUTOLOAD =~ /.*::(.+)/;
+#    return $self->generate($name, @_);
+#}
 
 1;
 
