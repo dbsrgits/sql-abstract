@@ -408,7 +408,8 @@ sub update {
           if (@rest or not $op =~ /^\-(.+)/);
 
         local $self->{_nested_func_lhs} = $k;
-        my ($sql, @bind) = $self->_where_unary_op ($1, $arg);
+        local our $Cur_Col_Meta = $k;
+        my ($sql, @bind) = $self->_render_dq($self->_where_to_dq({ $op => $arg }));
 
         push @set, "$label = $sql";
         push @all_bind, @bind;
