@@ -309,8 +309,7 @@ my @and_or_tests = (
 
 # modN and mod_N were a bad design decision - they go away in SQLA2, warn now
 my @numbered_mods = (
-  {
-    backcompat => {
+    {
       -and => [a => 10, b => 11],
       -and2 => [ c => 20, d => 21 ],
       -nest => [ x => 1 ],
@@ -318,17 +317,7 @@ my @numbered_mods = (
       -or => { m => 7, n => 8 },
       -or2 => { m => 17, n => 18 },
     },
-    correct => { -and => [
-      -and => [a => 10, b => 11],
-      -and => [ c => 20, d => 21 ],
-      -nest => [ x => 1 ],
-      -nest => [ y => 2 ],
-      -or => { m => 7, n => 8 },
-      -or => { m => 17, n => 18 },
-    ] },
-  },
-  {
-    backcompat => {
+    {
       -and2 => [a => 10, b => 11],
       -and_3 => [ c => 20, d => 21 ],
       -nest2 => [ x => 1 ],
@@ -336,15 +325,6 @@ my @numbered_mods = (
       -or2 => { m => 7, n => 8 },
       -or_3 => { m => 17, n => 18 },
     },
-    correct => [ -and => [
-      -and => [a => 10, b => 11],
-      -and => [ c => 20, d => 21 ],
-      -nest => [ x => 1 ],
-      -nest => [ y => 2 ],
-      -or => { m => 7, n => 8 },
-      -or => { m => 17, n => 18 },
-    ] ],
-  },
 );
 
 my @nest_tests = (
@@ -380,7 +360,7 @@ my @nest_tests = (
  },
 );
 
-plan tests => @and_or_tests*4 + @numbered_mods*4 + @nest_tests*2;
+plan tests => @and_or_tests*4 + @numbered_mods + @nest_tests*2;
 
 for my $case (@and_or_tests) {
   TODO: {
@@ -437,35 +417,13 @@ for my $case (@nest_tests) {
 my $w_str = "\QUse of [and|or|nest]_N modifiers is deprecated and will be removed in SQLA v2.0\E";
 for my $case (@numbered_mods) {
   TODO: {
-    local $TODO = $case->{todo} if $case->{todo};
-
     local $Data::Dumper::Terse = 1;
 
     my @w;
-    local $SIG{__WARN__} = sub { push @w, @_ };
     my $sql = SQL::Abstract->new ($case->{args} || {});
-    lives_ok (sub {
-      my ($old_s, @old_b) = $sql->where($case->{backcompat});
-      my ($new_s, @new_b) = $sql->where($case->{correct});
-      is_same_sql_bind(
-        $old_s, \@old_b,
-        $new_s, \@new_b,
-        'Backcompat and the correct(tm) syntax result in identical statements',
-      ) || diag "Search terms:\n" . Dumper {
-          backcompat => $case->{backcompat},
-          correct => $case->{correct},
-        };
-    });
-
-    ok (@w, 'Warnings were emitted about a mod_N construct');
-
-    my @non_match;
-    for (@w) {
-      push @non_match, $_ if ($_ !~ /$w_str/);
-    }
-
-    is (@non_match, 0, 'All warnings match the deprecation message')
-      || diag join "\n", 'Rogue warnings:', @non_match;
+    throws_ok (sub {
+      $sql->where($case);
+    }, qr/\QUse of [and|or|nest]_N modifiers is no longer supported/, 'Exception thrown on bogus syntax');
   }
 }
 
