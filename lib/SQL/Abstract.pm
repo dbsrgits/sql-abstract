@@ -693,7 +693,7 @@ sub _where_hashpair_to_dq {
       if (ref($v) eq 'HASH') {
         if (keys %$v > 1) {
           return $self->_where_to_dq_ARRAYREF([
-            map +{ $k => { $_ => $v->{$_} } }, keys %$v
+            map +{ $k => { $_ => $v->{$_} } }, sort keys %$v
           ], 'AND');
         }
         (uc((keys %$v)[0]), (values %$v)[0]);
