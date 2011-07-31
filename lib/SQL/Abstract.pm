@@ -851,23 +851,6 @@ sub _assert_bindval_matches_bindtype {
   }
 }
 
-sub _join_sql_clauses {
-  my ($self, $logic, $clauses_aref, $bind_aref) = @_;
-
-  if (@$clauses_aref > 1) {
-    my $join  = " " . $self->_sqlcase($logic) . " ";
-    my $sql = '( ' . join($join, @$clauses_aref) . ' )';
-    return ($sql, @$bind_aref);
-  }
-  elsif (@$clauses_aref) {
-    return ($clauses_aref->[0], @$bind_aref); # no parentheses
-  }
-  else {
-    return (); # if no SQL, ignore @$bind_aref
-  }
-}
-
-
 # Fix SQL case, if so requested
 sub _sqlcase {
   # LDNOTE: if $self->{case} is true, then it contains 'lower', so we
