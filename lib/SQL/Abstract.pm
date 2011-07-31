@@ -618,7 +618,7 @@ sub _where_op_VALUE {
 sub _where_hashpair_to_dq {
   my ($self, $k, $v) = @_;
 
-  if ($k =~ /-(.*)/) {
+  if ($k =~ /-(.*)/s) {
     my $op = uc($1);
     if ($op eq 'AND' or $op eq 'OR') {
       return $self->_where_to_dq($v, $op);
@@ -634,7 +634,7 @@ sub _where_hashpair_to_dq {
       );
     } else {
       my @args = do {
-        if (ref($v) eq 'HASH' and keys(%$v) == 1 and (keys %$v)[0] =~ /-(.*)/) {
+        if (ref($v) eq 'HASH' and keys(%$v) == 1 and (keys %$v)[0] =~ /-(.*)/s) {
           my $op = uc($1);
           my ($inner) = values %$v;
           $self->_op_to_dq(
