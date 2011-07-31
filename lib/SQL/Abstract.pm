@@ -618,7 +618,7 @@ sub _where_op_VALUE {
 sub _where_hashpair_to_dq {
   my ($self, $k, $v) = @_;
 
-  if ($k =~ /-(.*)/s) {
+  if ($k =~ /^-(.*)/s) {
     my $op = uc($1);
     if ($op eq 'AND' or $op eq 'OR') {
       return $self->_where_to_dq($v, $op);
@@ -634,7 +634,7 @@ sub _where_hashpair_to_dq {
       );
     } else {
       my @args = do {
-        if (ref($v) eq 'HASH' and keys(%$v) == 1 and (keys %$v)[0] =~ /-(.*)/s) {
+        if (ref($v) eq 'HASH' and keys(%$v) == 1 and (keys %$v)[0] =~ /^-(.*)/s) {
           my $op = uc($1);
           my ($inner) = values %$v;
           $self->_op_to_dq(
@@ -678,12 +678,21 @@ sub _where_hashpair_to_dq {
             map +{ $k => { $_ => $v->{$_} } }, sort keys %$v
           ], 'AND');
         }
-        (uc((keys %$v)[0]), (values %$v)[0]);
+        my ($op, $value) = %$v;
+        s/^-//, s/_/ /g for $op;
+        if (
+          my $special_op = List::Util::first {$op =~ $_->{regex}}
+                             @{$self->{special_ops}}
+        ) {
+          return $self->_literal_to_dq(
+            [ $self->${\$special_op->{handler}}($k, $op, $value) ]
+          );;
+        }
+        (uc($op), $value);
       } else {
         ($self->{cmp}, $v);
       }
     };
-    s/^-//, s/_/ /g for $op;
     if ($op eq 'BETWEEN' or $op eq 'IN' or $op eq 'NOT IN' or $op eq 'NOT BETWEEN') {
       if (ref($rhs) ne 'ARRAY') {
         if ($op =~ /IN$/) {
