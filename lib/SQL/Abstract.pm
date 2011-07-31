@@ -180,9 +180,21 @@ sub _value_to_dq {
 
 sub _ident_to_dq {
   my ($self, $ident) = @_;
+  $self->_assert_pass_injection_guard($ident)
+    unless $self->{renderer}{always_quote};
   +{
     type => DQ_IDENTIFIER,
     elements => [ split /\Q$self->{name_sep}/, $ident ],
+  };
+}
+
+sub _op_to_dq {
+  my ($self, $op, @args) = @_;
+  $self->_assert_pass_injection_guard($op);
+  +{
+    type => DQ_OPERATOR,
+    operator => { 'SQL.Naive' => $op },
+    args => \@args
   };
 }
 
@@ -530,11 +542,9 @@ sub _where_to_dq_ARRAYREF {
 
   return $self->_where_to_dq_ARRAYREF(\@rest, $logic) unless $first_dq;
 
-  +{
-    type => DQ_OPERATOR,
-    operator => { 'SQL.Naive' => $logic },
-    args => [ $first_dq, $self->_where_to_dq_ARRAYREF(\@rest, $logic) ]
-  };
+  $self->_op_to_dq(
+    $logic, $first_dq, $self->_where_to_dq_ARRAYREF(\@rest, $logic)
+  );
 }
 
 sub _where_to_dq_HASHREF {
@@ -551,11 +561,7 @@ sub _where_to_dq_HASHREF {
   my $final = pop(@dq);
 
   foreach my $dq (reverse @dq) {
-    $final = +{
-     type => DQ_OPERATOR,
-     operator => { 'SQL.Naive' => $logic },
-     args => [ $dq, $final ]
-    }
+    $final = $self->_op_to_dq($logic, $dq, $final);
   }
 
   return $final;
@@ -619,42 +625,31 @@ sub _where_hashpair_to_dq {
     } elsif ($op eq 'NEST') {
       return $self->_where_to_dq($v);
     } elsif ($op eq 'NOT') {
-      return +{
-        type => DQ_OPERATOR,
-        operator => { 'SQL.Naive' => 'NOT' },
-        args => [ $self->_where_to_dq($v) ]
-      }
+      return $self->_op_to_dq(NOT => $self->_where_to_dq($v));
     } elsif ($op eq 'BOOL') {
       return ref($v) ? $self->_where_to_dq($v) : $self->_ident_to_dq($v);
     } elsif ($op eq 'NOT_BOOL') {
-      return +{
-        type => DQ_OPERATOR,
-        operator => { 'SQL.Naive' => 'NOT' },
-        args => [ ref($v) ? $self->_where_to_dq($v) : $self->_ident_to_dq($v) ]
-      };
+      return $self->_op_to_dq(
+        NOT => ref($v) ? $self->_where_to_dq($v) : $self->_ident_to_dq($v)
+      );
     } else {
       my @args = do {
         if (ref($v) eq 'HASH' and keys(%$v) == 1 and (keys %$v)[0] =~ /-(.*)/) {
+          my $op = uc($1);
           my ($inner) = values %$v;
-          +{
-            type => DQ_OPERATOR,
-            operator => { 'SQL.Naive' => uc($1) },
-            args => [ 
-              (map $self->_where_to_dq($_),
-                (ref($inner) eq 'ARRAY' ? @$inner : $inner))
-            ]
-          };
+          $self->_op_to_dq(
+            $op,
+            (map $self->_where_to_dq($_),
+              (ref($inner) eq 'ARRAY' ? @$inner : $inner))
+          );
         } else {
           (map $self->_where_to_dq($_), (ref($v) eq 'ARRAY' ? @$v : $v))
         }
       };
-      return +{
-        type => DQ_OPERATOR,
-        operator => { 'SQL.Naive' => 'apply' },
-        args => [
-          $self->_ident_to_dq($op), @args
-        ],
-      };
+      $self->_assert_pass_injection_guard($op);
+      return $self->_op_to_dq(
+        apply => $self->_ident_to_dq($op), @args
+      );
     }
   } else {
     local our $Cur_Col_Meta = $k;
@@ -704,18 +699,14 @@ sub _where_hashpair_to_dq {
             $rhs = \[ $x, @rest ];
           }
         }
-        return +{
-          type => DQ_OPERATOR,
-          operator => { 'SQL.Naive' => $op },
-          args => [ $self->_ident_to_dq($k), $self->_literal_to_dq($$rhs) ]
-        };
+        return $self->_op_to_dq(
+          $op, $self->_ident_to_dq($k), $self->_literal_to_dq($$rhs)
+        );
       }
       return $self->_literal_to_dq($self->{sqlfalse}) unless @$rhs;
-      return +{
-        type => DQ_OPERATOR,
-        operator => { 'SQL.Naive' => $op },
-        args => [ $self->_ident_to_dq($k), map $self->_where_to_dq($_), @$rhs ]
-      }
+      return $self->_op_to_dq(
+        $op, $self->_ident_to_dq($k), map $self->_where_to_dq($_), @$rhs
+      )
     } elsif ($op =~ s/^NOT (?!LIKE)//) {
       return $self->_where_hashpair_to_dq(-not => { $k => { $op => $rhs } });
     } elsif (!defined($rhs)) {
@@ -728,11 +719,7 @@ sub _where_hashpair_to_dq {
           die "Can't do undef -> NULL transform for operator ${op}";
         }
       };
-      return +{
-        type => DQ_OPERATOR,
-        operator => { 'SQL.Naive' => $null_op },
-        args => [ $self->_ident_to_dq($k) ]
-       };
+      return $self->_op_to_dq($null_op, $self->_ident_to_dq($k));
     }
     if (ref($rhs) eq 'ARRAY') {
       if (!@$rhs) {
@@ -748,11 +735,9 @@ sub _where_hashpair_to_dq {
         map +{ $k => { $op => $_ } }, @$rhs
       ]);
     }
-    return +{
-      type => DQ_OPERATOR,
-      operator => { 'SQL.Naive' => $op },
-      args => [ $self->_ident_to_dq($k), $self->_where_to_dq($rhs) ]
-    }
+    return $self->_op_to_dq(
+      $op, $self->_ident_to_dq($k), $self->_where_to_dq($rhs)
+    );
   }
 }
 
