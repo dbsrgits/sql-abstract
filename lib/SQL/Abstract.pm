@@ -545,10 +545,10 @@ sub _where_to_dq_ARRAYREF {
 sub _where_to_dq_HASHREF {
   my ($self, $where, $logic) = @_;
 
-  $logic = uc($logic || 'AND');
+  $logic = uc($logic) if $logic;
 
   my @dq = map {
-    $self->_where_hashpair_to_dq($_ => $where->{$_})
+    $self->_where_hashpair_to_dq($_ => $where->{$_}, $logic)
   } sort keys %$where;
 
   return $dq[0] unless @dq > 1;
@@ -556,7 +556,7 @@ sub _where_to_dq_HASHREF {
   my $final = pop(@dq);
 
   foreach my $dq (reverse @dq) {
-    $final = $self->_op_to_dq($logic, $dq, $final);
+    $final = $self->_op_to_dq($logic||'AND', $dq, $final);
   }
 
   return $final;
@@ -611,7 +611,7 @@ sub _where_op_VALUE {
 }
 
 sub _where_hashpair_to_dq {
-  my ($self, $k, $v) = @_;
+  my ($self, $k, $v, $logic) = @_;
 
   if ($k =~ /^-(.*)/s) {
     my $op = uc($1);
@@ -658,7 +658,7 @@ sub _where_hashpair_to_dq {
       }
       return $self->_where_to_dq_ARRAYREF([
         map +{ $k => $_ }, @$v
-      ]);
+      ], $logic);
     } elsif (ref($v) eq 'SCALAR' or (ref($v) eq 'REF' and ref($$v) eq 'ARRAY')) {
       return +{
         type => DQ_LITERAL,
@@ -671,11 +671,13 @@ sub _where_hashpair_to_dq {
         if (keys %$v > 1) {
           return $self->_where_to_dq_ARRAYREF([
             map +{ $k => { $_ => $v->{$_} } }, sort keys %$v
-          ], 'AND');
+          ], $logic||'AND');
         }
         my ($op, $value) = %$v;
         s/^-//, s/_/ /g for $op;
-        if (
+        if ($op =~ /^(and|or)$/i) {
+          return $self->_where_to_dq({ $k => $value }, $op);
+        } elsif (
           my $special_op = List::Util::first {$op =~ $_->{regex}}
                              @{$self->{special_ops}}
         ) {
