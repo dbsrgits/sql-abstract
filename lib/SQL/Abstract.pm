@@ -709,15 +709,19 @@ sub _where_hashpair_to_dq {
           # got documented. mst hates everything.
           if (ref($rhs) eq 'SCALAR') {
             my $x = $$rhs;
-            $x = "($x)" unless $x =~ /^\s*\(/;
+            1 while ($x =~ s/\A\s*\((.*)\)\s*\Z/$1/s);
             $rhs = \$x;
           } else {
             my ($x, @rest) = @{$$rhs};
-            $x = "($x)" unless $x =~ /^\s*\(/;
+            1 while ($x =~ s/\A\s*\((.*)\)\s*\Z/$1/s);
             $rhs = \[ $x, @rest ];
           }
         }
-        return $self->_literal_with_prepend_to_dq("$k $op", $$rhs);
+        return +{
+          type => DQ_OPERATOR,
+          operator => { 'SQL.Naive' => $op },
+          args => [ $self->_ident_to_dq($k), $self->_literal_to_dq($$rhs) ]
+        };
       }
       return $self->_literal_to_dq($self->{sqlfalse}) unless @$rhs;
       return +{
