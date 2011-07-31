@@ -162,19 +162,6 @@ sub _literal_to_dq {
   };
 }
 
-sub _literal_with_prepend_to_dq {
-  my ($self, $prepend, $literal) = @_;
-  if (ref($literal)) {
-    $self->_literal_to_dq(
-      [ join(' ', $prepend, $literal->[0]), @{$literal}[1..$#$literal] ]
-    );
-  } else {
-    $self->_literal_to_dq(
-      join(' ', $prepend, $literal)
-    );
-  }
-}
-
 sub _bind_to_dq {
   my ($self, @bind) = @_;
   return unless @bind;
@@ -683,11 +670,11 @@ sub _where_hashpair_to_dq {
         map +{ $k => $_ }, @$v
       ]);
     } elsif (ref($v) eq 'SCALAR' or (ref($v) eq 'REF' and ref($$v) eq 'ARRAY')) {
-      # we have to do the quoting here, since Data::Query only understands
-      # literals that form a complete part of the SQL - there's no current
-      # way to say "render these bits and interpolate into the literal". I'm
-      # not as yet convinced that this is a problem; we'll see.
-      return $self->_literal_with_prepend_to_dq($self->_quote($k), $$v);
+      return +{
+        type => DQ_LITERAL,
+        subtype => 'SQL',
+        parts => [ $self->_ident_to_dq($k), $self->_literal_to_dq($$v) ]
+      };
     }
     my ($op, $rhs) = do {
       if (ref($v) eq 'HASH') {
