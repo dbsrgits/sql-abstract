@@ -12,7 +12,7 @@ use List::Util ();
 use Scalar::Util ();
 use Data::Query::Constants qw(
   DQ_IDENTIFIER DQ_OPERATOR DQ_VALUE DQ_LITERAL DQ_JOIN DQ_SELECT DQ_ORDER
-  DQ_WHERE
+  DQ_WHERE DQ_DELETE
 );
 use Data::Query::ExprHelpers qw(perl_scalar_value);
 
@@ -442,13 +442,8 @@ sub update {
 # SELECT
 #======================================================================
 
-
-sub select {
-  my $self   = shift;
-  my $table  = shift;
-  my $fields = shift || '*';
-  my $where  = shift;
-  my $order  = shift;
+sub _source_to_dq {
+  my ($self, $table, $where) = @_;
 
   my $source_dq = $self->_table_to_dq($table);
 
@@ -459,6 +454,18 @@ sub select {
       where => $where_dq,
     };
   }
+
+  $source_dq;
+}
+
+sub select {
+  my $self   = shift;
+  my $table  = shift;
+  my $fields = shift || '*';
+  my $where  = shift;
+  my $order  = shift;
+
+  my $source_dq = $self->_source_to_dq($table, $where);
 
   my $final_dq = {
     type => DQ_SELECT,
@@ -483,14 +490,15 @@ sub select {
 
 sub delete {
   my $self  = shift;
-  my $table = $self->_table(shift);
-  my $where = shift;
+  $self->_render_dq($self->_delete_to_dq(@_));
+}
 
-
-  my($where_sql, @bind) = $self->where($where);
-  my $sql = $self->_sqlcase('delete from') . " $table" . $where_sql;
-
-  return wantarray ? ($sql, @bind) : $sql;
+sub _delete_to_dq {
+  my $self = shift;
+  +{
+    type => DQ_DELETE,
+    from => $self->_source_to_dq(@_)
+  }
 }
 
 
