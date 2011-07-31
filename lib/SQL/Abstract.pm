@@ -32,15 +32,7 @@ our $AUTOLOAD;
 my @BUILTIN_SPECIAL_OPS = ();
 
 # unaryish operators - key maps to handler
-my @BUILTIN_UNARY_OPS = (
-  # the digits are backcompat stuff
-  { regex => qr/^ and  (?: [_\s]? \d+ )? $/xi, handler => '_where_op_ANDOR' },
-  { regex => qr/^ or   (?: [_\s]? \d+ )? $/xi, handler => '_where_op_ANDOR' },
-  { regex => qr/^ nest (?: [_\s]? \d+ )? $/xi, handler => '_where_op_NEST' },
-  { regex => qr/^ (?: not \s )? bool     $/xi, handler => '_where_op_BOOL' },
-  { regex => qr/^ ident                  $/xi, handler => '_where_op_IDENT' },
-  { regex => qr/^ value                  $/ix, handler => '_where_op_VALUE' },
-);
+my @BUILTIN_UNARY_OPS = ();
 
 #======================================================================
 # DEBUGGING AND ERROR REPORTING
@@ -753,27 +745,25 @@ sub _table  {
 
 sub _table_to_dq {
   my ($self, $from) = @_;
-  $self->_SWITCH_refkind($from, {
-    ARRAYREF     => sub {
-      die "Empty FROM list" unless my @f = @$from;
-      my $dq = $self->_ident_to_dq(shift @f);
-      while (my $x = shift @f) {
-        $dq = {
-          type => DQ_JOIN,
-          join => [ $dq, $self->_ident_to_dq($x) ]
-        };
-      }
-      $dq;
-    },
-    SCALAR       => sub { $self->_ident_to_dq($from) },
-    SCALARREF    => sub {
-      +{
-        type => DQ_LITERAL,
-        subtype => 'SQL',
-        literal => $$from
-      }
-    },
-  });
+  if (ref($from) eq 'ARRAY') {
+    die "Empty FROM list" unless my @f = @$from;
+    my $dq = $self->_ident_to_dq(shift @f);
+    while (my $x = shift @f) {
+      $dq = {
+        type => DQ_JOIN,
+        join => [ $dq, $self->_ident_to_dq($x) ]
+      };
+    }
+    $dq;
+  } elsif (ref($from) eq 'SCALAR') {
+    +{
+      type => DQ_LITERAL,
+      subtype => 'SQL',
+      literal => $$from
+    }
+  } else {
+    $self->_ident_to_dq($from);
+  }
 }
 
 
