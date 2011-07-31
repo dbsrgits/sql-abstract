@@ -12,7 +12,7 @@ use List::Util ();
 use Scalar::Util ();
 use Data::Query::Constants qw(
   DQ_IDENTIFIER DQ_OPERATOR DQ_VALUE DQ_LITERAL DQ_JOIN DQ_SELECT DQ_ORDER
-  DQ_WHERE DQ_DELETE
+  DQ_WHERE DQ_DELETE DQ_UPDATE
 );
 use Data::Query::ExprHelpers qw(perl_scalar_value);
 
@@ -138,6 +138,9 @@ sub new {
 
 sub _render_dq {
   my ($self, $dq) = @_;
+  if (!$dq) {
+    return '';
+  }
   my ($sql, @bind) = @{$self->{renderer}->render($dq)};
   wantarray ?
     ($self->{bindtype} eq 'normal'
@@ -365,74 +368,44 @@ sub _insert_values {
 
 
 sub update {
-  my $self  = shift;
-  my $table = $self->_table(shift);
-  my $data  = shift || return;
-  my $where = shift;
+  my $self = shift;
+  $self->_render_dq($self->_update_to_dq(@_));
+}
 
-  # first build the 'SET' part of the sql statement
-  my (@set, @all_bind);
+sub _update_to_dq {
+  my ($self, $table, $data, $where) = @_;
+
   puke "Unsupported data type specified to \$sql->update"
     unless ref $data eq 'HASH';
 
-  for my $k (sort keys %$data) {
+  my @set;
+
+  KEY: for my $k (sort keys %$data) {
     my $v = $data->{$k};
-    my $r = ref $v;
-    my $label = $self->_quote($k);
+    local our $Cur_Col_Meta = $k;
 
-    $self->_SWITCH_refkind($v, {
-      ARRAYREF => sub {
-        if ($self->{array_datatypes}) { # array datatype
-          push @set, "$label = ?";
-          push @all_bind, $self->_bindtype($k, $v);
-        }
-        else {                          # literal SQL with bind
-          my ($sql, @bind) = @$v;
-          $self->_assert_bindval_matches_bindtype(@bind);
-          push @set, "$label = $sql";
-          push @all_bind, @bind;
-        }
-      },
-      ARRAYREFREF => sub { # literal SQL with bind
-        my ($sql, @bind) = @${$v};
-        $self->_assert_bindval_matches_bindtype(@bind);
-        push @set, "$label = $sql";
-        push @all_bind, @bind;
-      },
-      SCALARREF => sub {  # literal SQL without bind
-        push @set, "$label = $$v";
-      },
-      HASHREF => sub {
-        my ($op, $arg, @rest) = %$v;
+    if (ref($v) eq 'ARRAY') {
+      if ($self->{array_datatypes}) {
+        push @set, [ $self->_ident_to_dq($k), $self->_value_to_dq($v) ];
+        next KEY;
+      }
+      $v = \$v;
+    }
+    if (ref($v) eq 'HASH') {
+      my ($op, $arg, @rest) = %$v;
 
-        puke 'Operator calls in update must be in the form { -op => $arg }'
-          if (@rest or not $op =~ /^\-(.+)/);
-
-        local $self->{_nested_func_lhs} = $k;
-        local our $Cur_Col_Meta = $k;
-        my ($sql, @bind) = $self->_render_dq($self->_expr_to_dq({ $op => $arg }));
-
-        push @set, "$label = $sql";
-        push @all_bind, @bind;
-      },
-      SCALAR_or_UNDEF => sub {
-        push @set, "$label = ?";
-        push @all_bind, $self->_bindtype($k, $v);
-      },
-    });
+      puke 'Operator calls in update must be in the form { -op => $arg }'
+        if (@rest or not $op =~ /^\-(.+)/);
+    }
+    push @set, [ $self->_ident_to_dq($k), $self->_expr_to_dq($v) ];
   }
 
-  # generate sql
-  my $sql = $self->_sqlcase('update') . " $table " . $self->_sqlcase('set ')
-          . join ', ', @set;
-
-  if ($where) {
-    my($where_sql, @where_bind) = $self->where($where);
-    $sql .= $where_sql;
-    push @all_bind, @where_bind;
-  }
-
-  return wantarray ? ($sql, @all_bind) : $sql;
+  return +{
+    type => DQ_UPDATE,
+    target => $self->_ident_to_dq($table),
+    set => \@set,
+    where => $self->_where_to_dq($where),
+  };
 }
 
 
@@ -447,7 +420,7 @@ sub _source_to_dq {
 
   my $source_dq = $self->_table_to_dq($table);
 
-  if (defined($where) and my $where_dq = $self->_where_to_dq($where)) {
+  if (my $where_dq = $self->_where_to_dq($where)) {
     $source_dq = {
       type => DQ_WHERE,
       from => $source_dq,
@@ -460,10 +433,12 @@ sub _source_to_dq {
 
 sub select {
   my $self   = shift;
-  my $table  = shift;
-  my $fields = shift || '*';
-  my $where  = shift;
-  my $order  = shift;
+  return $self->_render_dq($self->_select_to_dq(@_));
+}
+
+sub _select_to_dq {
+  my ($self, $table, $fields, $where, $order) = @_;
+  $fields ||= '*';
 
   my $source_dq = $self->_source_to_dq($table, $where);
 
@@ -480,7 +455,7 @@ sub select {
     $final_dq = $self->_order_by_to_dq($order, undef, $final_dq);
   }
 
-  return $self->_render_dq($final_dq);
+  return $final_dq;
 }
 
 #======================================================================
@@ -494,10 +469,11 @@ sub delete {
 }
 
 sub _delete_to_dq {
-  my $self = shift;
+  my ($self, $table, $where) = @_;
   +{
     type => DQ_DELETE,
-    from => $self->_source_to_dq(@_)
+    target => $self->_table_to_dq($table),
+    where => $self->_where_to_dq($where),
   }
 }
 
@@ -535,6 +511,8 @@ sub _recurse_where {
 
 sub _where_to_dq {
   my ($self, $where, $logic) = @_;
+
+  return undef unless defined($where);
 
   # turn the convert misfeature on - only used in WHERE clauses
   local $self->{where_convert} = $self->{convert};
