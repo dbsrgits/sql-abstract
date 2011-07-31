@@ -12,6 +12,7 @@ use List::Util ();
 use Scalar::Util ();
 use Data::Query::Constants qw(
   DQ_IDENTIFIER DQ_OPERATOR DQ_VALUE DQ_LITERAL DQ_JOIN DQ_SELECT DQ_ORDER
+  DQ_WHERE
 );
 use Data::Query::ExprHelpers qw(perl_scalar_value);
 
@@ -409,7 +410,7 @@ sub update {
 
         local $self->{_nested_func_lhs} = $k;
         local our $Cur_Col_Meta = $k;
-        my ($sql, @bind) = $self->_render_dq($self->_where_to_dq({ $op => $arg }));
+        my ($sql, @bind) = $self->_render_dq($self->_expr_to_dq({ $op => $arg }));
 
         push @set, "$label = $sql";
         push @all_bind, @bind;
@@ -449,20 +450,30 @@ sub select {
   my $where  = shift;
   my $order  = shift;
 
-  my($where_sql, @bind) = $self->where($where, $order);
+  my $source_dq = $self->_table_to_dq($table);
 
-  my $sql = $self->_render_dq({
+  if (defined($where) and my $where_dq = $self->_where_to_dq($where)) {
+    $source_dq = {
+      type => DQ_WHERE,
+      from => $source_dq,
+      where => $where_dq,
+    };
+  }
+
+  my $final_dq = {
     type => DQ_SELECT,
     select => [
       map $self->_ident_to_dq($_),
         ref($fields) eq 'ARRAY' ? @$fields : $fields
     ],
-    from => $self->_table_to_dq($table),
-  });
+    from => $source_dq,
+  };
 
-  $sql .= $where_sql;
+  if ($order) {
+    $final_dq = $self->_order_by_to_dq($order, undef, $final_dq);
+  }
 
-  return wantarray ? ($sql, @bind) : $sql;
+  return $self->_render_dq($final_dq);
 }
 
 #======================================================================
@@ -508,12 +519,8 @@ sub where {
   return wantarray ? ($sql, @bind) : $sql;
 }
 
-
 sub _recurse_where {
   my ($self, $where, $logic) = @_;
-
-  # turn the convert misfeature on - only used in WHERE clauses
-  local $self->{where_convert} = $self->{convert};
 
   return $self->_render_dq($self->_where_to_dq($where, $logic));
 }
@@ -521,10 +528,19 @@ sub _recurse_where {
 sub _where_to_dq {
   my ($self, $where, $logic) = @_;
 
+  # turn the convert misfeature on - only used in WHERE clauses
+  local $self->{where_convert} = $self->{convert};
+
+  return $self->_expr_to_dq($where, $logic);
+}
+
+sub _expr_to_dq {
+  my ($self, $where, $logic) = @_;
+
   if (ref($where) eq 'ARRAY') {
-    return $self->_where_to_dq_ARRAYREF($where, $logic);
+    return $self->_expr_to_dq_ARRAYREF($where, $logic);
   } elsif (ref($where) eq 'HASH') {
-    return $self->_where_to_dq_HASHREF($where, $logic);
+    return $self->_expr_to_dq_HASHREF($where, $logic);
   } elsif (
     ref($where) eq 'SCALAR'
     or (ref($where) eq 'REF' and ref($$where) eq 'ARRAY')
@@ -536,7 +552,7 @@ sub _where_to_dq {
   die "Can't handle $where";
 }
 
-sub _where_to_dq_ARRAYREF {
+sub _expr_to_dq_ARRAYREF {
   my ($self, $where, $logic) = @_;
 
   $logic = uc($logic || $self->{logic} || 'OR');
@@ -546,24 +562,24 @@ sub _where_to_dq_ARRAYREF {
 
   my ($first, @rest) = @$where;
 
-  return $self->_where_to_dq($first) unless @rest;
+  return $self->_expr_to_dq($first) unless @rest;
 
   my $first_dq = do {
     if (!ref($first)) {
       $self->_where_hashpair_to_dq($first => shift(@rest));
     } else {
-      $self->_where_to_dq($first);
+      $self->_expr_to_dq($first);
     }
   };
 
-  return $self->_where_to_dq_ARRAYREF(\@rest, $logic) unless $first_dq;
+  return $self->_expr_to_dq_ARRAYREF(\@rest, $logic) unless $first_dq;
 
   $self->_op_to_dq(
-    $logic, $first_dq, $self->_where_to_dq_ARRAYREF(\@rest, $logic)
+    $logic, $first_dq, $self->_expr_to_dq_ARRAYREF(\@rest, $logic)
   );
 }
 
-sub _where_to_dq_HASHREF {
+sub _expr_to_dq_HASHREF {
   my ($self, $where, $logic) = @_;
 
   $logic = uc($logic) if $logic;
@@ -637,16 +653,16 @@ sub _where_hashpair_to_dq {
   if ($k =~ /^-(.*)/s) {
     my $op = uc($1);
     if ($op eq 'AND' or $op eq 'OR') {
-      return $self->_where_to_dq($v, $op);
+      return $self->_expr_to_dq($v, $op);
     } elsif ($op eq 'NEST') {
-      return $self->_where_to_dq($v);
+      return $self->_expr_to_dq($v);
     } elsif ($op eq 'NOT') {
-      return $self->_op_to_dq(NOT => $self->_where_to_dq($v));
+      return $self->_op_to_dq(NOT => $self->_expr_to_dq($v));
     } elsif ($op eq 'BOOL') {
-      return ref($v) ? $self->_where_to_dq($v) : $self->_ident_to_dq($v);
+      return ref($v) ? $self->_expr_to_dq($v) : $self->_ident_to_dq($v);
     } elsif ($op eq 'NOT_BOOL') {
       return $self->_op_to_dq(
-        NOT => ref($v) ? $self->_where_to_dq($v) : $self->_ident_to_dq($v)
+        NOT => ref($v) ? $self->_expr_to_dq($v) : $self->_ident_to_dq($v)
       );
     } elsif ($op =~ /^(?:AND|OR|NEST)_?\d+/) {
       die "Use of [and|or|nest]_N modifiers is no longer supported";
@@ -657,11 +673,11 @@ sub _where_hashpair_to_dq {
           my ($inner) = values %$v;
           $self->_op_to_dq(
             $op,
-            (map $self->_where_to_dq($_),
+            (map $self->_expr_to_dq($_),
               (ref($inner) eq 'ARRAY' ? @$inner : $inner))
           );
         } else {
-          (map $self->_where_to_dq($_), (ref($v) eq 'ARRAY' ? @$v : $v))
+          (map $self->_expr_to_dq($_), (ref($v) eq 'ARRAY' ? @$v : $v))
         }
       };
       $self->_assert_pass_injection_guard($op);
@@ -675,11 +691,11 @@ sub _where_hashpair_to_dq {
       if (!@$v) {
         return $self->_literal_to_dq($self->{sqlfalse});
       } elsif (defined($v->[0]) && $v->[0] =~ /-(and|or)/i) {
-        return $self->_where_to_dq_ARRAYREF([
+        return $self->_expr_to_dq_ARRAYREF([
           map +{ $k => $_ }, @{$v}[1..$#$v]
         ], uc($1));
       }
-      return $self->_where_to_dq_ARRAYREF([
+      return $self->_expr_to_dq_ARRAYREF([
         map +{ $k => $_ }, @$v
       ], $logic);
     } elsif (ref($v) eq 'SCALAR' or (ref($v) eq 'REF' and ref($$v) eq 'ARRAY')) {
@@ -692,14 +708,14 @@ sub _where_hashpair_to_dq {
     my ($op, $rhs) = do {
       if (ref($v) eq 'HASH') {
         if (keys %$v > 1) {
-          return $self->_where_to_dq_ARRAYREF([
+          return $self->_expr_to_dq_ARRAYREF([
             map +{ $k => { $_ => $v->{$_} } }, sort keys %$v
           ], $logic||'AND');
         }
         my ($op, $value) = %$v;
         s/^-//, s/_/ /g for $op;
         if ($op =~ /^(and|or)$/i) {
-          return $self->_where_to_dq({ $k => $value }, $op);
+          return $self->_expr_to_dq({ $k => $value }, $op);
         } elsif (
           my $special_op = List::Util::first {$op =~ $_->{regex}}
                              @{$self->{special_ops}}
@@ -736,7 +752,7 @@ sub _where_hashpair_to_dq {
       }
       return $self->_literal_to_dq($self->{sqlfalse}) unless @$rhs;
       return $self->_op_to_dq(
-        $op, $self->_ident_to_dq($k), map $self->_where_to_dq($_), @$rhs
+        $op, $self->_ident_to_dq($k), map $self->_expr_to_dq($_), @$rhs
       )
     } elsif ($op =~ s/^NOT (?!LIKE)//) {
       return $self->_where_hashpair_to_dq(-not => { $k => { $op => $rhs } });
@@ -758,18 +774,18 @@ sub _where_hashpair_to_dq {
           $op eq '!=' ? $self->{sqltrue} : $self->{sqlfalse}
         );
       } elsif (defined($rhs->[0]) and $rhs->[0] =~ /^-(and|or)$/i) {
-        return $self->_where_to_dq_ARRAYREF([
+        return $self->_expr_to_dq_ARRAYREF([
           map +{ $k => { $op => $_ } }, @{$rhs}[1..$#$rhs]
         ], uc($1));
       } elsif ($op =~ /^-(?:AND|OR|NEST)_?\d+/) {
         die "Use of [and|or|nest]_N modifiers is no longer supported";
       }
-      return $self->_where_to_dq_ARRAYREF([
+      return $self->_expr_to_dq_ARRAYREF([
         map +{ $k => { $op => $_ } }, @$rhs
       ]);
     }
     return $self->_op_to_dq(
-      $op, $self->_ident_to_dq($k), $self->_where_to_dq($rhs)
+      $op, $self->_ident_to_dq($k), $self->_expr_to_dq($rhs)
     );
   }
 }
@@ -791,13 +807,14 @@ sub _order_by {
 }
 
 sub _order_by_to_dq {
-  my ($self, $arg, $dir) = @_;
+  my ($self, $arg, $dir, $from) = @_;
 
   return unless $arg;
 
   my $dq = {
     type => DQ_ORDER,
     ($dir ? (direction => $dir) : ()),
+    ($from ? (from => $from) : ()),
   };
 
   if (!ref($arg)) {
@@ -809,7 +826,7 @@ sub _order_by_to_dq {
     my ($outer, $inner);
     foreach my $member (@$arg) {
       local $Order_Inner;
-      my $next = $self->_order_by_to_dq($member, $dir);
+      my $next = $self->_order_by_to_dq($member, $dir, $from);
       $outer ||= $next;
       $inner->{from} = $next if $inner;
       $inner = $Order_Inner || $next;
@@ -829,7 +846,7 @@ sub _order_by_to_dq {
       puke "hash passed to _order_by must have exactly one key (-desc or -asc)";
     }
     my $dir = uc $1;
-    return $self->_order_by_to_dq($val, $dir);
+    return $self->_order_by_to_dq($val, $dir, $from);
   } else {
     die "Can't handle $arg in _order_by_to_dq";
   }
