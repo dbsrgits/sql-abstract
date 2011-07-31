@@ -518,7 +518,7 @@ sub _where_to_dq {
 sub _where_to_dq_ARRAYREF {
   my ($self, $where, $logic) = @_;
 
-  $logic = uc($logic || 'OR');
+  $logic = uc($logic || $self->{logic} || 'OR');
   $logic eq 'AND' or $logic eq 'OR' or puke "unknown logic: $logic";
 
   return unless @$where;
@@ -627,6 +627,8 @@ sub _where_hashpair_to_dq {
       return $self->_op_to_dq(
         NOT => ref($v) ? $self->_where_to_dq($v) : $self->_ident_to_dq($v)
       );
+    } elsif ($op =~ /^(?:AND|OR|NEST)_?\d+/) {
+      die "Use of [and|or|nest]_N modifiers is no longer supported";
     } else {
       my @args = do {
         if (ref($v) eq 'HASH' and keys(%$v) == 1 and (keys %$v)[0] =~ /^-(.*)/s) {
@@ -684,6 +686,8 @@ sub _where_hashpair_to_dq {
           return $self->_literal_to_dq(
             [ $self->${\$special_op->{handler}}($k, $op, $value) ]
           );;
+        } elsif ($op =~ /^(?:AND|OR|NEST)_?\d+$/i) {
+          die "Use of [and|or|nest]_N modifiers is no longer supported";
         }
         (uc($op), $value);
       } else {
@@ -732,10 +736,12 @@ sub _where_hashpair_to_dq {
         return $self->_literal_to_dq(
           $op eq '!=' ? $self->{sqltrue} : $self->{sqlfalse}
         );
-      } elsif (defined($rhs->[0]) and $rhs->[0] =~ /-(and|or)/i) {
+      } elsif (defined($rhs->[0]) and $rhs->[0] =~ /^-(and|or)$/i) {
         return $self->_where_to_dq_ARRAYREF([
           map +{ $k => { $op => $_ } }, @{$rhs}[1..$#$rhs]
         ], uc($1));
+      } elsif ($op =~ /^-(?:AND|OR|NEST)_?\d+/) {
+        die "Use of [and|or|nest]_N modifiers is no longer supported";
       }
       return $self->_where_to_dq_ARRAYREF([
         map +{ $k => { $op => $_ } }, @$rhs

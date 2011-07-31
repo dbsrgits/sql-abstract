@@ -335,12 +335,12 @@ my @nest_tests = (
  },
  {
    where => {a => 1, -nest => {b => 2, c => 3}},
-   stmt  => 'WHERE ( ( (b = ? AND c = ?) AND a = ? ) )',
+   stmt  => 'WHERE ( ( b = ? AND c = ? AND a = ? ) )',
    bind  => [qw/2 3 1/],
  },
  {
    where => {a => 1, -or => {-nest => {b => 2, c => 3}}},
-   stmt  => 'WHERE ( ( (b = ? AND c = ?) AND a = ? ) )',
+   stmt  => 'WHERE ( ( b = ? AND c = ? AND a = ? ) )',
    bind  => [qw/2 3 1/],
  },
  {
@@ -355,7 +355,7 @@ my @nest_tests = (
  },
  {
    where => [a => 1, -nest => {b => 2, c => 3}, -nest => [d => 4, e => 5]],
-   stmt  => 'WHERE ( ( a = ? OR ( b = ? AND c = ? ) OR ( d = ? OR e = ? ) ) )',
+   stmt  => 'WHERE ( ( a = ? OR ( b = ? AND c = ? ) OR d = ? OR e = ? ) )',
    bind  => [qw/1 2 3 4 5/],
  },
 );
