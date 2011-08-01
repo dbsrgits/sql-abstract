@@ -17,6 +17,7 @@ my @sql = (
   "SELECT * FROM lolz WHERE ( foo.a =1 ) and foo.b LIKE 'station'",
   "SELECT [screen].[id], [screen].[name], [screen].[section_id], [screen].[xtype] FROM [users_roles] [me] JOIN [roles] [role] ON [role].[id] = [me].[role_id] JOIN [roles_permissions] [role_permissions] ON [role_permissions].[role_id] = [role].[id] JOIN [permissions] [permission] ON [permission].[id] = [role_permissions].[permission_id] JOIN [permissionscreens] [permission_screens] ON [permission_screens].[permission_id] = [permission].[id] JOIN [screens] [screen] ON [screen].[id] = [permission_screens].[screen_id] WHERE ( [me].[user_id] = ? ) GROUP BY [screen].[id], [screen].[name], [screen].[section_id], [screen].[xtype]",
   "SELECT * FROM foo WHERE NOT EXISTS (SELECT bar FROM baz)",
+  "SELECT * FROM (SELECT SUM (CASE WHEN me.artist = 'foo' THEN 1 ELSE 0 END AS artist_sum) FROM foobar) WHERE foo.a = 1 and foo.b LIKE 'station'"
 );
 
 for (@sql) {
@@ -26,7 +27,7 @@ for (@sql) {
 }
 
 # delete this test when mysql_functions gets implemented
-my $sql = 'SELECT COUNT( * ) FROM foo';
+my $sql = 'SELECT COUNT( * ), SUM( blah ) FROM foo';
 is($sqlat->format($sql), $sql, 'Roundtripping to mysql-compatible paren. syntax');
 
 lives_ok { $sqlat->unparse( $sqlat->parse( <<'EOS' ) ) } 'Able to parse/unparse grossly malformed sql';

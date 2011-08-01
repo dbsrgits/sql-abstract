@@ -477,7 +477,9 @@ sub _unparse {
     return '';
   }
 
+  # FIXME - needs a config switch to disable
   $self->_parenthesis_unroll($tree);
+
   my ($car, $cdr) = @{$tree}[0,1];
 
   if (! defined $car or (! ref $car and ! defined $cdr) ) {
@@ -542,7 +544,6 @@ sub _parenthesis_unroll {
   my $self = shift;
   my $ast = shift;
 
-  #return if $self->parenthesis_significant;
   return unless (ref $ast and ref $ast->[1]);
 
   my $changes;
@@ -551,6 +552,7 @@ sub _parenthesis_unroll {
     $changes = 0;
 
     for my $child (@{$ast->[1]}) {
+
       # the current node in this loop is *always* a PAREN
       if (! ref $child or ! @$child or $child->[0] ne 'PAREN') {
         push @children, $child;
@@ -594,14 +596,16 @@ sub _parenthesis_unroll {
         $changes++;
       }
 
-      # only one element in the parenthesis which is a binary op
-      # and has exactly two grandchildren
+      # an AND/OR expression with only one binop in the parenthesis
+      # with exactly two grandchildren
       # the only time when we can *not* unroll this is when both
       # the parent and the child are mathops (in which case we'll
       # break precedence) or when the child is BETWEEN (special
       # case)
       elsif (
         @{$child->[1]} == 1
+          and
+        ($ast->[0] eq 'AND' or $ast->[0] eq 'OR')
           and
         $child->[1][0][0] =~ SQL::Abstract::Tree::_binary_op_re()
           and

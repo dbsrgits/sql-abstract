@@ -1,6 +1,7 @@
 Revision history for SQL::Abstract
 
     - Fix parsing of NOT EXISTS
+    - Fix over-eager parenthesis unrolling
     - Fix deep recursion warnings while parsing obnoxiously long sql statements
     - Fix incorrect comparison of malformed lists
 
