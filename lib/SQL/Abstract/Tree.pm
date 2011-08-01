@@ -50,10 +50,10 @@ my $placeholder_re = qr/(?: \? | \$\d+ )/x;
 my @expression_start_keywords = (
   'SELECT',
   'UPDATE',
+  'SET',
   'INSERT \s+ INTO',
   'DELETE \s+ FROM',
   'FROM',
-  'SET',
   '(?:
     (?:
         (?: (?: LEFT | RIGHT | FULL ) \s+ )?
@@ -64,7 +64,7 @@ my @expression_start_keywords = (
   'ON',
   'WHERE',
   '(?: DEFAULT \s+ )? VALUES',
-  '(?:NOT \s+)? EXISTS',
+  '(?: NOT \s+)? EXISTS',
   'GROUP \s+ BY',
   'HAVING',
   'ORDER \s+ BY',
@@ -95,6 +95,7 @@ $expr_start_re = qr/ $op_look_behind (?i: $expr_start_re ) $op_look_ahead /x;
 # * BETWEEN without paranthesis around the ANDed arguments (which
 #   makes it a non-binary op) is detected and accomodated in
 #   _recurse_parse()
+# * AS is not really an operator but is handled here as it's also LHS/RHS
 
 # this will be included in the $binary_op_re, the distinction is interesting during
 # testing as one is tighter than the other, plus mathops have different look
@@ -111,7 +112,7 @@ sub _math_op_re { $math_re }
 
 my $binary_op_re = '(?: NOT \s+)? (?:' . join ('|', qw/IN BETWEEN R?LIKE/) . ')';
 $binary_op_re = join "\n\t|\n",
-  "$op_look_behind (?i: $binary_op_re ) $op_look_ahead",
+  "$op_look_behind (?i: $binary_op_re | AS ) $op_look_ahead",
   $math_re,
   $op_look_behind . 'IS (?:\s+ NOT)?' . "(?= \\s+ NULL \\b | $op_look_ahead )",
 ;
