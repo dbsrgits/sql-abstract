@@ -747,11 +747,11 @@ sub _table_to_dq {
   my ($self, $from) = @_;
   if (ref($from) eq 'ARRAY') {
     die "Empty FROM list" unless my @f = @$from;
-    my $dq = $self->_ident_to_dq(shift @f);
+    my $dq = $self->_table_to_dq(shift @f);
     while (my $x = shift @f) {
       $dq = {
         type => DQ_JOIN,
-        join => [ $dq, $self->_ident_to_dq($x) ]
+        join => [ $dq, $self->_table_to_dq($x) ]
       };
     }
     $dq;

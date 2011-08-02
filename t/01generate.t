@@ -78,6 +78,13 @@ my @tests = (
       },
       {
               func   => 'select',
+              args   => [[\'test1', 'test2'], '*', { 'test1.a' => { 'In', ['boom', 'bang'] } }],
+              stmt   => 'SELECT * FROM test1, test2 WHERE ( test1.a IN ( ?, ? ) )',
+              stmt_q => 'SELECT * FROM test1, `test2` WHERE ( `test1`.`a` IN ( ?, ? ) )',
+              bind   => ['boom', 'bang']
+      },
+      {
+              func   => 'select',
               args   => ['test', '*', { a => { 'between', ['boom', 'bang'] } }],
               stmt   => 'SELECT * FROM test WHERE ( a BETWEEN ? AND ? )',
               stmt_q => 'SELECT * FROM `test` WHERE ( `a` BETWEEN ? AND ? )',
