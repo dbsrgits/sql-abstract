@@ -118,6 +118,7 @@ sub eq_sql {
   my $tree1 = $sqlat->parse($sql1);
   my $tree2 = $sqlat->parse($sql2);
 
+  undef $sql_differ;
   return 1 if _eq_sql($tree1, $tree2);
 }
 
@@ -126,59 +127,80 @@ sub _eq_sql {
 
   # one is defined the other not
   if ( (defined $left) xor (defined $right) ) {
+    $sql_differ = sprintf ("[%s] != [%s]\n", map { defined $_ ? $sqlat->unparse ($_) : 'N/A' } ($left, $right) );
     return 0;
   }
+
   # one is undefined, then so is the other
   elsif (not defined $left) {
     return 1;
   }
-  # different amount of elements
-  elsif (@$left != @$right) {
-    return 0;
-  }
-  # one is empty - so is the other
-  elsif (@$left == 0) {
+
+  # both are empty
+  elsif (@$left == 0 and @$right == 0) {
     return 1;
   }
-  # one is a list, the other is an op with a list
-  elsif (ref $left->[0] xor ref $right->[0]) {
-    $sql_differ = sprintf ("left: %s\nright: %s\n", map { $sqlat->unparse ($_) } ($left, $right) );
+
+  # one is empty
+  if (@$left == 0 or @$right == 0) {
+    $sql_differ = sprintf ("left: %s\nright: %s\n", map { @$_ ? $sqlat->unparse ($_) : 'N/A'} ($left, $right) );
     return 0;
   }
-  # one is a list, so is the other
+
+  # one is a list, the other is an op with a list
+  elsif (ref $left->[0] xor ref $right->[0]) {
+    $sql_differ = sprintf ("[%s] != [%s]\nleft: %s\nright: %s\n", map
+      { ref $_ ? $sqlat->unparse ($_) : $_ }
+      ($left->[0], $right->[0], $left, $right)
+    );
+    return 0;
+  }
+
+  # both are lists
   elsif (ref $left->[0]) {
     for (my $i = 0; $i <= $#$left or $i <= $#$right; $i++ ) {
-      return 0 if (not _eq_sql ($left->[$i], $right->[$i]) );
+      if (not _eq_sql ($left->[$i], $right->[$i]) ) {
+        if (! $sql_differ or $sql_differ !~ /left\:\s .+ right:\s/xs) {
+          $sql_differ ||= '';
+          $sql_differ .= "\n" unless $sql_differ =~ /\n\z/;
+          $sql_differ .= sprintf ("left: %s\nright: %s\n", map { $sqlat->unparse ($_) } ($left, $right) );
+        }
+        return 0;
+      }
     }
     return 1;
   }
-  # both are an op-list combo
+
+  # both are ops
   else {
 
     # unroll parenthesis if possible/allowed
-    $parenthesis_significant || $sqlat->_parenthesis_unroll($_) for $left, $right;
+    unless ( $parenthesis_significant ) {
+      $sqlat->_parenthesis_unroll($_) for $left, $right;
+    }
 
-    # if operators are different
     if ( $left->[0] ne $right->[0] ) {
       $sql_differ = sprintf "OP [$left->[0]] != [$right->[0]] in\nleft: %s\nright: %s\n",
         $sqlat->unparse($left),
-        $sqlat->unparse($right);
+        $sqlat->unparse($right)
+      ;
       return 0;
     }
-    # elsif operators are identical, compare operands
+
+    # literals have a different arg-sig
+    elsif ($left->[0] eq '-LITERAL') {
+      (my $l = " $left->[1][0] " ) =~ s/\s+/ /g;
+      (my $r = " $right->[1][0] ") =~ s/\s+/ /g;
+      my $eq = $case_sensitive ? $l eq $r : uc($l) eq uc($r);
+      $sql_differ = "[$l] != [$r]\n" if not $eq;
+      return $eq;
+    }
+
+    # if operators are identical, compare operands
     else {
-      if ($left->[0] eq 'LITERAL' ) { # unary
-        (my $l = " $left->[1][0] " ) =~ s/\s+/ /g;
-        (my $r = " $right->[1][0] ") =~ s/\s+/ /g;
-        my $eq = $case_sensitive ? $l eq $r : uc($l) eq uc($r);
-        $sql_differ = "[$l] != [$r]\n" if not $eq;
-        return $eq;
-      }
-      else {
-        my $eq = _eq_sql($left->[1], $right->[1]);
-        $sql_differ ||= sprintf ("left: %s\nright: %s\n", map { $sqlat->unparse ($_) } ($left, $right) ) if not $eq;
-        return $eq;
-      }
+      my $eq = _eq_sql($left->[1], $right->[1]);
+      $sql_differ ||= sprintf ("left: %s\nright: %s\n", map { $sqlat->unparse ($_) } ($left, $right) ) if not $eq;
+      return $eq;
     }
   }
 }

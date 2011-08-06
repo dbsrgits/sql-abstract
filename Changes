@@ -4,6 +4,7 @@ Revision history for SQL::Abstract
     - Fix over-eager parenthesis unrolling
     - Fix deep recursion warnings while parsing obnoxiously long sql statements
     - Fix incorrect comparison of malformed lists
+    - Fix incorrect reporting of mismatch-members in SQLA::Test
 
 revision 1.72  2010-12-21
 ----------------------------

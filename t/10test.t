@@ -704,6 +704,14 @@ my @sql_tests = (
           'SELECT * FROM foo WHERE bar = (baz( buzz ))',
         ]
       },
+      # oddballs
+      {
+        equal => 1,
+        statements => [
+          'WHERE ( foo GLOB ? )',
+          'WHERE foo GLOB ?',
+        ],
+      }
 );
 
 my @bind_tests = (
@@ -909,7 +917,7 @@ plan tests => 1 +
       map { scalar @{$_->{bindvals}} }
         @bind_tests
   ) +
-  3;
+  9;
 
 use_ok('SQL::Abstract::Test', import => [qw(
   eq_sql_bind eq_sql eq_bind is_same_sql_bind
@@ -991,3 +999,36 @@ ok(!eq_sql_bind(
   ),
   "eq_sql_bind considers different SQL expressions and equal bind values different"
 );
+
+# test diag string
+ok (! eq_sql (
+  'SELECT owner_name FROM books me WHERE ( source = ? )',
+  'SELECT owner_name FROM books me WHERE ( sUOrce = ? )',
+));
+like(
+  $SQL::Abstract::Test::sql_differ,
+  qr/\Q[ source ] != [ sUOrce ]/,
+  'expected debug of literal diff',
+);
+
+ok (! eq_sql (
+  'SELECT owner_name FROM books me ORDER BY owner_name',
+  'SELECT owner_name FROM books me GROUP BY owner_name',
+));
+like(
+  $SQL::Abstract::Test::sql_differ,
+  qr/\QOP [ORDER BY] != [GROUP BY]/,
+  'expected debug of op diff',
+);
+
+ok (! eq_sql (
+  'SELECT owner_name FROM books WHERE ( source = ? )',
+  'SELECT owner_name FROM books'
+));
+
+like(
+  $SQL::Abstract::Test::sql_differ,
+  qr|\Q[WHERE source = ?] != [N/A]|,
+  'expected debug of missing branch',
+);
+

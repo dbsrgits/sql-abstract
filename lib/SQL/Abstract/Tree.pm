@@ -64,7 +64,6 @@ my @expression_start_keywords = (
   'ON',
   'WHERE',
   '(?: DEFAULT \s+ )? VALUES',
-  '(?: NOT \s+)? EXISTS',
   'GROUP \s+ BY',
   'HAVING',
   'ORDER \s+ BY',
@@ -120,10 +119,19 @@ $binary_op_re = qr/$binary_op_re/x;
 
 sub _binary_op_re { $binary_op_re }
 
+my $unary_op_re = '(?: NOT \s+ EXISTS | NOT )';
+$unary_op_re = join "\n\t|\n",
+  "$op_look_behind (?i: $unary_op_re ) $op_look_ahead",
+;
+$unary_op_re = qr/$unary_op_re/x;
+
+sub _unary_op_re { $unary_op_re }
+
 my $all_known_re = join("\n\t|\n",
   $expr_start_re,
   $binary_op_re,
-  "$op_look_behind (?i: AND|OR|NOT|\\* ) $op_look_ahead",
+  $unary_op_re,
+  "$op_look_behind (?i: AND|OR|\\* ) $op_look_ahead",
   (map { quotemeta $_ } qw/, ( )/),
   $placeholder_re,
 );
@@ -140,10 +148,14 @@ use constant PARSE_IN_EXPR => 1;
 use constant PARSE_IN_PARENS => 2;
 use constant PARSE_IN_FUNC => 3;
 use constant PARSE_RHS => 4;
+use constant PARSE_LIST_ELT => 5;
 
+my $asc_desc_re = qr/^ (?: ASC | DESC ) $/xi;
 my $expr_term_re = qr/ ^ (?: $expr_start_re | \) ) $/x;
-my $rhs_term_re = qr/ ^ (?: $expr_term_re | $binary_op_re | (?i: AND | OR | NOT | \, ) ) $/x;
-my $func_start_re = qr/^ (?: \* | $placeholder_re | \( ) $/x;
+my $rhs_term_re = qr/ ^ (?: $expr_term_re | $binary_op_re | $unary_op_re | $asc_desc_re | (?i: AND | OR | \, ) ) $/x;
+my $common_single_args_re = qr/ ^ (?: \* | $placeholder_re ) $/x;
+my $all_std_keywords_re = qr/^ (?: $rhs_term_re | \( | $common_single_args_re ) $/x;
+
 
 my %indents = (
    select        => 0,
@@ -307,109 +319,154 @@ sub parse {
       $token =~ /\S/
     );
   }
-  $self->_recurse_parse($tokens, PARSE_TOP_LEVEL);
+
+  return [ $self->_recurse_parse($tokens, PARSE_TOP_LEVEL) ];
 }
 
-{
-# this is temporary, lists can be parsed *without* recursing, but
-# it requires a massive rewrite of the AST generator
-no warnings qw/recursion/;
 sub _recurse_parse {
   my ($self, $tokens, $state) = @_;
 
-  my $left;
+  my @left;
   while (1) { # left-associative parsing
 
-    my $lookahead = $tokens->[0];
-    if ( not defined($lookahead)
+    if ( ! @$tokens
           or
-        ($state == PARSE_IN_PARENS && $lookahead eq ')')
+        ($state == PARSE_IN_PARENS && $tokens->[0] eq ')')
           or
-        ($state == PARSE_IN_EXPR && $lookahead =~ $expr_term_re )
+        ($state == PARSE_IN_EXPR && $tokens->[0] =~ $expr_term_re )
           or
-        ($state == PARSE_RHS && $lookahead =~ $rhs_term_re )
+        ($state == PARSE_RHS && $tokens->[0] =~ $rhs_term_re )
           or
-        ($state == PARSE_IN_FUNC && $lookahead !~ $func_start_re) # if there are multiple values - the parenthesis will switch the $state
+        ($state == PARSE_LIST_ELT && $tokens->[0] =~ qr/^ (?: $expr_term_re | \, ) $/x)
     ) {
-      return $left||();
+      return @left;
     }
 
     my $token = shift @$tokens;
 
     # nested expression in ()
     if ($token eq '(' ) {
-      my $right = $self->_recurse_parse($tokens, PARSE_IN_PARENS);
-      $token = shift @$tokens   or croak "missing closing ')' around block " . $self->unparse($right);
-      $token eq ')'             or croak "unexpected token '$token' terminating block " . $self->unparse($right);
+      my @right = $self->_recurse_parse($tokens, PARSE_IN_PARENS);
+      $token = shift @$tokens   or croak "missing closing ')' around block " . $self->unparse(\@right);
+      $token eq ')'             or croak "unexpected token '$token' terminating block " . $self->unparse(\@right);
 
-      $left = $left ? [$left, [PAREN => [$right||()] ]]
-                    : [PAREN  => [$right||()] ];
+      push @left, [ '-PAREN' => \@right ];
     }
-    # AND/OR and LIST (,)
-    elsif ($token =~ /^ (?: OR | AND | \, ) $/xi )  {
-      my $op = ($token eq ',') ? 'LIST' : uc $token;
 
-      my $right = $self->_recurse_parse($tokens, PARSE_IN_EXPR) || [];
+    # AND/OR
+    elsif ($token =~ /^ (?: OR | AND ) $/ix ) {
+      my $op = uc $token;
 
-      # Merge chunks if logic matches
-      if (ref $right and @$right and $op eq $right->[0]) {
-        $left = [ (shift @$right ), [$left||[], map { @$_ } @$right] ];
+      my @right = $self->_recurse_parse($tokens, PARSE_IN_EXPR);
+
+      # Merge chunks if "logic" matches
+      @left = [ $op => [ @left, (@right and $op eq $right[0][0])
+        ? @{ $right[0][1] }
+        : @right
+      ] ];
+    }
+
+    # LIST (,)
+    elsif ($token eq ',') {
+
+      my @right = $self->_recurse_parse($tokens, PARSE_LIST_ELT);
+
+      # deal with malformed lists ( foo, bar, , baz )
+      @right = [] unless @right;
+
+      @right = [ -MISC => [ @right ] ] if @right > 1;
+
+      if (!@left) {
+        @left = [ -LIST => [ [], @right ] ];
+      }
+      elsif ($left[0][0] eq '-LIST') {
+        push @{$left[0][1]}, (@{$right[0]} and  $right[0][0] eq '-LIST')
+          ? @{$right[0][1]}
+          : @right
+        ;
       }
       else {
-        $left = [$op => [ $left||[], $right ]];
+        @left = [ -LIST => [ @left, @right ] ];
       }
     }
+
     # binary operator keywords
-    elsif ( $token =~ /^ $binary_op_re $ /x ) {
+    elsif ($token =~ $binary_op_re) {
       my $op = uc $token;
-      my $right = $self->_recurse_parse($tokens, PARSE_RHS);
+
+      my @right = $self->_recurse_parse($tokens, PARSE_RHS);
 
       # A between with a simple LITERAL for a 1st RHS argument needs a
       # rerun of the search to (hopefully) find the proper AND construct
-      if ($op eq 'BETWEEN' and $right->[0] eq 'LITERAL') {
-        unshift @$tokens, $right->[1][0];
-        $right = $self->_recurse_parse($tokens, PARSE_IN_EXPR);
+      if ($op eq 'BETWEEN' and $right[0] eq '-LITERAL') {
+        unshift @$tokens, $right[1][0];
+        @right = $self->_recurse_parse($tokens, PARSE_IN_EXPR);
       }
 
-      $left = [$op => [$left, $right] ];
+      @left = [$op => [ @left, @right ]];
     }
-    # expression terminator keywords (as they start a new expression)
-    elsif ( $token =~ / ^ $expr_start_re $ /x ) {
-      my $op = uc $token;
-      my $right = $self->_recurse_parse($tokens, PARSE_IN_EXPR);
-      $left = $left ? [ $left,  [$op => [$right||()] ]]
-                   : [ $op => [$right||()] ];
-    }
-    # NOT
-    elsif ( $token =~ /^ NOT $/ix ) {
-      my $op = uc $token;
-      my $right = $self->_recurse_parse ($tokens, PARSE_RHS);
-      $left = $left ? [ @$left, [$op => [$right||()] ]]
-                    : [ $op => [$right||()] ];
 
+    # unary op keywords
+    elsif ( $token =~ $unary_op_re ) {
+      my $op = uc $token;
+      my @right = $self->_recurse_parse ($tokens, PARSE_RHS);
+
+      push @left, [ $op => \@right ];
     }
+
+    # expression terminator keywords
+    elsif ( $token =~ $expr_start_re ) {
+      my $op = uc $token;
+      my @right = $self->_recurse_parse($tokens, PARSE_IN_EXPR);
+
+      push @left, [ $op => \@right ];
+    }
+
+    # a '?'
     elsif ( $token =~ $placeholder_re) {
-      $left = $left ? [ $left, [ PLACEHOLDER => [ $token ] ] ]
-                    : [ PLACEHOLDER => [ $token ] ];
+      push @left, [ -PLACEHOLDER => [ $token ] ];
     }
+
+    # check if the current token is an unknown op-start
+    elsif (@$tokens and $tokens->[0] =~ qr/^ (?: \( | $common_single_args_re ) $/x ) {
+      push @left, [ $token => [ $self->_recurse_parse($tokens, PARSE_RHS) ] ];
+    }
+
     # we're now in "unknown token" land - start eating tokens until
     # we see something familiar
     else {
-      my $right;
+      my @lits = [ -LITERAL => [$token] ];
 
-      # check if the current token is an unknown op-start
-      if (@$tokens and $tokens->[0] =~ $func_start_re) {
-        $right = [ $token => [ $self->_recurse_parse($tokens, PARSE_IN_FUNC) || () ] ];
-      }
-      else {
-        $right = [ LITERAL => [ $token ] ];
-      }
+      while (@$tokens and $tokens->[0] !~ $all_std_keywords_re) {
+        push @lits, [ -LITERAL => [ shift @$tokens ] ];
+       }
 
-      $left = $left ? [ $left, $right ]
-                    : $right;
+      if (@left == 1) {
+        unshift @lits, pop @left;
+       }
+
+      @lits = [ -MISC => [ @lits ] ] if @lits > 1;
+
+      push @left, @lits;
+    }
+
+    # deal with post-fix operators (only when sql is sane - i.e. we have one element to apply to)
+    if (@left == 1 and @$tokens) {
+
+      # asc/desc
+      if ($tokens->[0] =~ $asc_desc_re) {
+        my $op = shift @$tokens;
+
+        # if -MISC - this is a literal collection, do not promote asc/desc to an op
+        if ($left[0][0] eq '-MISC') {
+          push @{$left[0][1]}, [ -LITERAL => [ $op ] ];
+        }
+        else {
+          @left = [ ('-' . uc ($op)) => [ @left ] ];
+        }
+      }
     }
   }
-}
 }
 
 sub format_keyword {
@@ -480,50 +537,52 @@ sub _unparse {
   # FIXME - needs a config switch to disable
   $self->_parenthesis_unroll($tree);
 
-  my ($car, $cdr) = @{$tree}[0,1];
+  my ($op, $args) = @{$tree}[0,1];
 
-  if (! defined $car or (! ref $car and ! defined $cdr) ) {
+  if (! defined $op or (! ref $op and ! defined $args) ) {
     require Data::Dumper;
     Carp::confess( sprintf ( "Internal error - malformed branch at depth $depth:\n%s",
       Data::Dumper::Dumper($tree)
     ) );
   }
 
-  if (ref $car) {
+  if (ref $op) {
     return join (' ', map $self->_unparse($_, $bindargs, $depth), @$tree);
   }
-  elsif ($car eq 'LITERAL') {
-    return $cdr->[0];
+  elsif ($op eq '-LITERAL') { # literal has different sig
+    return $args->[0];
   }
-  elsif ($car eq 'PLACEHOLDER') {
+  elsif ($op eq '-PLACEHOLDER') {
     return $self->fill_in_placeholder($bindargs);
   }
-  elsif ($car eq 'PAREN') {
+  elsif ($op eq '-PAREN') {
     return sprintf ('( %s )',
-      join (' ', map { $self->_unparse($_, $bindargs, $depth + 2) } @{$cdr} )
+      join (' ', map { $self->_unparse($_, $bindargs, $depth + 2) } @{$args} )
         .
-      ($self->_is_key($cdr)
+      ($self->_is_key($args)
         ? ( $self->newline||'' ) . $self->indent($depth + 1)
         : ''
       )
     );
   }
-  elsif ($car eq 'AND' or $car eq 'OR' or $car =~ / ^ $binary_op_re $ /x ) {
-    return join (" $car ", map $self->_unparse($_, $bindargs, $depth), @{$cdr});
+  elsif ($op eq 'AND' or $op eq 'OR' or $op =~ / ^ $binary_op_re $ /x ) {
+    return join (" $op ", map $self->_unparse($_, $bindargs, $depth), @{$args});
   }
-  elsif ($car eq 'LIST' ) {
-    return join (', ', map $self->_unparse($_, $bindargs, $depth), @{$cdr});
+  elsif ($op eq '-LIST' ) {
+    return join (', ', map $self->_unparse($_, $bindargs, $depth), @{$args});
+  }
+  elsif ($op eq '-MISC' ) {
+    return join (' ', map $self->_unparse($_, $bindargs, $depth), @{$args});
   }
   else {
-    my ($l, $r) = @{$self->pad_keyword($car, $depth)};
-
+    my ($l, $r) = @{$self->pad_keyword($op, $depth)};
     return sprintf "$l%s%s%s$r",
-      $self->format_keyword($car),
-      ( ref $cdr eq 'ARRAY' and ref $cdr->[0] eq 'ARRAY' and $cdr->[0][0] and $cdr->[0][0] eq 'PAREN' )
+      $self->format_keyword($op),
+      ( ref $args eq 'ARRAY' and @{$args} == 1 and $args->[0][0] eq '-PAREN' )
         ? ''    # mysql--
         : ' '
       ,
-      $self->_unparse($cdr, $bindargs, $depth),
+      $self->_unparse($args, $bindargs, $depth),
     ;
   }
 }
@@ -554,30 +613,32 @@ sub _parenthesis_unroll {
     for my $child (@{$ast->[1]}) {
 
       # the current node in this loop is *always* a PAREN
-      if (! ref $child or ! @$child or $child->[0] ne 'PAREN') {
+      if (! ref $child or ! @$child or $child->[0] ne '-PAREN') {
         push @children, $child;
         next;
       }
 
       # unroll nested parenthesis
-      while ( @{$child->[1]} && $child->[1][0][0] eq 'PAREN') {
+      while ( @{$child->[1]} == 1 and $child->[1][0][0] eq '-PAREN') {
         $child = $child->[1][0];
         $changes++;
       }
 
-      # if the parenthesis are wrapped around an AND/OR matching the parent AND/OR - open the parenthesis up and merge the list
-      if (
-        ( $ast->[0] eq 'AND' or $ast->[0] eq 'OR')
-            and
-          $child->[1][0][0] eq $ast->[0]
-      ) {
-        push @children, @{$child->[1][0][1]};
+      # if the parent operator explcitly allows it nuke the parenthesis
+      if ( $ast->[0] =~ $unrollable_ops_re ) {
+        push @children, @{$child->[1]};
         $changes++;
       }
 
-      # if the parent operator explcitly allows it nuke the parenthesis
-      elsif ( $ast->[0] =~ $unrollable_ops_re ) {
-        push @children, $child->[1][0];
+      # if the parenthesis are wrapped around an AND/OR matching the parent AND/OR - open the parenthesis up and merge the list
+      elsif (
+        @{$child->[1]} == 1
+            and
+        ( $ast->[0] eq 'AND' or $ast->[0] eq 'OR')
+            and
+        $child->[1][0][0] eq $ast->[0]
+      ) {
+        push @children, @{$child->[1][0][1]};
         $changes++;
       }
 
@@ -585,14 +646,14 @@ sub _parenthesis_unroll {
       # as an AND/OR/NOT argument
       elsif (
         @{$child->[1]} == 1 && (
-          $child->[1][0][0] eq 'LITERAL'
+          $child->[1][0][0] eq '-LITERAL'
             or
-          $child->[1][0][0] eq 'PLACEHOLDER'
+          $child->[1][0][0] eq '-PLACEHOLDER'
         ) && (
           $ast->[0] eq 'AND' or $ast->[0] eq 'OR' or $ast->[0] eq 'NOT'
         )
       ) {
-        push @children, $child->[1][0];
+        push @children, @{$child->[1]};
         $changes++;
       }
 
@@ -619,7 +680,7 @@ sub _parenthesis_unroll {
           $ast->[0] =~ SQL::Abstract::Tree::_math_op_re()
         )
       ) {
-        push @children, $child->[1][0];
+        push @children, @{$child->[1]};
         $changes++;
       }
 
@@ -639,14 +700,14 @@ sub _parenthesis_unroll {
         $child->[1][0][0] !~ SQL::Abstract::Tree::_math_op_re
           and
         (
-          $child->[1][0][1][0][0] eq 'PAREN'
+          $child->[1][0][1][0][0] eq '-PAREN'
             or
-          $child->[1][0][1][0][0] eq 'LITERAL'
+          $child->[1][0][1][0][0] eq '-LITERAL'
             or
-          $child->[1][0][1][0][0] eq 'PLACEHOLDER'
+          $child->[1][0][1][0][0] eq '-PLACEHOLDER'
         )
       ) {
-        push @children, $child->[1][0];
+        push @children, @{$child->[1]};
         $changes++;
       }
 
@@ -660,7 +721,6 @@ sub _parenthesis_unroll {
     $ast->[1] = \@children;
 
   } while ($changes);
-
 }
 
 sub format { my $self = shift; $self->unparse($self->parse($_[0]), $_[1]) }

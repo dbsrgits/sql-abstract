@@ -2,50 +2,46 @@ use strict;
 use warnings;
 
 use Test::More;
-use Test::Deep;
 use Test::Warn;
 use SQL::Abstract::Tree;
 
 my $sqlat = SQL::Abstract::Tree->new;
-
-cmp_deeply($sqlat->parse("SELECT a, b.*, * FROM foo WHERE foo.a =1 and foo.b LIKE 'station'"), [
+is_deeply($sqlat->parse("SELECT a, b.*, * FROM foo WHERE foo.a =1 and foo.b LIKE 'station'"), [
   [
+    "SELECT",
     [
-      "SELECT",
       [
+        "-LIST",
         [
-          "LIST",
           [
+            "-LITERAL",
             [
-              "LITERAL",
-              [
-                "a"
-              ]
-            ],
+              "a"
+            ]
+          ],
+          [
+            "-LITERAL",
             [
-              "LITERAL",
-              [
-                "b.*"
-              ]
-            ],
+              "b.*"
+            ]
+          ],
+          [
+            "-LITERAL",
             [
-              "LITERAL",
-              [
-                "*"
-              ]
+              "*"
             ]
           ]
         ]
       ]
-    ],
+    ]
+  ],
+  [
+    "FROM",
     [
-      "FROM",
       [
+        "-LITERAL",
         [
-          "LITERAL",
-          [
-            "foo"
-          ]
+          "foo"
         ]
       ]
     ]
@@ -60,13 +56,13 @@ cmp_deeply($sqlat->parse("SELECT a, b.*, * FROM foo WHERE foo.a =1 and foo.b LIK
             "=",
             [
               [
-                "LITERAL",
+                "-LITERAL",
                 [
                   "foo.a"
                 ]
               ],
               [
-                "LITERAL",
+                "-LITERAL",
                 [
                   1
                 ]
@@ -77,13 +73,13 @@ cmp_deeply($sqlat->parse("SELECT a, b.*, * FROM foo WHERE foo.a =1 and foo.b LIK
             "LIKE",
             [
               [
-                "LITERAL",
+                "-LITERAL",
                 [
                   "foo.b"
                 ]
               ],
               [
-                "LITERAL",
+                "-LITERAL",
                 [
                   "'station'"
                 ]
@@ -96,31 +92,32 @@ cmp_deeply($sqlat->parse("SELECT a, b.*, * FROM foo WHERE foo.a =1 and foo.b LIK
   ]
 ], 'simple statement parsed correctly');
 
-cmp_deeply($sqlat->parse( "SELECT * FROM (SELECT * FROM foobar) WHERE foo.a =1 and foo.b LIKE 'station'"), [
+is_deeply($sqlat->parse( "SELECT * FROM (SELECT * FROM foobar) foo WHERE foo.a =1 and foo.b LIKE 'station'"), [
   [
+    "SELECT",
     [
-      "SELECT",
       [
+        "-LITERAL",
         [
-          "LITERAL",
-          [
-            "*"
-          ]
+          "*"
         ]
       ]
-    ],
+    ]
+  ],
+  [
+    "FROM",
     [
-      "FROM",
       [
+        "-MISC",
         [
-          "PAREN",
           [
+            "-PAREN",
             [
               [
                 "SELECT",
                 [
                   [
-                    "LITERAL",
+                    "-LITERAL",
                     [
                       "*"
                     ]
@@ -131,13 +128,19 @@ cmp_deeply($sqlat->parse( "SELECT * FROM (SELECT * FROM foobar) WHERE foo.a =1 a
                 "FROM",
                 [
                   [
-                    "LITERAL",
+                    "-LITERAL",
                     [
                       "foobar"
                     ]
                   ]
                 ]
               ]
+            ]
+          ],
+          [
+            "-LITERAL",
+            [
+              "foo"
             ]
           ]
         ]
@@ -154,13 +157,13 @@ cmp_deeply($sqlat->parse( "SELECT * FROM (SELECT * FROM foobar) WHERE foo.a =1 a
             "=",
             [
               [
-                "LITERAL",
+                "-LITERAL",
                 [
                   "foo.a"
                 ]
               ],
               [
-                "LITERAL",
+                "-LITERAL",
                 [
                   1
                 ]
@@ -171,13 +174,13 @@ cmp_deeply($sqlat->parse( "SELECT * FROM (SELECT * FROM foobar) WHERE foo.a =1 a
             "LIKE",
             [
               [
-                "LITERAL",
+                "-LITERAL",
                 [
                   "foo.b"
                 ]
               ],
               [
-                "LITERAL",
+                "-LITERAL",
                 [
                   "'station'"
                 ]
@@ -190,26 +193,278 @@ cmp_deeply($sqlat->parse( "SELECT * FROM (SELECT * FROM foobar) WHERE foo.a =1 a
   ]
 ], 'subquery statement parsed correctly');
 
-cmp_deeply($sqlat->parse("SELECT * FROM lolz WHERE ( foo.a =1 ) and foo.b LIKE 'station'"), [
+is_deeply($sqlat->parse( "SELECT [screen].[id], [screen].[name], [screen].[section_id], [screen].[xtype] FROM [users_roles] [me] JOIN [roles] [role] ON [role].[id] = [me].[role_id] JOIN [roles_permissions] [role_permissions] ON [role_permissions].[role_id] = [role].[id] JOIN [permissions] [permission] ON [permission].[id] = [role_permissions].[permission_id] JOIN [permissionscreens] [permission_screens] ON [permission_screens].[permission_id] = [permission].[id] JOIN [screens] [screen] ON [screen].[id] = [permission_screens].[screen_id] WHERE ( [me].[user_id] = ? ) GROUP BY [screen].[id], [screen].[name], [screen].[section_id], [screen].[xtype]"), [
   [
+    "SELECT",
     [
-      "SELECT",
       [
+        "-LIST",
         [
-          "LITERAL",
           [
-            "*"
+            "-LITERAL",
+            [
+              "[screen].[id]"
+            ]
+          ],
+          [
+            "-LITERAL",
+            [
+              "[screen].[name]"
+            ]
+          ],
+          [
+            "-LITERAL",
+            [
+              "[screen].[section_id]"
+            ]
+          ],
+          [
+            "-LITERAL",
+            [
+              "[screen].[xtype]"
+            ]
           ]
         ]
       ]
-    ],
+    ]
+  ],
+  [
+    "FROM",
     [
-      "FROM",
       [
+        "-MISC",
         [
-          "LITERAL",
           [
-            "lolz"
+            "-LITERAL",
+            [
+              "[users_roles]"
+            ]
+          ],
+          [
+            "-LITERAL",
+            [
+              "[me]"
+            ]
+          ]
+        ]
+      ]
+    ]
+  ],
+  [
+    "JOIN",
+    [
+      [
+        "-MISC",
+        [
+          [
+            "-LITERAL",
+            [
+              "[roles]"
+            ]
+          ],
+          [
+            "-LITERAL",
+            [
+              "[role]"
+            ]
+          ]
+        ]
+      ]
+    ]
+  ],
+  [
+    "ON",
+    [
+      [
+        "=",
+        [
+          [
+            "-LITERAL",
+            [
+              "[role].[id]"
+            ]
+          ],
+          [
+            "-LITERAL",
+            [
+              "[me].[role_id]"
+            ]
+          ]
+        ]
+      ]
+    ]
+  ],
+  [
+    "JOIN",
+    [
+      [
+        "-MISC",
+        [
+          [
+            "-LITERAL",
+            [
+              "[roles_permissions]"
+            ]
+          ],
+          [
+            "-LITERAL",
+            [
+              "[role_permissions]"
+            ]
+          ]
+        ]
+      ]
+    ]
+  ],
+  [
+    "ON",
+    [
+      [
+        "=",
+        [
+          [
+            "-LITERAL",
+            [
+              "[role_permissions].[role_id]"
+            ]
+          ],
+          [
+            "-LITERAL",
+            [
+              "[role].[id]"
+            ]
+          ]
+        ]
+      ]
+    ]
+  ],
+  [
+    "JOIN",
+    [
+      [
+        "-MISC",
+        [
+          [
+            "-LITERAL",
+            [
+              "[permissions]"
+            ]
+          ],
+          [
+            "-LITERAL",
+            [
+              "[permission]"
+            ]
+          ]
+        ]
+      ]
+    ]
+  ],
+  [
+    "ON",
+    [
+      [
+        "=",
+        [
+          [
+            "-LITERAL",
+            [
+              "[permission].[id]"
+            ]
+          ],
+          [
+            "-LITERAL",
+            [
+              "[role_permissions].[permission_id]"
+            ]
+          ]
+        ]
+      ]
+    ]
+  ],
+  [
+    "JOIN",
+    [
+      [
+        "-MISC",
+        [
+          [
+            "-LITERAL",
+            [
+              "[permissionscreens]"
+            ]
+          ],
+          [
+            "-LITERAL",
+            [
+              "[permission_screens]"
+            ]
+          ]
+        ]
+      ]
+    ]
+  ],
+  [
+    "ON",
+    [
+      [
+        "=",
+        [
+          [
+            "-LITERAL",
+            [
+              "[permission_screens].[permission_id]"
+            ]
+          ],
+          [
+            "-LITERAL",
+            [
+              "[permission].[id]"
+            ]
+          ]
+        ]
+      ]
+    ]
+  ],
+  [
+    "JOIN",
+    [
+      [
+        "-MISC",
+        [
+          [
+            "-LITERAL",
+            [
+              "[screens]"
+            ]
+          ],
+          [
+            "-LITERAL",
+            [
+              "[screen]"
+            ]
+          ]
+        ]
+      ]
+    ]
+  ],
+  [
+    "ON",
+    [
+      [
+        "=",
+        [
+          [
+            "-LITERAL",
+            [
+              "[screen].[id]"
+            ]
+          ],
+          [
+            "-LITERAL",
+            [
+              "[permission_screens].[screen_id]"
+            ]
           ]
         ]
       ]
@@ -219,355 +474,21 @@ cmp_deeply($sqlat->parse("SELECT * FROM lolz WHERE ( foo.a =1 ) and foo.b LIKE '
     "WHERE",
     [
       [
-        "AND",
-        [
-          [
-            "PAREN",
-            [
-              [
-                "=",
-                [
-                  [
-                    "LITERAL",
-                    [
-                      "foo.a"
-                    ]
-                  ],
-                  [
-                    "LITERAL",
-                    [
-                      1
-                    ]
-                  ]
-                ]
-              ]
-            ]
-          ],
-          [
-            "LIKE",
-            [
-              [
-                "LITERAL",
-                [
-                  "foo.b"
-                ]
-              ],
-              [
-                "LITERAL",
-                [
-                  "'station'"
-                ]
-              ]
-            ]
-          ]
-        ]
-      ]
-    ]
-  ]
-], 'simple statement with parens in where parsed correctly');
-
-cmp_deeply($sqlat->parse( "SELECT [screen].[id], [screen].[name], [screen].[section_id], [screen].[xtype] FROM [users_roles] [me] JOIN [roles] [role] ON [role].[id] = [me].[role_id] JOIN [roles_permissions] [role_permissions] ON [role_permissions].[role_id] = [role].[id] JOIN [permissions] [permission] ON [permission].[id] = [role_permissions].[permission_id] JOIN [permissionscreens] [permission_screens] ON [permission_screens].[permission_id] = [permission].[id] JOIN [screens] [screen] ON [screen].[id] = [permission_screens].[screen_id] WHERE ( [me].[user_id] = ? ) GROUP BY [screen].[id], [screen].[name], [screen].[section_id], [screen].[xtype]"), [
-  [
-    [
-      [
-        [
-          [
-            [
-              [
-                [
-                  [
-                    [
-                      [
-                        [
-                          [
-                            "SELECT",
-                            [
-                              [
-                                "LIST",
-                                [
-                                  [
-                                    "LITERAL",
-                                    [
-                                      "[screen].[id]"
-                                    ]
-                                  ],
-                                  [
-                                    "LITERAL",
-                                    [
-                                      "[screen].[name]"
-                                    ]
-                                  ],
-                                  [
-                                    "LITERAL",
-                                    [
-                                      "[screen].[section_id]"
-                                    ]
-                                  ],
-                                  [
-                                    "LITERAL",
-                                    [
-                                      "[screen].[xtype]"
-                                    ]
-                                  ]
-                                ]
-                              ]
-                            ]
-                          ],
-                          [
-                            "FROM",
-                            [
-                              [
-                                [
-                                  "LITERAL",
-                                  [
-                                    "[users_roles]"
-                                  ]
-                                ],
-                                [
-                                  "LITERAL",
-                                  [
-                                    "[me]"
-                                  ]
-                                ]
-                              ]
-                            ]
-                          ]
-                        ],
-                        [
-                          "JOIN",
-                          [
-                            [
-                              [
-                                "LITERAL",
-                                [
-                                  "[roles]"
-                                ]
-                              ],
-                              [
-                                "LITERAL",
-                                [
-                                  "[role]"
-                                ]
-                              ]
-                            ]
-                          ]
-                        ]
-                      ],
-                      [
-                        "ON",
-                        [
-                          [
-                            "=",
-                            [
-                              [
-                                "LITERAL",
-                                [
-                                  "[role].[id]"
-                                ]
-                              ],
-                              [
-                                "LITERAL",
-                                [
-                                  "[me].[role_id]"
-                                ]
-                              ]
-                            ]
-                          ]
-                        ]
-                      ]
-                    ],
-                    [
-                      "JOIN",
-                      [
-                        [
-                          [
-                            "LITERAL",
-                            [
-                              "[roles_permissions]"
-                            ]
-                          ],
-                          [
-                            "LITERAL",
-                            [
-                              "[role_permissions]"
-                            ]
-                          ]
-                        ]
-                      ]
-                    ]
-                  ],
-                  [
-                    "ON",
-                    [
-                      [
-                        "=",
-                        [
-                          [
-                            "LITERAL",
-                            [
-                              "[role_permissions].[role_id]"
-                            ]
-                          ],
-                          [
-                            "LITERAL",
-                            [
-                              "[role].[id]"
-                            ]
-                          ]
-                        ]
-                      ]
-                    ]
-                  ]
-                ],
-                [
-                  "JOIN",
-                  [
-                    [
-                      [
-                        "LITERAL",
-                        [
-                          "[permissions]"
-                        ]
-                      ],
-                      [
-                        "LITERAL",
-                        [
-                          "[permission]"
-                        ]
-                      ]
-                    ]
-                  ]
-                ]
-              ],
-              [
-                "ON",
-                [
-                  [
-                    "=",
-                    [
-                      [
-                        "LITERAL",
-                        [
-                          "[permission].[id]"
-                        ]
-                      ],
-                      [
-                        "LITERAL",
-                        [
-                          "[role_permissions].[permission_id]"
-                        ]
-                      ]
-                    ]
-                  ]
-                ]
-              ]
-            ],
-            [
-              "JOIN",
-              [
-                [
-                  [
-                    "LITERAL",
-                    [
-                      "[permissionscreens]"
-                    ]
-                  ],
-                  [
-                    "LITERAL",
-                    [
-                      "[permission_screens]"
-                    ]
-                  ]
-                ]
-              ]
-            ]
-          ],
-          [
-            "ON",
-            [
-              [
-                "=",
-                [
-                  [
-                    "LITERAL",
-                    [
-                      "[permission_screens].[permission_id]"
-                    ]
-                  ],
-                  [
-                    "LITERAL",
-                    [
-                      "[permission].[id]"
-                    ]
-                  ]
-                ]
-              ]
-            ]
-          ]
-        ],
-        [
-          "JOIN",
-          [
-            [
-              [
-                "LITERAL",
-                [
-                  "[screens]"
-                ]
-              ],
-              [
-                "LITERAL",
-                [
-                  "[screen]"
-                ]
-              ]
-            ]
-          ]
-        ]
-      ],
-      [
-        "ON",
+        "-PAREN",
         [
           [
             "=",
             [
               [
-                "LITERAL",
+                "-LITERAL",
                 [
-                  "[screen].[id]"
+                  "[me].[user_id]"
                 ]
               ],
               [
-                "LITERAL",
+                "-PLACEHOLDER",
                 [
-                  "[permission_screens].[screen_id]"
-                ]
-              ]
-            ]
-          ]
-        ]
-      ]
-    ],
-    [
-      "WHERE",
-      [
-        [
-          "PAREN",
-          [
-            [
-              "=",
-              [
-                [
-                  "LITERAL",
-                  [
-                    "[me].[user_id]"
-                  ]
-                ],
-                [
-                  "PLACEHOLDER",
-                  [
-                    "?"
-                  ]
+                  "?"
                 ]
               ]
             ]
@@ -580,28 +501,28 @@ cmp_deeply($sqlat->parse( "SELECT [screen].[id], [screen].[name], [screen].[sect
     "GROUP BY",
     [
       [
-        "LIST",
+        "-LIST",
         [
           [
-            "LITERAL",
+            "-LITERAL",
             [
               "[screen].[id]"
             ]
           ],
           [
-            "LITERAL",
+            "-LITERAL",
             [
               "[screen].[name]"
             ]
           ],
           [
-            "LITERAL",
+            "-LITERAL",
             [
               "[screen].[section_id]"
             ]
           ],
           [
-            "LITERAL",
+            "-LITERAL",
             [
               "[screen].[xtype]"
             ]
@@ -612,38 +533,36 @@ cmp_deeply($sqlat->parse( "SELECT [screen].[id], [screen].[name], [screen].[sect
   ]
 ], 'real life statement 1 parsed correctly');
 
-cmp_deeply($sqlat->parse("SELECT x, y FROM foo WHERE x IN (?, ?, ?, ?)"), [
+is_deeply($sqlat->parse("SELECT x, y FROM foo WHERE x IN (?, ?, ?, ?)"), [
   [
+    "SELECT",
     [
-      "SELECT",
       [
+        "-LIST",
         [
-          "LIST",
           [
+            "-LITERAL",
             [
-              "LITERAL",
-              [
-                "x"
-              ]
-            ],
+              "x"
+            ]
+          ],
+          [
+            "-LITERAL",
             [
-              "LITERAL",
-              [
-                "y"
-              ]
+              "y"
             ]
           ]
         ]
       ]
-    ],
+    ]
+  ],
+  [
+    "FROM",
     [
-      "FROM",
       [
+        "-LITERAL",
         [
-          "LITERAL",
-          [
-            "foo"
-          ]
+          "foo"
         ]
       ]
     ]
@@ -655,37 +574,37 @@ cmp_deeply($sqlat->parse("SELECT x, y FROM foo WHERE x IN (?, ?, ?, ?)"), [
         "IN",
         [
           [
-            "LITERAL",
+            "-LITERAL",
             [
               "x"
             ]
           ],
           [
-            "PAREN",
+            "-PAREN",
             [
               [
-                "LIST",
+                "-LIST",
                 [
                   [
-                    "PLACEHOLDER",
+                    "-PLACEHOLDER",
                     [
                       "?"
                     ]
                   ],
                   [
-                    "PLACEHOLDER",
+                    "-PLACEHOLDER",
                     [
                       "?"
                     ]
                   ],
                   [
-                    "PLACEHOLDER",
+                    "-PLACEHOLDER",
                     [
                       "?"
                     ]
                   ],
                   [
-                    "PLACEHOLDER",
+                    "-PLACEHOLDER",
                     [
                       "?"
                     ]
@@ -700,9 +619,332 @@ cmp_deeply($sqlat->parse("SELECT x, y FROM foo WHERE x IN (?, ?, ?, ?)"), [
   ]
 ], 'Lists parsed correctly');
 
+is_deeply($sqlat->parse("SELECT * * FROM (SELECT *, FROM foobar baz buzz) foo bar WHERE NOT NOT NOT EXISTS (SELECT 'cr,ap') AND foo.a = ? and not (foo.b LIKE 'station') and x = y and a = b and GROUP BY , ORDER BY x x1 x2 y asc, max(y) desc x z desc"), [
+  [
+    "SELECT",
+    [
+      [
+        "*",
+        [
+          [
+            "-LITERAL",
+            [
+              "*"
+            ]
+          ]
+        ]
+      ]
+    ]
+  ],
+  [
+    "FROM",
+    [
+      [
+        "-MISC",
+        [
+          [
+            "-PAREN",
+            [
+              [
+                "SELECT",
+                [
+                  [
+                    "-LIST",
+                    [
+                      [
+                        "-LITERAL",
+                        [
+                          "*"
+                        ]
+                      ],
+                      []
+                    ]
+                  ]
+                ]
+              ],
+              [
+                "FROM",
+                [
+                  [
+                    "-MISC",
+                    [
+                      [
+                        "-LITERAL",
+                        [
+                          "foobar"
+                        ]
+                      ],
+                      [
+                        "-LITERAL",
+                        [
+                          "baz"
+                        ]
+                      ],
+                      [
+                        "-LITERAL",
+                        [
+                          "buzz"
+                        ]
+                      ]
+                    ]
+                  ]
+                ]
+              ]
+            ]
+          ],
+          [
+            "-LITERAL",
+            [
+              "foo"
+            ]
+          ],
+          [
+            "-LITERAL",
+            [
+              "bar"
+            ]
+          ]
+        ]
+      ]
+    ]
+  ],
+  [
+    "WHERE",
+    [
+      [
+        "AND",
+        [
+          [
+            "NOT",
+            []
+          ],
+          [
+            "NOT",
+            []
+          ],
+          [
+            "NOT EXISTS",
+            [
+              [
+                "-PAREN",
+                [
+                  [
+                    "SELECT",
+                    [
+                      [
+                        "-LIST",
+                        [
+                          [
+                            "-LITERAL",
+                            [
+                              "'cr"
+                            ]
+                          ],
+                          [
+                            "-LITERAL",
+                            [
+                              "ap'"
+                            ]
+                          ]
+                        ]
+                      ]
+                    ]
+                  ]
+                ]
+              ]
+            ]
+          ],
+          [
+            "=",
+            [
+              [
+                "-LITERAL",
+                [
+                  "foo.a"
+                ]
+              ],
+              [
+                "-PLACEHOLDER",
+                [
+                  "?"
+                ]
+              ]
+            ]
+          ],
+          [
+            "NOT",
+            [
+              [
+                "-PAREN",
+                [
+                  [
+                    "LIKE",
+                    [
+                      [
+                        "-LITERAL",
+                        [
+                          "foo.b"
+                        ]
+                      ],
+                      [
+                        "-LITERAL",
+                        [
+                          "'station'"
+                        ]
+                      ]
+                    ]
+                  ]
+                ]
+              ]
+            ]
+          ],
+          [
+            "=",
+            [
+              [
+                "-LITERAL",
+                [
+                  "x"
+                ]
+              ],
+              [
+                "-LITERAL",
+                [
+                  "y"
+                ]
+              ]
+            ]
+          ],
+          [
+            "=",
+            [
+              [
+                "-LITERAL",
+                [
+                  "a"
+                ]
+              ],
+              [
+                "-LITERAL",
+                [
+                  "b"
+                ]
+              ]
+            ]
+          ]
+        ]
+      ]
+    ]
+  ],
+  [
+    "GROUP BY",
+    [
+      [
+        "-LIST",
+        [
+          [],
+          []
+        ]
+      ]
+    ]
+  ],
+  [
+    "ORDER BY",
+    [
+      [
+        "-LIST",
+        [
+          [
+            "-MISC",
+            [
+              [
+                "-LITERAL",
+                [
+                  "x"
+                ]
+              ],
+              [
+                "-LITERAL",
+                [
+                  "x1"
+                ]
+              ],
+              [
+                "-LITERAL",
+                [
+                  "x2"
+                ]
+              ],
+              [
+                "-LITERAL",
+                [
+                  "y"
+                ]
+              ],
+              [
+                "-LITERAL",
+                [
+                  "asc"
+                ]
+              ]
+            ]
+          ],
+          [
+            "max",
+            [
+              [
+                "-MISC",
+                [
+                  [
+                    "-DESC",
+                    [
+                      [
+                        "-PAREN",
+                        [
+                          [
+                            "-LITERAL",
+                            [
+                              "y"
+                            ]
+                          ]
+                        ]
+                      ]
+                    ]
+                  ],
+                  [
+                    "-LITERAL",
+                    [
+                      "x"
+                    ]
+                  ],
+                  [
+                    "-LITERAL",
+                    [
+                      "z"
+                    ]
+                  ],
+                  [
+                    "-LITERAL",
+                    [
+                      "desc"
+                    ]
+                  ]
+                ]
+              ]
+            ]
+          ]
+        ]
+      ]
+    ]
+  ]
+], 'Deliberately malformed SQL parsed "correctly"');
+
+
 # test for recursion warnings on huge selectors
+my @lst = ('XAA' .. 'XZZ');
+#@lst = ('XAAA' .. 'XZZZ'); # if you really want to wait a while
 warnings_are {
-  my $sql = sprintf 'SELECT %s FROM foo', join (', ',  map { qq|"$_"| } 'aa' .. 'zz' );
+  my $sql = sprintf 'SELECT %s FROM foo', join (', ',  (map { "( $_ )" } @lst), (map { qq|"$_"| } @lst), (map { qq|"$_", ( $_ )| } @lst) );
   my $tree = $sqlat->parse($sql);
 
   is_deeply( $tree, [
@@ -710,9 +952,11 @@ warnings_are {
       "SELECT",
       [
         [
-          "LIST",
+          "-LIST",
           [
-            map { [ "LITERAL", [ qq|"$_"| ] ] } ('aa' .. 'zz')
+            (map { [ -PAREN => [ [ -LITERAL => [ $_ ] ] ] ] } @lst),
+            (map { [ -LITERAL => [ qq|"$_"| ] ] } @lst),
+            (map { [ -LITERAL => [ qq|"$_"| ] ], [ -PAREN => [ [ -LITERAL => [ $_ ] ] ] ] } @lst),
           ]
         ]
       ]
@@ -721,7 +965,7 @@ warnings_are {
       "FROM",
       [
         [
-          "LITERAL",
+          "-LITERAL",
           [
             "foo"
           ]
