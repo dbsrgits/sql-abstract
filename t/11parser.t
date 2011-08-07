@@ -941,10 +941,10 @@ is_deeply($sqlat->parse("SELECT * * FROM (SELECT *, FROM foobar baz buzz) foo ba
 
 
 # test for recursion warnings on huge selectors
-my @lst = ('XAA' .. 'XZZ');
-#@lst = ('XAAA' .. 'XZZZ'); # if you really want to wait a while
+my @lst = ('AA' .. 'zz');
+#@lst = ('AAA' .. 'zzz'); # if you really want to wait a while
 warnings_are {
-  my $sql = sprintf 'SELECT %s FROM foo', join (', ',  (map { "( $_ )" } @lst), (map { qq|"$_"| } @lst), (map { qq|"$_", ( $_ )| } @lst) );
+  my $sql = sprintf 'SELECT %s FROM foo', join (', ',  (map { qq|( "$_" )| } @lst), (map { qq|"$_"| } @lst), (map { qq|"$_", ( "$_" )| } @lst) );
   my $tree = $sqlat->parse($sql);
 
   is_deeply( $tree, [
@@ -954,9 +954,9 @@ warnings_are {
         [
           "-LIST",
           [
-            (map { [ -PAREN => [ [ -LITERAL => [ $_ ] ] ] ] } @lst),
+            (map { [ -PAREN => [ [ -LITERAL => [ qq|"$_"| ] ] ] ] } @lst),
             (map { [ -LITERAL => [ qq|"$_"| ] ] } @lst),
-            (map { [ -LITERAL => [ qq|"$_"| ] ], [ -PAREN => [ [ -LITERAL => [ $_ ] ] ] ] } @lst),
+            (map { [ -LITERAL => [ qq|"$_"| ] ], [ -PAREN => [ [ -LITERAL => [ qq|"$_"| ] ] ] ] } @lst),
           ]
         ]
       ]

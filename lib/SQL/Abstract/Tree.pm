@@ -9,10 +9,10 @@ use Hash::Merge qw//;
 
 use base 'Class::Accessor::Grouped';
 
-__PACKAGE__->mk_group_accessors( simple => $_ ) for qw(
+__PACKAGE__->mk_group_accessors( simple => qw(
    newline indent_string indent_amount colormap indentmap fill_in_placeholders
    placeholder_surround
-);
+));
 
 my $merger = Hash::Merge->new;
 
@@ -100,24 +100,19 @@ $expr_start_re = qr/ $op_look_behind (?i: $expr_start_re ) $op_look_ahead /x;
 # testing as one is tighter than the other, plus mathops have different look
 # ahead/behind (e.g. "x"="y" )
 my @math_op_keywords = (qw/ < > != <> = <= >= /);
-my $math_re = join ("\n\t|\n", map
+my $math_op_re = join ("\n\t|\n", map
   { "(?: (?<= [\\w\\s] | $quote_right ) | \\A )"  . quotemeta ($_) . "(?: (?= [\\w\\s] | $quote_left ) | \\z )" }
   @math_op_keywords
 );
-$math_re = qr/$math_re/x;
-
-sub _math_op_re { $math_re }
-
+$math_op_re = qr/$math_op_re/x;
 
 my $binary_op_re = '(?: NOT \s+)? (?:' . join ('|', qw/IN BETWEEN R?LIKE/) . ')';
 $binary_op_re = join "\n\t|\n",
   "$op_look_behind (?i: $binary_op_re | AS ) $op_look_ahead",
-  $math_re,
+  $math_op_re,
   $op_look_behind . 'IS (?:\s+ NOT)?' . "(?= \\s+ NULL \\b | $op_look_ahead )",
 ;
 $binary_op_re = qr/$binary_op_re/x;
-
-sub _binary_op_re { $binary_op_re }
 
 my $unary_op_re = '(?: NOT \s+ EXISTS | NOT )';
 $unary_op_re = join "\n\t|\n",
@@ -125,22 +120,24 @@ $unary_op_re = join "\n\t|\n",
 ;
 $unary_op_re = qr/$unary_op_re/x;
 
-sub _unary_op_re { $unary_op_re }
+my $asc_desc_re = qr/$op_look_behind (?i: ASC | DESC ) $op_look_ahead /x;
+my $and_or_re = qr/$op_look_behind (?i: AND | OR ) $op_look_ahead /x;
 
-my $all_known_re = join("\n\t|\n",
+my $tokenizer_re = join("\n\t|\n",
   $expr_start_re,
   $binary_op_re,
   $unary_op_re,
-  "$op_look_behind (?i: AND|OR|\\* ) $op_look_ahead",
+  $asc_desc_re,
+  $and_or_re,
+  "$op_look_behind \\* $op_look_ahead",
   (map { quotemeta $_ } qw/, ( )/),
   $placeholder_re,
 );
 
-$all_known_re = qr/$all_known_re/x;
-
-#this one *is* capturing for the split below
+# this one *is* capturing for the split below
 # splits on whitespace if all else fails
-my $tokenizer_re = qr/ \s* ( $all_known_re ) \s* | \s+ /x;
+# has to happen before the composiign qr's are anchored (below)
+$tokenizer_re = qr/ \s* ( $tokenizer_re ) \s* | \s+ /x;
 
 # Parser states for _recurse_parse()
 use constant PARSE_TOP_LEVEL => 0;
@@ -150,11 +147,30 @@ use constant PARSE_IN_FUNC => 3;
 use constant PARSE_RHS => 4;
 use constant PARSE_LIST_ELT => 5;
 
-my $asc_desc_re = qr/^ (?: ASC | DESC ) $/xi;
-my $expr_term_re = qr/ ^ (?: $expr_start_re | \) ) $/x;
-my $rhs_term_re = qr/ ^ (?: $expr_term_re | $binary_op_re | $unary_op_re | $asc_desc_re | (?i: AND | OR | \, ) ) $/x;
-my $common_single_args_re = qr/ ^ (?: \* | $placeholder_re ) $/x;
-my $all_std_keywords_re = qr/^ (?: $rhs_term_re | \( | $common_single_args_re ) $/x;
+my $expr_term_re = qr/$expr_start_re | \)/x;
+my $rhs_term_re = qr/ $expr_term_re | $binary_op_re | $unary_op_re | $asc_desc_re | $and_or_re | \, /x;
+my $common_single_args_re = qr/ \* | $placeholder_re /x;
+my $all_std_keywords_re = qr/ $rhs_term_re | \( | $common_single_args_re /x;
+
+# anchor everything - even though keywords are separated by the tokenizer, leakage may occur
+for (
+  $quote_left,
+  $quote_right,
+  $placeholder_re,
+  $expr_start_re,
+  $math_op_re,
+  $binary_op_re,
+  $unary_op_re,
+  $asc_desc_re,
+  $and_or_re,
+  $expr_term_re,
+  $rhs_term_re,
+  $common_single_args_re,
+  $all_std_keywords_re,
+) {
+  $_ = qr/ \A $_ \z /x;
+}
+
 
 
 my %indents = (
@@ -337,7 +353,7 @@ sub _recurse_parse {
           or
         ($state == PARSE_RHS && $tokens->[0] =~ $rhs_term_re )
           or
-        ($state == PARSE_LIST_ELT && $tokens->[0] =~ qr/^ (?: $expr_term_re | \, ) $/x)
+        ($state == PARSE_LIST_ELT && ( $tokens->[0] eq ',' or $tokens->[0] =~ $expr_term_re ) )
     ) {
       return @left;
     }
@@ -354,7 +370,7 @@ sub _recurse_parse {
     }
 
     # AND/OR
-    elsif ($token =~ /^ (?: OR | AND ) $/ix ) {
+    elsif ($token =~ $and_or_re) {
       my $op = uc $token;
 
       my @right = $self->_recurse_parse($tokens, PARSE_IN_EXPR);
@@ -428,7 +444,7 @@ sub _recurse_parse {
     }
 
     # check if the current token is an unknown op-start
-    elsif (@$tokens and $tokens->[0] =~ qr/^ (?: \( | $common_single_args_re ) $/x ) {
+    elsif (@$tokens and ($tokens->[0] eq '(' or $tokens->[0] =~ $common_single_args_re ) ) {
       push @left, [ $token => [ $self->_recurse_parse($tokens, PARSE_RHS) ] ];
     }
 
@@ -565,7 +581,7 @@ sub _unparse {
       )
     );
   }
-  elsif ($op eq 'AND' or $op eq 'OR' or $op =~ / ^ $binary_op_re $ /x ) {
+  elsif ($op eq 'AND' or $op eq 'OR' or $op =~ $binary_op_re ) {
     return join (" $op ", map $self->_unparse($_, $bindargs, $depth), @{$args});
   }
   elsif ($op eq '-LIST' ) {
@@ -668,16 +684,16 @@ sub _parenthesis_unroll {
           and
         ($ast->[0] eq 'AND' or $ast->[0] eq 'OR')
           and
-        $child->[1][0][0] =~ SQL::Abstract::Tree::_binary_op_re()
+        $child->[1][0][0] =~ $binary_op_re
           and
         $child->[1][0][0] ne 'BETWEEN'
           and
         @{$child->[1][0][1]} == 2
           and
         ! (
-          $child->[1][0][0] =~ SQL::Abstract::Tree::_math_op_re()
+          $child->[1][0][0] =~ $math_op_re
             and
-          $ast->[0] =~ SQL::Abstract::Tree::_math_op_re()
+          $ast->[0] =~ $math_op_re
         )
       ) {
         push @children, @{$child->[1]};
@@ -695,9 +711,9 @@ sub _parenthesis_unroll {
           and
         @{$child->[1][0][1]} == 1
           and
-        $ast->[0] =~ SQL::Abstract::Tree::_math_op_re()
+        $ast->[0] =~ $math_op_re
           and
-        $child->[1][0][0] !~ SQL::Abstract::Tree::_math_op_re
+        $child->[1][0][0] !~ $math_op_re
           and
         (
           $child->[1][0][1][0][0] eq '-PAREN'
