@@ -528,6 +528,55 @@ sub _where_op_VALUE {
   ;
 }
 
+sub _apply_to_dq {
+  my ($self, $op, $v) = @_;
+  my @args = map $self->_expr_to_dq($_), (ref($v) eq 'ARRAY' ? @$v : $v);
+
+  # Ok. Welcome to stupid compat code land. An SQLA expr that would in the
+  # absence of this piece of crazy render to:
+  #
+  #   A( B( C( x ) ) )
+  #
+  # such as
+  #
+  #   { -a => { -b => { -c => $x } } }
+  #
+  # actually needs to render to:
+  #
+  #   A( B( C x ) )
+  #
+  # because SQL sucks, and databases are hateful, and SQLA is Just That DWIM.
+  #
+  # However, we don't want to catch 'A(x)' and turn it into 'A x'
+  #
+  # So the way we deal with this is to go through all our arguments, and
+  # then if the argument is -also- an apply, i.e. at least 'B', we check
+  # its arguments - and if there's only one of them, and that isn't an apply,
+  # then we convert to the bareword form. The end result should be:
+  #
+  # A( x )                   -> A( x )
+  # A( B( x ) )              -> A( B x )
+  # A( B( C( x ) ) )         -> A( B( C x ) )
+  # A( B( x + y ) )          -> A( B( x + y ) )
+  # A( B( x, y ) )           -> A( B( x, y ) )
+  #
+  # If this turns out not to be quite right, please add additional tests
+  # to either 01generate.t or 02where.t *and* update this comment.
+
+  foreach my $arg (@args) {
+    if (
+      $arg->{type} eq DQ_OPERATOR and $arg->{operator}{'SQL.Naive'} eq 'apply'
+      and @{$arg->{args}} == 2 and $arg->{args}[1]{type} ne DQ_OPERATOR
+    ) {
+      $arg->{operator}{'SQL.Naive'} = (shift @{$arg->{args}})->{elements}->[0];
+    }
+  }
+  $self->_assert_pass_injection_guard($op);
+  return $self->_op_to_dq(
+    apply => $self->_ident_to_dq($op), @args
+  );
+}
+
 sub _where_hashpair_to_dq {
   my ($self, $k, $v, $logic) = @_;
 
@@ -548,23 +597,7 @@ sub _where_hashpair_to_dq {
     } elsif ($op =~ /^(?:AND|OR|NEST)_?\d+/) {
       die "Use of [and|or|nest]_N modifiers is no longer supported";
     } else {
-      my @args = do {
-        if (ref($v) eq 'HASH' and keys(%$v) == 1 and (keys %$v)[0] =~ /^-(.*)/s) {
-          my $op = uc($1);
-          my ($inner) = values %$v;
-          $self->_op_to_dq(
-            $op,
-            (map $self->_expr_to_dq($_),
-              (ref($inner) eq 'ARRAY' ? @$inner : $inner))
-          );
-        } else {
-          (map $self->_expr_to_dq($_), (ref($v) eq 'ARRAY' ? @$v : $v))
-        }
-      };
-      $self->_assert_pass_injection_guard($op);
-      return $self->_op_to_dq(
-        apply => $self->_ident_to_dq($op), @args
-      );
+      return $self->_apply_to_dq($op, $v);
     }
   } else {
     local our $Cur_Col_Meta = $k;
