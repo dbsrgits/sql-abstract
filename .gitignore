@@ -1,8 +1,8 @@
 Build
 MANIFEST
 MANIFEST.bak
-META.yml
-MYMETA.yml
+META.*
+MYMETA.*
 Makefile
 Makefile.old
 README
