@@ -15,8 +15,8 @@ all_from 'lib/SQL/Abstract.pm';
 
 requires 'List::Util'   => 0;
 requires 'Scalar::Util' => 0;
-requires 'Class::Accessor::Grouped' => 0.10002;
-requires 'Getopt::Long::Descriptive' => 0.086;
+requires 'Class::Accessor::Grouped' => 0.10005;
+requires 'Getopt::Long::Descriptive' => 0.091;
 requires 'Hash::Merge' => 0.12;
 
 test_requires "Test::More"      => 0.92;
