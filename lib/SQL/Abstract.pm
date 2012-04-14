@@ -320,7 +320,7 @@ sub _update_to_dq {
 #======================================================================
 
 sub _source_to_dq {
-  my ($self, $table, $where) = @_;
+  my ($self, $table, undef, $where) = @_;
 
   my $source_dq = $self->_table_to_dq($table);
 
@@ -338,9 +338,10 @@ sub _source_to_dq {
 sub select { shift->_render_sqla(select => @_) }
 
 sub _select_to_dq {
-  my ($self, $table, $fields, $where, $order) = @_;
+  my $self = shift;
+  my ($table, $fields, $where, $order) = @_;
 
-  my $source_dq = $self->_source_to_dq($table, $where);
+  my $source_dq = $self->_source_to_dq(@_);
 
   my $ordered_dq = do {
     if ($order) {
