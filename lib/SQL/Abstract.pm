@@ -106,11 +106,17 @@ has injection_guard => (
   }
 );
 
-has renderer => (is => 'lazy');
+has renderer => (is => 'lazy', clearer => 'clear_renderer');
 
-has name_sep => (is => 'ro', default => sub { '.' });
+has name_sep => (
+  is => 'rw', default => sub { '.' },
+  trigger => sub { shift->clear_renderer },
+);
 
-has quote_char => (is => 'ro');
+has quote_char => (
+  is => 'rw',
+  trigger => sub { shift->clear_renderer },
+);
 
 has always_quote => (is => 'ro', default => sub { 1 });
 
@@ -333,24 +339,38 @@ sub select { shift->_render_sqla(select => @_) }
 
 sub _select_to_dq {
   my ($self, $table, $fields, $where, $order) = @_;
-  $fields ||= '*';
 
-  my $source_dq = $self->_source_to_dq($table, $where);
-
-  my $final_dq = {
-    type => DQ_SELECT,
-    select => [
-      map $self->_ident_to_dq($_),
-        ref($fields) eq 'ARRAY' ? @$fields : $fields
-    ],
-    from => $source_dq,
-  };
+  my $final_dq = $self->_select_body_to_dq($table, $fields, $where);
 
   if ($order) {
     $final_dq = $self->_order_by_to_dq($order, undef, $final_dq);
   }
 
   return $final_dq;
+}
+
+sub _select_body_to_dq {
+  my ($self, $table, $fields, $where) = @_;
+
+  $fields ||= '*';
+
+  my $source_dq = $self->_source_to_dq($table, $where);
+
+  return +{
+    type => DQ_SELECT,
+    select => [
+      map $self->_select_field_to_dq($_),
+        ref($fields) eq 'ARRAY' ? @$fields : $fields
+    ],
+    from => $source_dq,
+  };
+}
+
+sub _select_field_to_dq {
+  my ($self, $field) = @_;
+  ref($field)
+    ? $self->_literal_to_dq($$field)
+    : $self->_ident_to_dq($field)
 }
 
 #======================================================================
