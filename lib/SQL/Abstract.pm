@@ -484,50 +484,6 @@ sub _where_to_dq_SCALAR {
   shift->_value_to_dq(@_);
 }
 
-sub _where_op_IDENT {
-  my $self = shift;
-  my ($op, $rhs) = splice @_, -2;
-  if (ref $rhs) {
-    puke "-$op takes a single scalar argument (a quotable identifier)";
-  }
-
-  # in case we are called as a top level special op (no '=')
-  my $lhs = shift;
-
-  $_ = $self->_convert($self->_quote($_)) for ($lhs, $rhs);
-
-  return $lhs
-    ? "$lhs = $rhs"
-    : $rhs
-  ;
-}
-
-sub _where_op_VALUE {
-  my $self = shift;
-  my ($op, $rhs) = splice @_, -2;
-
-  # in case we are called as a top level special op (no '=')
-  my $lhs = shift;
-
-  my @bind =
-    $self->_bindtype (
-      ($lhs || $self->{_nested_func_lhs}),
-      $rhs,
-    )
-  ;
-
-  return $lhs
-    ? (
-      $self->_convert($self->_quote($lhs)) . ' = ' . $self->_convert('?'),
-      @bind
-    )
-    : (
-      $self->_convert('?'),
-      @bind,
-    )
-  ;
-}
-
 sub _apply_to_dq {
   my ($self, $op, $v) = @_;
   my @args = map $self->_expr_to_dq($_), (ref($v) eq 'ARRAY' ? @$v : $v);
@@ -594,6 +550,10 @@ sub _where_hashpair_to_dq {
       return $self->_op_to_dq(
         NOT => ref($v) ? $self->_expr_to_dq($v) : $self->_ident_to_dq($v)
       );
+    } elsif ($op eq 'IDENT') {
+      return $self->_ident_to_dq($v);
+    } elsif ($op eq 'VALUE') {
+      return $self->_value_to_dq($v);
     } elsif ($op =~ /^(?:AND|OR|NEST)_?\d+/) {
       die "Use of [and|or|nest]_N modifiers is no longer supported";
     } else {
@@ -670,6 +630,14 @@ sub _where_hashpair_to_dq {
       )
     } elsif ($op =~ s/^NOT (?!LIKE)//) {
       return $self->_where_hashpair_to_dq(-not => { $k => { $op => $rhs } });
+    } elsif ($op eq 'IDENT') {
+      return $self->_op_to_dq(
+        $self->{cmp}, $self->_ident_to_dq($k), $self->_ident_to_dq($rhs)
+      );
+    } elsif ($op eq 'VALUE') {
+      return $self->_op_to_dq(
+        $self->{cmp}, $self->_ident_to_dq($k), $self->_value_to_dq($rhs)
+      );
     } elsif (!defined($rhs)) {
       my $null_op = do {
         if ($op eq '=' or $op eq 'LIKE') {
