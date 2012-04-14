@@ -5,9 +5,7 @@ package SQL::Abstract; # see doc at end of file
 # the test / diffusion / acceptance phase; those are marked with flag
 # 'LDNOTE' (note by laurent.dami AT free.fr)
 
-use strict;
 use Carp ();
-use warnings FATAL => 'all';
 use List::Util ();
 use Scalar::Util ();
 use Data::Query::Constants qw(
@@ -15,6 +13,7 @@ use Data::Query::Constants qw(
   DQ_WHERE DQ_DELETE DQ_UPDATE DQ_INSERT
 );
 use Data::Query::ExprHelpers qw(perl_scalar_value);
+use Moo;
 
 #======================================================================
 # GLOBALS
@@ -26,13 +25,6 @@ our $VERSION  = '1.72';
 $VERSION = eval $VERSION if $VERSION =~ /_/; # numify for warning-free dev releases
 
 our $AUTOLOAD;
-
-# special operators (-in, -between). May be extended/overridden by user.
-# See section WHERE: BUILTIN SPECIAL OPERATORS below for implementation
-my @BUILTIN_SPECIAL_OPS = ();
-
-# unaryish operators - key maps to handler
-my @BUILTIN_UNARY_OPS = ();
 
 #======================================================================
 # DEBUGGING AND ERROR REPORTING
@@ -59,42 +51,40 @@ sub puke (@) {
 # NEW
 #======================================================================
 
-sub new {
-  my $self = shift;
-  my $class = ref($self) || $self;
-  my %opt = (ref $_[0] eq 'HASH') ? %{$_[0]} : @_;
+has case => (
+  is => 'ro', coerce => sub { $_[0] eq 'lower' ? 'lower' : undef }
+);
 
-  # choose our case by keeping an option around
-  delete $opt{case} if $opt{case} && $opt{case} ne 'lower';
+has logic => (
+  is => 'ro', coerce => sub { uc($_[0]) }, default => sub { 'OR' }
+);
 
-  # default logic for interpreting arrayrefs
-  $opt{logic} = $opt{logic} ? uc $opt{logic} : 'OR';
+has bindtype => (
+  is => 'ro', default => sub { 'normal' }
+);
 
-  # how to return bind vars
-  # LDNOTE: changed nwiger code : why this 'delete' ??
-  # $opt{bindtype} ||= delete($opt{bind_type}) || 'normal';
-  $opt{bindtype} ||= 'normal';
+has cmp => (is => 'ro', default => sub { '=' });
 
-  # default comparison is "=", but can be overridden
-  $opt{cmp} ||= '=';
 
   # try to recognize which are the 'equality' and 'unequality' ops
   # (temporary quickfix, should go through a more seasoned API)
-  $opt{equality_op}   = qr/^(\Q$opt{cmp}\E|is|(is\s+)?like)$/i;
-  $opt{inequality_op} = qr/^(!=|<>|(is\s+)?not(\s+like)?)$/i;
+
+has equality_op => (
+  is => 'ro', lazy => 1,
+  default => sub { qr/^(\Q${\$_[0]->cmp}\E|is|(is\s+)?like)$/i }
+);
+
+has inequality_op => (
+  is => 'ro',
+  default => sub { qr/^(!=|<>|(is\s+)?not(\s+like)?)$/i }
+);
 
   # SQL booleans
-  $opt{sqltrue}  ||= '1=1';
-  $opt{sqlfalse} ||= '0=1';
+has sqltrue => (is => 'ro', default => sub { '1=1' });
+has sqlfalse => (is => 'ro', default => sub { '0=1' });
 
-  # special operators
-  $opt{special_ops} ||= [];
-  # regexes are applied in order, thus push after user-defines
-  push @{$opt{special_ops}}, @BUILTIN_SPECIAL_OPS;
-
-  # unary operators
-  $opt{unary_ops} ||= [];
-  push @{$opt{unary_ops}}, @BUILTIN_UNARY_OPS;
+has special_ops => (is => 'ro', default => sub { [] });
+has unary_ops => (is => 'ro', default => sub { [] });
 
   # rudimentary saniy-check for user supplied bits treated as functions/operators
   # If a purported  function matches this regular expression, an exception is thrown.
@@ -104,28 +94,42 @@ sub new {
   # FIXME
   # need to guard against ()'s in column names too, but this will break tons of
   # hacks... ideas anyone?
-  $opt{injection_guard} ||= qr/
-    \;
-      |
-    ^ \s* go \s
-  /xmi;
 
-  $opt{renderer} ||= do {
-    require Data::Query::Renderer::SQL::Naive;
-    my ($always, $chars);
-    for ($opt{quote_char}) {
-      $chars = defined() ? (ref() ? $_ : [$_]) : ['',''];
-    }
-    Data::Query::Renderer::SQL::Naive->new({
-      quote_chars => $chars, always_quote => 1,
-      ($opt{name_sep} ? (identifier_sep => $opt{name_sep}) : ()),
-      ($opt{case} ? (lc_keywords => 1) : ()), # always 'lower' if it exists
-    });
-  };
+has injection_guard => (
+  is => 'ro',
+  default => sub {
+    qr/
+      \;
+        |
+      ^ \s* go \s
+    /xmi;
+  }
+);
 
-  $opt{name_sep} ||= '.';
+has renderer => (is => 'lazy');
 
-  return bless \%opt, $class;
+has name_sep => (is => 'ro', default => sub { '.' });
+
+has quote_char => (is => 'ro');
+
+has always_quote => (is => 'ro', default => sub { 1 });
+
+has convert => (is => 'ro');
+
+has array_datatypes => (is => 'ro');
+
+sub _build_renderer {
+  my ($self) = @_;
+  require Data::Query::Renderer::SQL::Naive;
+  my ($chars);
+  for ($self->quote_char) {
+    $chars = defined() ? (ref() ? $_ : [$_]) : ['',''];
+  }
+  Data::Query::Renderer::SQL::Naive->new({
+    quote_chars => $chars, always_quote => $self->always_quote,
+    identifier_sep => $self->name_sep,
+    ($self->case ? (lc_keywords => 1) : ()), # always 'lower' if it exists
+  });
 }
 
 sub _render_dq {
@@ -133,7 +137,7 @@ sub _render_dq {
   if (!$dq) {
     return '';
   }
-  my ($sql, @bind) = @{$self->{renderer}->render($dq)};
+  my ($sql, @bind) = @{$self->renderer->render($dq)};
   wantarray ?
     ($self->{bindtype} eq 'normal'
       ? ($sql, map $_->{value}, @bind)
@@ -178,10 +182,10 @@ sub _value_to_dq {
 sub _ident_to_dq {
   my ($self, $ident) = @_;
   $self->_assert_pass_injection_guard($ident)
-    unless $self->{renderer}{quote_chars}[0] && $self->{renderer}{always_quote};
+    unless $self->renderer->quote_chars->[0] && $self->renderer->always_quote;
   $self->_maybe_convert_dq({
     type => DQ_IDENTIFIER,
-    elements => [ split /\Q${\$self->{renderer}->identifier_sep}/, $ident ],
+    elements => [ split /\Q${\$self->renderer->identifier_sep}/, $ident ],
   });
 }
 
