@@ -361,12 +361,15 @@ sub _select_list_to_dq {
 
   return +{
     type => DQ_SELECT,
-    select => [
-      map $self->_select_field_to_dq($_),
-        ref($fields) eq 'ARRAY' ? @$fields : $fields
-    ],
+    select => [ $self->_select_field_list_to_dq($fields) ],
     from => $from_dq,
   };
+}
+
+sub _select_field_list_to_dq {
+  my ($self, $fields) = @_;
+  map $self->_select_field_to_dq($_),
+    ref($fields) eq 'ARRAY' ? @$fields : $fields;
 }
 
 sub _select_field_to_dq {
