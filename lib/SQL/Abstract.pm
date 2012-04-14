@@ -340,21 +340,23 @@ sub select { shift->_render_sqla(select => @_) }
 sub _select_to_dq {
   my ($self, $table, $fields, $where, $order) = @_;
 
-  my $final_dq = $self->_select_body_to_dq($table, $fields, $where);
+  my $source_dq = $self->_source_to_dq($table, $where);
 
-  if ($order) {
-    $final_dq = $self->_order_by_to_dq($order, undef, $final_dq);
-  }
+  my $ordered_dq = do {
+    if ($order) {
+      $self->_order_by_to_dq($order, undef, $source_dq);
+    } else {
+      $source_dq
+    }
+  };
 
-  return $final_dq;
+  return $self->_select_list_to_dq($fields, $ordered_dq);
 }
 
-sub _select_body_to_dq {
-  my ($self, $table, $fields, $where) = @_;
+sub _select_list_to_dq {
+  my ($self, $fields, $from_dq) = @_;
 
   $fields ||= '*';
-
-  my $source_dq = $self->_source_to_dq($table, $where);
 
   return +{
     type => DQ_SELECT,
@@ -362,7 +364,7 @@ sub _select_body_to_dq {
       map $self->_select_field_to_dq($_),
         ref($fields) eq 'ARRAY' ? @$fields : $fields
     ],
-    from => $source_dq,
+    from => $from_dq,
   };
 }
 
