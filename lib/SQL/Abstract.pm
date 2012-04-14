@@ -772,12 +772,8 @@ sub _table_to_dq {
       };
     }
     $dq;
-  } elsif (ref($from) eq 'SCALAR') {
-    +{
-      type => DQ_LITERAL,
-      subtype => 'SQL',
-      literal => $$from
-    }
+  } elsif (ref($from) eq 'SCALAR' or (ref($from) eq 'REF')) {
+    $self->_literal_to_dq($$from);
   } else {
     $self->_ident_to_dq($from);
   }
