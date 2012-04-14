@@ -110,20 +110,20 @@ sub new {
     ^ \s* go \s
   /xmi;
 
-  $opt{name_sep} ||= '.';
-
   $opt{renderer} ||= do {
     require Data::Query::Renderer::SQL::Naive;
     my ($always, $chars);
     for ($opt{quote_char}) {
       $chars = defined() ? (ref() ? $_ : [$_]) : ['',''];
-      $always = defined;
     }
     Data::Query::Renderer::SQL::Naive->new({
-      quote_chars => $chars, always_quote => $always,
+      quote_chars => $chars, always_quote => 1,
+      ($opt{name_sep} ? (identifier_sep => $opt{name_sep}) : ()),
       ($opt{case} ? (lc_keywords => 1) : ()), # always 'lower' if it exists
     });
   };
+
+  $opt{name_sep} ||= '.';
 
   return bless \%opt, $class;
 }
@@ -140,6 +140,11 @@ sub _render_dq {
       : ($sql, map [ $_->{value_meta}, $_->{value} ], @bind)
     )
     : $sql;
+}
+
+sub _render_sqla {
+  my ($self, $type, @args) = @_;
+  $self->_render_dq($self->${\"_${type}_to_dq"}(@args));
 }
 
 sub _literal_to_dq {
@@ -173,10 +178,10 @@ sub _value_to_dq {
 sub _ident_to_dq {
   my ($self, $ident) = @_;
   $self->_assert_pass_injection_guard($ident)
-    unless $self->{renderer}{always_quote};
+    unless $self->{renderer}{quote_chars}[0] && $self->{renderer}{always_quote};
   $self->_maybe_convert_dq({
     type => DQ_IDENTIFIER,
-    elements => [ split /\Q$self->{name_sep}/, $ident ],
+    elements => [ split /\Q${\$self->{renderer}->identifier_sep}/, $ident ],
   });
 }
 
@@ -220,10 +225,7 @@ sub _assert_pass_injection_guard {
 # INSERT methods
 #======================================================================
 
-sub insert {
-  my $self = shift;
-  $self->_render_dq($self->_insert_to_dq(@_));
-}
+sub insert { shift->_render_sqla(insert => @_) }
 
 sub _insert_to_dq {
   my ($self, $table, $data, $options) = @_;
@@ -249,7 +251,7 @@ sub _insert_to_dq {
   }
   +{
     type => DQ_INSERT,
-    target => $self->_ident_to_dq($table),
+    target => $self->_table_to_dq($table),
     (@names ? (names => [ map $self->_ident_to_dq($_), @names ]) : ()),
     values => [ \@values ],
     ($returning ? (returning => $returning) : ()),
@@ -278,10 +280,7 @@ sub _mutation_rhs_to_dq {
 #======================================================================
 
 
-sub update {
-  my $self = shift;
-  $self->_render_dq($self->_update_to_dq(@_));
-}
+sub update { shift->_render_sqla(update => @_) }
 
 sub _update_to_dq {
   my ($self, $table, $data, $where) = @_;
@@ -299,7 +298,7 @@ sub _update_to_dq {
 
   return +{
     type => DQ_UPDATE,
-    target => $self->_ident_to_dq($table),
+    target => $self->_table_to_dq($table),
     set => \@set,
     where => $self->_where_to_dq($where),
   };
@@ -326,10 +325,7 @@ sub _source_to_dq {
   $source_dq;
 }
 
-sub select {
-  my $self   = shift;
-  return $self->_render_dq($self->_select_to_dq(@_));
-}
+sub select { shift->_render_sqla(select => @_) }
 
 sub _select_to_dq {
   my ($self, $table, $fields, $where, $order) = @_;
@@ -358,10 +354,7 @@ sub _select_to_dq {
 #======================================================================
 
 
-sub delete {
-  my $self  = shift;
-  $self->_render_dq($self->_delete_to_dq(@_));
-}
+sub delete { shift->_render_sqla(delete => @_) }
 
 sub _delete_to_dq {
   my ($self, $table, $where) = @_;
@@ -398,11 +391,7 @@ sub where {
   return wantarray ? ($sql, @bind) : $sql;
 }
 
-sub _recurse_where {
-  my ($self, $where, $logic) = @_;
-
-  return $self->_render_dq($self->_where_to_dq($where, $logic));
-}
+sub _recurse_where { shift->_render_sqla(where => @_) }
 
 sub _where_to_dq {
   my ($self, $where, $logic) = @_;
@@ -739,10 +728,7 @@ sub _order_by_to_dq {
 # DATASOURCE (FOR NOW, JUST PLAIN TABLE OR LIST OF TABLES)
 #======================================================================
 
-sub _table  {
-  my ($self, $from) = @_;
-  $self->_render_dq($self->_table_to_dq($from));
-}
+sub _table  { shift->_render_sqla(table => @_) }
 
 sub _table_to_dq {
   my ($self, $from) = @_;
@@ -877,8 +863,8 @@ sub values {
     foreach my $k ( sort keys %$data ) {
         my $v = $data->{$k};
         local our $Cur_Col_Meta = $k;
-        my ($sql, @bind) = $self->_render_dq(
-            $self->_mutation_rhs_to_dq($v)
+        my ($sql, @bind) = $self->_render_sqla(
+            mutation_rhs => $v
         );
         push @all_bind, @bind;
     }
