@@ -295,6 +295,8 @@ sub _expr_to_dq {
     or (ref($where) eq 'REF' and ref($$where) eq 'ARRAY')
   ) {
     return $self->_literal_to_dq($$where);
+  } elsif (ref($where) eq 'REF' and ref($$where) eq 'HASH') {
+    return $$where;
   } elsif (!ref($where) or Scalar::Util::blessed($where)) {
     return $self->_value_to_dq($where);
   }

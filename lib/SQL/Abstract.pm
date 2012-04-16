@@ -75,6 +75,11 @@ has quote_char => (
   },
 );
 
+has collapse_aliases => (
+  is => 'ro',
+  default => sub { 0 }
+);
+
 has always_quote => (
   is => 'rw', default => sub { 1 },
   trigger => sub {
@@ -135,6 +140,7 @@ sub _renderer_args {
   +{
     quote_chars => $chars, always_quote => $self->always_quote,
     identifier_sep => $self->name_sep,
+    collapse_aliases => $self->collapse_aliases,
     ($self->case ? (lc_keywords => 1) : ()), # always 'lower' if it exists
   };
 }
