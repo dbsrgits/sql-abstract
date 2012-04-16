@@ -230,32 +230,37 @@ sub _select_to_dq {
     }
   };
 
-  return $self->_select_list_to_dq($fields, $ordered_dq);
+  return $self->_select_select_to_dq($fields, $ordered_dq);
 }
 
-sub _select_list_to_dq {
+sub _select_select_to_dq {
   my ($self, $fields, $from_dq) = @_;
 
   $fields ||= '*';
 
   return +{
     type => DQ_SELECT,
-    select => [ $self->_select_field_list_to_dq($fields) ],
+    select => $self->_select_field_list_to_dq($fields),
     from => $from_dq,
   };
 }
 
 sub _select_field_list_to_dq {
   my ($self, $fields) = @_;
-  map $self->_select_field_to_dq($_),
-    ref($fields) eq 'ARRAY' ? @$fields : $fields;
+  [ map $self->_select_field_to_dq($_),
+      ref($fields) eq 'ARRAY' ? @$fields : $fields ];
 }
 
 sub _select_field_to_dq {
   my ($self, $field) = @_;
-  ref($field)
-    ? $self->_literal_to_dq($$field)
-    : $self->_ident_to_dq($field)
+  if (my $ref = ref($field)) {
+    if ($ref eq 'REF' and ref($$field) eq 'HASH') {
+      return $$field;
+    } else {
+      return $self->_literal_to_dq($$field);
+    }
+  }
+  return $self->_ident_to_dq($field)
 }
 
 sub _delete_to_dq {
