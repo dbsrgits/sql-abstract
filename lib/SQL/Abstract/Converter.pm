@@ -277,6 +277,9 @@ sub _where_to_dq {
 
   return undef unless defined($where);
 
+  # if we're given a simple string assume it's a literal
+  return $self->_literal_to_dq($where) if !ref($where);
+
   # turn the convert misfeature on - only used in WHERE clauses
   local $self->{where_convert} = $self->convert;
 
