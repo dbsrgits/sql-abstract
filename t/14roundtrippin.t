@@ -25,6 +25,7 @@ my @sql = (
   "SELECT inner_forum_roles.forum_id FROM forum_roles AS inner_forum_roles LEFT JOIN user_roles AS inner_user_roles USING(user_role_type_id) WHERE inner_user_roles.user_id = users__row.user_id",
   "SELECT * FROM foo WHERE foo.a @@ to_tsquery('word')",
   "SELECT * FROM foo ORDER BY name + ?, [me].[id]",
+  "SELECT foo AS bar FROM baz ORDER BY x + ? DESC, baz.g",
 );
 
 # FIXME FIXME FIXME
