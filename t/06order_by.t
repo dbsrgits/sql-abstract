@@ -31,14 +31,14 @@ my @cases =
     expects_quoted => ' ORDER BY `colA`, `colB`',
    },
    {  # it may look odd, but this is the desired behaviour (mst)
-    given => ['colA ASC', 'colB DESC'],
-    expects => ' ORDER BY colA ASC, colB DESC',
-    expects_quoted => ' ORDER BY `colA ASC`, `colB DESC`',
+    given => ['colA', 'colB DESC'],
+    expects => ' ORDER BY colA, colB DESC',
+    expects_quoted => ' ORDER BY `colA`, `colB DESC`',
    },
    {
     given => {-asc => 'colA'},
-    expects => ' ORDER BY colA ASC',
-    expects_quoted => ' ORDER BY `colA` ASC',
+    expects => ' ORDER BY colA',
+    expects_quoted => ' ORDER BY `colA`',
    },
    {
     given => {-desc => 'colB'},
@@ -47,8 +47,8 @@ my @cases =
    },
    {
     given => [{-asc => 'colA'}, {-desc => 'colB'}],
-    expects => ' ORDER BY colA ASC, colB DESC',
-    expects_quoted => ' ORDER BY `colA` ASC, `colB` DESC',
+    expects => ' ORDER BY colA, colB DESC',
+    expects_quoted => ' ORDER BY `colA`, `colB` DESC',
    },
    {
     given => ['colA', {-desc => 'colB'}],
@@ -68,13 +68,13 @@ my @cases =
    },
    {
     given => [{-desc => [ qw/colA colB/ ] }, {-asc => 'colC'}],
-    expects => ' ORDER BY colA DESC, colB DESC, colC ASC',
-    expects_quoted => ' ORDER BY `colA` DESC, `colB` DESC, `colC` ASC',
+    expects => ' ORDER BY colA DESC, colB DESC, colC',
+    expects_quoted => ' ORDER BY `colA` DESC, `colB` DESC, `colC`',
    },
    {
     given => [{-desc => [ qw/colA colB/ ] }, {-asc => [ qw/colC colD/ ] }],
-    expects => ' ORDER BY colA DESC, colB DESC, colC ASC, colD ASC',
-    expects_quoted => ' ORDER BY `colA` DESC, `colB` DESC, `colC` ASC, `colD` ASC',
+    expects => ' ORDER BY colA DESC, colB DESC, colC, colD',
+    expects_quoted => ' ORDER BY `colA` DESC, `colB` DESC, `colC`, `colD`',
    },
    {
     given => [{-desc => [ qw/colA colB/ ] }, {-desc => 'colC' }],
@@ -83,8 +83,8 @@ my @cases =
    },
    {
     given => [{ -asc => 'colA' }, { -desc => [qw/colB/] }, { -asc => [qw/colC colD/] }],
-    expects => ' ORDER BY colA ASC, colB DESC, colC ASC, colD ASC',
-    expects_quoted => ' ORDER BY `colA` ASC, `colB` DESC, `colC` ASC, `colD` ASC',
+    expects => ' ORDER BY colA, colB DESC, colC, colD',
+    expects_quoted => ' ORDER BY `colA`, `colB` DESC, `colC`, `colD`',
    },
    {
     given => { -desc => \['colA LIKE ?', 'test'] },
@@ -100,8 +100,8 @@ my @cases =
    },
    {
     given => [ { -asc => \['colA'] }, { -desc => \['colB LIKE ?', 'test'] }, { -asc => \['colC LIKE ?', 'tost'] }],
-    expects => ' ORDER BY colA ASC, colB LIKE ? DESC, colC LIKE ? ASC',
-    expects_quoted => ' ORDER BY colA ASC, colB LIKE ? DESC, colC LIKE ? ASC',
+    expects => ' ORDER BY colA, colB LIKE ? DESC, colC LIKE ?',
+    expects_quoted => ' ORDER BY colA, colB LIKE ? DESC, colC LIKE ?',
     bind => [qw/test tost/],
    },
   );
