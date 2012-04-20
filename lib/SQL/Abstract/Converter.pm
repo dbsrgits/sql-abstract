@@ -552,7 +552,7 @@ sub _order_by_to_dq {
 
   my $dq = {
     type => DQ_ORDER,
-    (defined($dir) ? (reverse => !!$dir =~ /desc/i) : ()),
+    (defined($dir) ? (reverse => !!($dir =~ /desc/i)) : ()),
     ($from ? (from => $from) : ()),
   };
 
@@ -575,7 +575,12 @@ sub _order_by_to_dq {
   } elsif (ref($arg) eq 'REF' and ref($$arg) eq 'ARRAY') {
     $dq->{by} = $self->_literal_to_dq($$arg);
   } elsif (ref($arg) eq 'SCALAR') {
-    $dq->{by} = $self->_literal_to_dq($$arg);
+    if (my ($ident, $dir) = $$arg =~ /^(\w+)(?:\s+(desc|asc))?/i) {
+      $dq->{by} = $self->_ident_to_dq($ident);
+      $dq->{reverse} = 1 if $dir and lc($dir) eq 'desc';
+    } else {
+      $dq->{by} = $self->_literal_to_dq($$arg);
+    }
   } elsif (ref($arg) eq 'HASH') {
     my ($key, $val, @rest) = %$arg;
 
