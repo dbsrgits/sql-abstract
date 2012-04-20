@@ -13,7 +13,7 @@ my @cases =
    {
     given => \'colA DESC',
     expects => ' ORDER BY colA DESC',
-    expects_quoted => ' ORDER BY colA DESC',
+    expects_quoted => ' ORDER BY `colA` DESC',
    },
    {
     given => 'colA',
