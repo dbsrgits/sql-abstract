@@ -1,5 +1,7 @@
 Revision history for SQL::Abstract
 
+    - Stop filling in placeholders in `format-sql` since it does not support
+      passing values for them anyway
     - Fix parsing of NOT EXISTS
     - Fix over-eager parenthesis unrolling
     - Fix deep recursion warnings while parsing obnoxiously long sql statements
