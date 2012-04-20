@@ -552,7 +552,7 @@ sub _order_by_to_dq {
 
   my $dq = {
     type => DQ_ORDER,
-    ($dir ? (direction => $dir) : ()),
+    (defined($dir) ? (reverse => !!$dir =~ /desc/i) : ()),
     ($from ? (from => $from) : ()),
   };
 
