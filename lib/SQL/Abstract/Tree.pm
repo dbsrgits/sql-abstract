@@ -99,7 +99,7 @@ $expr_start_re = qr/ $op_look_behind (?i: $expr_start_re ) $op_look_ahead /x;
 # this will be included in the $binary_op_re, the distinction is interesting during
 # testing as one is tighter than the other, plus mathops have different look
 # ahead/behind (e.g. "x"="y" )
-my @math_op_keywords = (qw/ < > != <> = <= >= /);
+my @math_op_keywords = (qw/ - + < > != <> = <= >= /);
 my $math_op_re = join ("\n\t|\n", map
   { "(?: (?<= [\\w\\s] | $quote_right ) | \\A )"  . quotemeta ($_) . "(?: (?= [\\w\\s] | $quote_left ) | \\z )" }
   @math_op_keywords
@@ -589,6 +589,10 @@ sub _unparse {
   }
   elsif ($op eq '-MISC' ) {
     return join (' ', map $self->_unparse($_, $bindargs, $depth), @{$args});
+  }
+  elsif ($op =~ qr/^-(ASC|DESC)$/ ) {
+    my $dir = $1;
+    return join (' ', (map $self->_unparse($_, $bindargs, $depth), @{$args}), $dir);
   }
   else {
     my ($l, $r) = @{$self->pad_keyword($op, $depth)};

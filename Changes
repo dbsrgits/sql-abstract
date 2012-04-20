@@ -1,5 +1,6 @@
 Revision history for SQL::Abstract
 
+    - Fix parsing of ORDER BY foo + ?
     - Stop filling in placeholders in `format-sql` since it does not support
       passing values for them anyway
     - Fix parsing of NOT EXISTS
