@@ -93,12 +93,22 @@ has convert => (is => 'ro');
 has array_datatypes => (is => 'ro');
 
 has converter_class => (
-  is => 'ro', default => sub { 'SQL::Abstract::Converter' }
+  is => 'rw', lazy => 1, builder => '_build_converter_class',
+  trigger => sub { shift->clear_converter },
 );
 
+sub _build_converter_class {
+  use_module('SQL::Abstract::Converter')
+}
+
 has renderer_class => (
-  is => 'ro', default => sub { 'Data::Query::Renderer::SQL::Naive' }
+  is => 'rw', lazy => 1, builder => '_build_renderer_class',
+  trigger => sub { shift->clear_renderer },
 );
+
+sub _build_renderer_class {
+  use_module('Data::Query::Renderer::SQL::Naive')
+}
 
 sub _converter_args {
   my ($self) = @_;
@@ -128,7 +138,7 @@ sub _converter_args {
 
 sub _build_converter {
   my ($self) = @_;
-  use_module($self->converter_class)->new($self->_converter_args);
+  $self->converter_class->new($self->_converter_args);
 }
 
 sub _renderer_args {
@@ -147,7 +157,7 @@ sub _renderer_args {
 
 sub _build_renderer {
   my ($self) = @_;
-  use_module($self->renderer_class)->new($self->_renderer_args);
+  $self->renderer_class->new($self->_renderer_args);
 }
 
 sub _render_dq {
