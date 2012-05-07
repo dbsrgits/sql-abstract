@@ -5,6 +5,7 @@ use List::Util ();
 use Scalar::Util ();
 use Module::Runtime qw(use_module);
 use Moo;
+use namespace::clean;
 
 our $VERSION  = '1.72';
 

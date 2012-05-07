@@ -9,6 +9,7 @@ use Data::Query::Constants qw(
 );
 use Data::Query::ExprHelpers qw(perl_scalar_value);
 use Moo;
+use namespace::clean;
 
 has renderer_will_quote => (
   is => 'ro'
@@ -575,6 +576,17 @@ sub _order_by_to_dq {
   } elsif (ref($arg) eq 'REF' and ref($$arg) eq 'ARRAY') {
     $dq->{by} = $self->_literal_to_dq($$arg);
   } elsif (ref($arg) eq 'SCALAR') {
+
+    # < mst> right, but if it doesn't match that, it goes "ok, right, not sure, 
+    #        totally leaving this untouched as a literal"
+    # < mst> so I -think- it's relatively robust
+    # < ribasushi> right, it's relatively safe then
+    # < ribasushi> is this regex centralized?
+    # < mst> it only exists in _order_by_to_dq in SQL::Abstract::Converter
+    # < mst> it only exists because you were kind enough to support new 
+    #        dbihacks crack combined with old literal order_by crack
+    # < ribasushi> heh :)
+
     if (my ($ident, $dir) = $$arg =~ /^(\w+)(?:\s+(desc|asc))?$/i) {
       $dq->{by} = $self->_ident_to_dq($ident);
       $dq->{reverse} = 1 if $dir and lc($dir) eq 'desc';
