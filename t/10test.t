@@ -711,7 +711,26 @@ my @sql_tests = (
           'WHERE ( foo GLOB ? )',
           'WHERE foo GLOB ?',
         ],
-      }
+      },
+      {
+        equal => 1,
+        statements => [
+          'SELECT FIRST ? SKIP ? [me].[id], [me].[owner]
+            FROM [books] [me]
+          WHERE ( ( (EXISTS (
+            SELECT FIRST ? SKIP ? [owner].[id]
+              FROM [owners] [owner]
+            WHERE ( [books].[owner] = [owner].[id] )
+          )) AND [source] = ? ) )',
+          'SELECT FIRST ? SKIP ? [me].[id], [me].[owner]
+            FROM [books] [me]
+          WHERE ( ( EXISTS (
+            SELECT FIRST ? SKIP ? [owner].[id]
+              FROM [owners] [owner]
+            WHERE ( [books].[owner] = [owner].[id] )
+          ) AND [source] = ? ) )',
+        ],
+      },
 );
 
 my @bind_tests = (

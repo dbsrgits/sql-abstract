@@ -731,6 +731,23 @@ sub _parenthesis_unroll {
         $changes++;
       }
 
+      # a construct of ... ( somefunc ( ... ) ) ... can safely lose the outer parens
+      # except for the case of ( NOT ( ... ) ) which has already been handled earlier
+      elsif (
+        @{$child->[1]} == 1
+          and
+        @{$child->[1][0][1]} == 1
+          and
+        $child->[1][0][0] ne 'NOT'
+          and
+        ref $child->[1][0][1][0] eq 'ARRAY'
+          and
+        $child->[1][0][1][0][0] eq '-PAREN'
+      ) {
+        push @children, @{$child->[1]};
+        $changes++;
+      }
+
 
       # otherwise no more mucking for this pass
       else {
