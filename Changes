@@ -1,6 +1,6 @@
 Revision history for SQL::Abstract
 
-revision 1.73_01  2012-05-29
+revision 1.73  2012-07-10
 ----------------------------
     - Fix parsing of ORDER BY foo + ?
     - Stop filling in placeholders in `format-sql` since it does not support
