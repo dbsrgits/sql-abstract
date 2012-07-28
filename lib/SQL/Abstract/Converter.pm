@@ -617,7 +617,8 @@ sub _table_to_dq {
     while (my $x = shift @f) {
       $dq = {
         type => DQ_JOIN,
-        join => [ $dq, $self->_table_to_dq($x) ]
+        left => $dq,
+        right => $self->_table_to_dq($x),
       };
     }
     $dq;

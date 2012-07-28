@@ -5,6 +5,7 @@ use warnings;
 use Test::More;
 use Test::Warn;
 use Test::Exception;
+use Data::Dumper;
 
 use SQL::Abstract::Test import => ['is_same_sql_bind'];
 
@@ -585,7 +586,10 @@ for my $t (@tests) {
         );
       }
       else {
-        $cref->();
+        unless (eval { $cref->(); 1 }) {
+          die "Unexpected exception thrown for structure:\n"
+              .Dumper($t)."Exception was: $@";
+        }
       }
       is_same_sql_bind(
         $stmt,
