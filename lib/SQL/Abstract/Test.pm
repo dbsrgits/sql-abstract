@@ -107,6 +107,7 @@ sub eq_bind {
 
   local $Data::Dumper::Useqq = 1;
   local $Data::Dumper::Sortkeys = 1;
+  local $Data::Dumper::Deepcopy = 1;
 
   return Dumper($bind_ref1) eq Dumper($bind_ref2);
 }
