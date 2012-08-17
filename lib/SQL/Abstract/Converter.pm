@@ -7,7 +7,7 @@ use Data::Query::Constants qw(
   DQ_IDENTIFIER DQ_OPERATOR DQ_VALUE DQ_LITERAL DQ_JOIN DQ_SELECT DQ_ORDER
   DQ_WHERE DQ_DELETE DQ_UPDATE DQ_INSERT
 );
-use Data::Query::ExprHelpers qw(perl_scalar_value);
+use Data::Query::ExprHelpers;
 use Moo;
 use namespace::clean;
 
@@ -16,7 +16,7 @@ has renderer_will_quote => (
 );
 
 has lower_case => (
-  is => 'ro' 
+  is => 'ro'
 );
 
 has default_logic => (
@@ -63,10 +63,8 @@ sub _literal_to_dq {
   my @bind;
   ($literal, @bind) = @$literal if ref($literal) eq 'ARRAY';
   +{
-    type => DQ_LITERAL,
     subtype => 'SQL',
-    literal => $literal,
-    (@bind ? (values => [ $self->_bind_to_dq(@bind) ]) : ()),
+    %{ Literal($literal, [ $self->_bind_to_dq(@bind) ]) }
   };
 }
 
@@ -90,23 +88,17 @@ sub _ident_to_dq {
   my ($self, $ident) = @_;
   $self->_assert_pass_injection_guard($ident)
     unless $self->renderer_will_quote;
-  $self->_maybe_convert_dq({
-    type => DQ_IDENTIFIER,
-    elements => [ split /\Q${\$self->identifier_sep}/, $ident ],
-  });
+  $self->_maybe_convert_dq(Identifier(split /\Q${\$self->identifier_sep}/, $ident));
 }
 
 sub _maybe_convert_dq {
   my ($self, $dq) = @_;
   if (my $c = $self->{where_convert}) {
-    +{
-       type => DQ_OPERATOR,
-       operator => { 'SQL.Naive' => 'apply' },
-       args => [
-         { type => DQ_IDENTIFIER, elements => [ $self->_sqlcase($c) ] },
-         $dq
-       ]
-     };
+    Operator({ 'SQL.Naive' => 'apply' }, [
+        { type => DQ_IDENTIFIER, elements => [ $self->_sqlcase($c) ] },
+        $dq
+      ]
+    );
   } else {
     $dq;
   }
@@ -115,11 +107,7 @@ sub _maybe_convert_dq {
 sub _op_to_dq {
   my ($self, $op, @args) = @_;
   $self->_assert_pass_injection_guard($op);
-  +{
-    type => DQ_OPERATOR,
-    operator => { 'SQL.Naive' => $op },
-    args => \@args
-  };
+  Operator({ 'SQL.Naive' => $op }, \@args);
 }
 
 sub _assert_pass_injection_guard {
@@ -153,13 +141,12 @@ sub _insert_to_dq {
         (ref($r_source) eq 'ARRAY' ? @$r_source : $r_source),
     ];
   }
-  +{
-    type => DQ_INSERT,
-    target => $self->_table_to_dq($table),
-    (@names ? (names => [ map $self->_ident_to_dq($_), @names ]) : ()),
-    values => [ \@values ],
-    ($returning ? (returning => $returning) : ()),
-  };
+  Insert(
+    (@names ? ([ map $self->_ident_to_dq($_), @names ]) : undef),
+    [ \@values ],
+    $self->_table_to_dq($table),
+    ($returning ? ($returning) : undef),
+  );
 }
 
 sub _mutation_rhs_to_dq {
@@ -193,12 +180,11 @@ sub _update_to_dq {
     push @set, [ $self->_ident_to_dq($k), $self->_mutation_rhs_to_dq($v) ];
   }
 
-  return +{
-    type => DQ_UPDATE,
-    target => $self->_table_to_dq($table),
-    set => \@set,
-    where => $self->_where_to_dq($where),
-  };
+  Update(
+    \@set,
+    $self->_where_to_dq($where),
+    $self->_table_to_dq($table),
+  );
 }
 
 sub _source_to_dq {
@@ -207,11 +193,7 @@ sub _source_to_dq {
   my $source_dq = $self->_table_to_dq($table);
 
   if (my $where_dq = $self->_where_to_dq($where)) {
-    $source_dq = {
-      type => DQ_WHERE,
-      from => $source_dq,
-      where => $where_dq,
-    };
+    $source_dq = Where($where_dq, $source_dq);
   }
 
   $source_dq;
@@ -239,11 +221,10 @@ sub _select_select_to_dq {
 
   $fields ||= '*';
 
-  return +{
-    type => DQ_SELECT,
-    select => $self->_select_field_list_to_dq($fields),
-    from => $from_dq,
-  };
+  Select(
+    $self->_select_field_list_to_dq($fields),
+    $from_dq,
+  );
 }
 
 sub _select_field_list_to_dq {
@@ -266,11 +247,10 @@ sub _select_field_to_dq {
 
 sub _delete_to_dq {
   my ($self, $table, $where) = @_;
-  +{
-    type => DQ_DELETE,
-    target => $self->_table_to_dq($table),
-    where => $self->_where_to_dq($where),
-  }
+  Delete(
+    $self->_where_to_dq($where),
+    $self->_table_to_dq($table),
+  );
 }
 
 sub _where_to_dq {
@@ -448,9 +428,8 @@ sub _where_hashpair_to_dq {
       ], $logic);
     } elsif (ref($v) eq 'SCALAR' or (ref($v) eq 'REF' and ref($$v) eq 'ARRAY')) {
       return +{
-        type => DQ_LITERAL,
         subtype => 'SQL',
-        parts => [ $self->_ident_to_dq($k), $self->_literal_to_dq($$v) ]
+        %{ Literal([ $self->_ident_to_dq($k), $self->_literal_to_dq($$v) ]) },
       };
     }
     my ($op, $rhs) = do {
@@ -551,11 +530,11 @@ sub _order_by_to_dq {
 
   return unless $arg;
 
-  my $dq = {
-    type => DQ_ORDER,
-    (defined($dir) ? (reverse => !!($dir =~ /desc/i)) : ()),
-    ($from ? (from => $from) : ()),
-  };
+  my $dq = Order(
+    undef,
+    (defined($dir) ? (!!($dir =~ /desc/i)) : undef),
+    ($from ? ($from) : undef),
+  );
 
   if (!ref($arg)) {
     $dq->{by} = $self->_ident_to_dq($arg);
@@ -615,11 +594,10 @@ sub _table_to_dq {
     die "Empty FROM list" unless my @f = @$from;
     my $dq = $self->_table_to_dq(shift @f);
     while (my $x = shift @f) {
-      $dq = {
-        type => DQ_JOIN,
-        left => $dq,
-        right => $self->_table_to_dq($x),
-      };
+      $dq = Join(
+        $dq,
+        $self->_table_to_dq($x),
+      );
     }
     $dq;
   } elsif (ref($from) eq 'SCALAR' or (ref($from) eq 'REF')) {
