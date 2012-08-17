@@ -62,10 +62,7 @@ sub _literal_to_dq {
   my ($self, $literal) = @_;
   my @bind;
   ($literal, @bind) = @$literal if ref($literal) eq 'ARRAY';
-  +{
-    subtype => 'SQL',
-    %{ Literal($literal, [ $self->_bind_to_dq(@bind) ]) }
-  };
+  Literal('SQL', $literal, [ $self->_bind_to_dq(@bind) ]);
 }
 
 sub _bind_to_dq {
@@ -427,10 +424,7 @@ sub _where_hashpair_to_dq {
         map +{ $k => $_ }, @$v
       ], $logic);
     } elsif (ref($v) eq 'SCALAR' or (ref($v) eq 'REF' and ref($$v) eq 'ARRAY')) {
-      return +{
-        subtype => 'SQL',
-        %{ Literal([ $self->_ident_to_dq($k), $self->_literal_to_dq($$v) ]) },
-      };
+      return Literal('SQL', [ $self->_ident_to_dq($k), $self->_literal_to_dq($$v) ]);
     }
     my ($op, $rhs) = do {
       if (ref($v) eq 'HASH') {
