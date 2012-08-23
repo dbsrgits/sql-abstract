@@ -3,10 +3,6 @@ package SQL::Abstract::Converter;
 use Carp ();
 use List::Util ();
 use Scalar::Util ();
-use Data::Query::Constants qw(
-  DQ_IDENTIFIER DQ_OPERATOR DQ_VALUE DQ_LITERAL DQ_JOIN DQ_SELECT DQ_ORDER
-  DQ_WHERE DQ_DELETE DQ_UPDATE DQ_INSERT
-);
 use Data::Query::ExprHelpers;
 use Moo;
 use namespace::clean;
@@ -92,7 +88,7 @@ sub _maybe_convert_dq {
   my ($self, $dq) = @_;
   if (my $c = $self->{where_convert}) {
     Operator({ 'SQL.Naive' => 'apply' }, [
-        { type => DQ_IDENTIFIER, elements => [ $self->_sqlcase($c) ] },
+        Identifier($self->_sqlcase($c)),
         $dq
       ]
     );
@@ -372,8 +368,9 @@ sub _apply_to_dq {
 
   foreach my $arg (@args) {
     if (
-      $arg->{type} eq DQ_OPERATOR and $arg->{operator}{'SQL.Naive'} eq 'apply'
-      and @{$arg->{args}} == 2 and $arg->{args}[1]{type} ne DQ_OPERATOR
+      is_Operator($arg) and $arg->{operator}{'SQL.Naive'} eq 'apply'
+      and @{$arg->{args}} == 2 and !is_Operator($arg->{args}[1])
+
     ) {
       $arg->{operator}{'SQL.Naive'} = (shift @{$arg->{args}})->{elements}->[0];
     }
