@@ -103,9 +103,11 @@ sub _build_converter_class {
 }
 
 has renderer_class => (
-  is => 'rw', lazy => 1, builder => '_build_renderer_class',
+  is => 'rw', lazy => 1, clearer => 1, builder => 1,
   trigger => sub { shift->clear_renderer },
 );
+
+after clear_renderer_class => sub { shift->clear_renderer };
 
 sub _build_renderer_class {
   use_module('Data::Query::Renderer::SQL::Naive')
