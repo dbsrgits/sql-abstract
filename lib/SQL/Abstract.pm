@@ -110,8 +110,19 @@ has renderer_class => (
 after clear_renderer_class => sub { shift->clear_renderer };
 
 sub _build_renderer_class {
+  my ($self) = @_;
+  my ($class, @roles) = (
+    $self->_build_base_renderer_class, $self->_build_renderer_roles
+  );
+  return $class unless @roles;
+  return use_module('Moo::Role')->create_class_with_roles($class, @roles);
+}
+
+sub _build_base_renderer_class {
   use_module('Data::Query::Renderer::SQL::Naive')
 }
+
+sub _build_renderer_roles { () }
 
 sub _converter_args {
   my ($self) = @_;
