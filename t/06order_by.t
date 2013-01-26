@@ -104,10 +104,25 @@ my @cases =
     expects_quoted => ' ORDER BY colA ASC, colB LIKE ? DESC, colC LIKE ? ASC',
     bind => [qw/test tost/],
    },
+   {
+    given => [ { -asc => 'colA', -nulls => 'first' }, { -desc => 'colB', -nulls => 'last' } ],
+    expects => ' ORDER BY colA ASC NULLS FIRST, colB DESC NULLS LAST',
+    expects_quoted => ' ORDER BY `colA` ASC NULLS FIRST, `colB` DESC NULLS LAST',
+   },
+   {
+    given => [ { -asc => 'colA', -nulls => 'first' }, { -desc => 'colB', -nulls => 'last' } ],
+    expects => ' ORDER BY colA ASC NULLS FIRST, colB DESC NULLS LAST',
+    expects_quoted => ' ORDER BY `colA` ASC NULLS FIRST, `colB` DESC NULLS LAST',
+   },
+   {
+    given => { -asc => [qw/colA colB/], -nulls => 'first' } ,
+    expects => ' ORDER BY colA ASC NULLS FIRST, colB ASC NULLS FIRST',
+    expects_quoted => ' ORDER BY `colA` ASC NULLS FIRST, `colB` ASC NULLS FIRST',
+   },
   );
 
 
-plan tests => (scalar(@cases) * 2) + 2;
+plan tests => (scalar(@cases) * 2) + 4;
 
 my $sql  = SQL::Abstract->new;
 my $sqlq = SQL::Abstract->new({quote_char => '`'});
@@ -134,12 +149,24 @@ for my $case( @cases) {
 
 throws_ok (
   sub { $sql->_order_by({-desc => 'colA', -asc => 'colB' }) },
-  qr/hash passed .+ must have exactly one key/,
+  qr/hash passed .+ must have exactly one of/,
   'Undeterministic order exception',
 );
 
 throws_ok (
   sub { $sql->_order_by({-desc => [ qw/colA colB/ ], -asc => [ qw/colC colD/ ] }) },
-  qr/hash passed .+ must have exactly one key/,
+  qr/hash passed .+ must have exactly one of/,
   'Undeterministic order exception',
+);
+
+throws_ok(
+  sub { $sql->_order_by({-wibble => "fleem" }) },
+  qr/invalid key in hash/,
+  'Invalid order exception',
+);
+
+throws_ok(
+  sub { $sql->_order_by({-nulls => "fleem" }) },
+  qr/invalid value for -nulls/,
+  'Invalid nulls exception',
 );
