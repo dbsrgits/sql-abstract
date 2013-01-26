@@ -1338,16 +1338,24 @@ sub _order_by_chunks {
     SCALARREF => sub {$$arg}, # literal SQL, no quoting
 
     HASHREF   => sub {
-      # get first pair in hash
-      my ($key, $val, @rest) = %$arg;
+      return () unless %$arg;
 
-      return () unless $key;
-
-      if ( @rest or not $key =~ /^-(desc|asc)/i ) {
-        puke "hash passed to _order_by must have exactly one key (-desc or -asc)";
+      my ($direction, $nulls, $val);
+      foreach my $key (keys %$arg) {
+        if ( $key =~ /^-(desc|asc)/i ) {
+          puke "hash passed to _order_by must have exactly one of -desc or -asc"
+              if defined $direction;
+          $direction = $1;
+          $val = $arg->{$key};
+        } elsif ($key =~ /^-nulls$/i)  {
+          $nulls = $arg->{$key};
+          puke "invalid value for -nulls" unless $nulls =~ /\A(?:first|last)\z/i;
+        } else {
+          puke "invalid key in hash passed to _order_by";
+        }
       }
-
-      my $direction = $1;
+      puke "hash passed to _order_by must have exactly one of -desc or -asc"
+          unless defined $direction;
 
       my @ret;
       for my $c ($self->_order_by_chunks ($val)) {
@@ -1362,7 +1370,9 @@ sub _order_by_chunks {
           },
         });
 
-        $sql = $sql . ' ' . $self->_sqlcase($direction);
+        $sql .= ' ' . $self->_sqlcase($direction);
+        $sql .= ' ' . $self->_sqlcase("nulls $nulls")
+            if defined $nulls;
 
         push @ret, [ $sql, @bind];
       }
@@ -2905,6 +2915,7 @@ script.
 
 Some functions take an order by clause. This can either be a scalar (just a
 column name,) a hash of C<< { -desc => 'col' } >> or C<< { -asc => 'col' } >>,
+optionally with C<< -nulls => 'first' >> or C<< -nulls => 'last' >>,
 or an array of either of the two previous forms. Examples:
 
                Given            |         Will Generate
@@ -2920,9 +2931,19 @@ or an array of either of the two previous forms. Examples:
                                 |
     {-desc => 'colB'}           | ORDER BY colB DESC
                                 |
+    {                           |
+      -asc => 'colA',           | ORDER BY colA ASC NULLS LAST
+      -nulls => 'last',         |
+    }                           |
+                                |
     ['colA', {-asc => 'colB'}]  | ORDER BY colA, colB ASC
                                 |
     { -asc => [qw/colA colB/] } | ORDER BY colA ASC, colB ASC
+                                |
+    {                           |
+      -asc => [qw/colA colB/]   | ORDER BY colA ASC NULLS FIRST,
+      -nulls => 'first'         |          colB ASC NULLS FIRST
+    }                           |
                                 |
     [                           |
       { -asc => 'colA' },       | ORDER BY colA ASC, colB DESC,

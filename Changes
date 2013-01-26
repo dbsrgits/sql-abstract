@@ -4,6 +4,7 @@ Revision history for SQL::Abstract
     - Fix ->insert($table, \@values) with >26 values (RT#112684)
     - Teach ::Tree that ILIKE (PostgreSQL) and REGEXP (MySQL) are binary ops
     - Support for UPDATE ... RETURNING
+    - Add support for NULLS FIRST/LAST in ORDER BY
 
 revision 1.81  2014-10-25
 ----------------------------
