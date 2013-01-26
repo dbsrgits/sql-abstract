@@ -7,6 +7,7 @@ Revision history for SQL::Abstract
     - Fix incorrect reporting of mismatch-members in SQLA::Test
     - Migrate the -ident operator from DBIC into SQLA
     - Migrate the -value operator from DBIC into SQLA
+    - Add support for NULLS FIRST/LAST in ORDER BY
 
 revision 1.72  2010-12-21
 ----------------------------

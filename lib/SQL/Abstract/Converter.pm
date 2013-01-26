@@ -200,7 +200,7 @@ sub _select_to_dq {
 
   my $ordered_dq = do {
     if ($order) {
-      $self->_order_by_to_dq($order, undef, $source_dq);
+      $self->_order_by_to_dq($order, undef, undef, $source_dq);
     } else {
       $source_dq
     }
@@ -517,13 +517,14 @@ sub _where_hashpair_to_dq {
 }
 
 sub _order_by_to_dq {
-  my ($self, $arg, $dir, $from) = @_;
+  my ($self, $arg, $dir, $nulls, $from) = @_;
 
   return unless $arg;
 
   my $dq = Order(
     undef,
     (defined($dir) ? (!!($dir =~ /desc/i)) : undef),
+    (defined($nulls) ? ($nulls =~ /first/i ? 1 : -1) : undef),
     ($from ? ($from) : undef),
   );
 
@@ -536,7 +537,7 @@ sub _order_by_to_dq {
     my ($outer, $inner);
     foreach my $member (@$arg) {
       local $Order_Inner;
-      my $next = $self->_order_by_to_dq($member, $dir, $from);
+      my $next = $self->_order_by_to_dq($member, $dir, $nulls, $from);
       $outer ||= $next;
       $inner->{from} = $next if $inner;
       $inner = $Order_Inner || $next;
@@ -564,15 +565,27 @@ sub _order_by_to_dq {
       $dq->{by} = $self->_literal_to_dq($$arg);
     }
   } elsif (ref($arg) eq 'HASH') {
-    my ($key, $val, @rest) = %$arg;
+    return () unless %$arg;
 
-    return unless $key;
-
-    if (@rest or not $key =~ /^-(desc|asc)/i) {
-      die "hash passed to _order_by must have exactly one key (-desc or -asc)";
+    my ($direction, $val);
+    foreach my $key (keys %$arg) {
+      if ( $key =~ /^-(desc|asc)/i ) {
+        die "hash passed to _order_by_to_dq must have exactly one of -desc or -asc"
+            if defined $direction;
+        $direction = $1;
+        $val = $arg->{$key};
+      } elsif ($key =~ /^-nulls$/i)  {
+        $nulls = $arg->{$key};
+        die "invalid value for -nulls" unless $nulls =~ /^(?:first|last)$/;
+      } else {
+        die "invalid key in hash passed to _order_by_to_dq";
+      }
     }
-    my $dir = uc $1;
-    return $self->_order_by_to_dq($val, $dir, $from);
+
+    die "hash passed to _order_by_to_dq must have exactly one of -desc or -asc"
+        unless defined $direction;
+
+    return $self->_order_by_to_dq($val, $direction, $nulls, $from);
   } else {
     die "Can't handle $arg in _order_by_to_dq";
   }
