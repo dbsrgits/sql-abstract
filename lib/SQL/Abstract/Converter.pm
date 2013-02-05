@@ -576,7 +576,7 @@ sub _order_by_to_dq {
         $val = $arg->{$key};
       } elsif ($key =~ /^-nulls$/i)  {
         $nulls = $arg->{$key};
-        die "invalid value for -nulls" unless $nulls =~ /^(?:first|last)$/;
+        die "invalid value for -nulls" unless $nulls =~ /^(?:first|last)$/i;
       } else {
         die "invalid key in hash passed to _order_by_to_dq";
       }

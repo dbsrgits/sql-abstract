@@ -105,7 +105,7 @@ my @cases =
     bind => [qw/test tost/],
    },
    {
-    given => [ { -asc => 'colA', -nulls => 'first' }, { -desc => 'colB', -nulls => 'last' } ],
+    given => [ { -ASC => 'colA', -NULLS => 'FIRST' }, { -DESC => 'colB', -NULLS => 'LAST' } ],
     expects => ' ORDER BY colA NULLS FIRST, colB DESC NULLS LAST',
     expects_quoted => ' ORDER BY `colA` NULLS FIRST, `colB` DESC NULLS LAST',
    },
