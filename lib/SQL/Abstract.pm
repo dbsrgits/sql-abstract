@@ -1161,7 +1161,7 @@ sub _order_by_chunks {
           $val = $arg->{$key};
         } elsif ($key =~ /^-nulls$/i)  {
           $nulls = $arg->{$key};
-          puke "invalid value for -nulls" unless $nulls =~ /^(?:first|last)$/;
+          puke "invalid value for -nulls" unless $nulls =~ /^(?:first|last)$/i;
         } else {
           puke "invalid key in hash passed to _order_by";
         }
