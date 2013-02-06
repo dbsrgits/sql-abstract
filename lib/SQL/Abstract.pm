@@ -1520,7 +1520,7 @@ SQL::Abstract - Generate SQL from Perl data structures
 
     my $sql = SQL::Abstract->new;
 
-    my($stmt, @bind) = $sql->select($table, \@fields, \%where, \@order);
+    my($stmt, @bind) = $sql->select($source, \@fields, \%where, \@order);
 
     my($stmt, @bind) = $sql->insert($table, \%fieldvals || \@values);
 
@@ -1948,8 +1948,8 @@ the source.
 The argument can be either an arrayref (interpreted as a list
 of field names, will be joined by commas and quoted), or a
 plain scalar (literal SQL, not quoted).
-Please observe that this API is not as flexible as for
-the first argument C<$table>, for backwards compatibility reasons.
+Please observe that this API is not as flexible as that of
+the first argument C<$source>, for backwards compatibility reasons.
 
 =item $where
 
