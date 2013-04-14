@@ -1,6 +1,5 @@
 Revision history for SQL::Abstract
 
-    - Add support for NULLS FIRST/LAST in ORDER BY
     - Fix insufficient parenthesis unroll during operator comparison
 
 revision 1.73  2012-07-10
