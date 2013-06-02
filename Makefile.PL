@@ -22,6 +22,7 @@ requires 'Hash::Merge' => 0.12;
 test_requires "Test::More"      => 0.92;
 test_requires "Test::Exception" => 0;
 test_requires "Test::Warn"      => 0;
+test_requires "Test::Deep"      => '0.101';
 test_requires "Storable"        => 0;   # for cloning in tests
 
 no_index package => 'DBIx::Class::Storage::Debug::PrettyPrint';

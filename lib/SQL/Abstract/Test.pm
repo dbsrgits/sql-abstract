@@ -5,6 +5,7 @@ use warnings;
 use base qw/Test::Builder::Module Exporter/;
 use Data::Dumper;
 use Test::Builder;
+use Test::Deep ();
 use SQL::Abstract::Tree;
 
 our @EXPORT_OK = qw/&is_same_sql_bind &is_same_sql &is_same_bind
@@ -102,14 +103,7 @@ sub eq_sql_bind {
 }
 
 
-sub eq_bind {
-  my ($bind_ref1, $bind_ref2) = @_;
-
-  local $Data::Dumper::Useqq = 1;
-  local $Data::Dumper::Sortkeys = 1;
-
-  return Dumper($bind_ref1) eq Dumper($bind_ref2);
-}
+sub eq_bind { goto &Test::Deep::eq_deeply };
 
 sub eq_sql {
   my ($sql1, $sql2) = @_;
