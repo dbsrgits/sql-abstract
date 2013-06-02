@@ -16,6 +16,8 @@ my $sqlat = SQL::Abstract::Tree->new;
 
 our $case_sensitive = 0;
 our $parenthesis_significant = 0;
+our $order_by_asc_significant = 0;
+
 our $sql_differ; # keeps track of differing portion between SQLs
 our $tb = __PACKAGE__->builder;
 
@@ -173,6 +175,11 @@ sub _eq_sql {
       $sqlat->_parenthesis_unroll($_) for $left, $right;
     }
 
+    # unroll ASC order by's
+    unless ($order_by_asc_significant) {
+      $sqlat->_strip_asc_from_order_by($_) for $left, $right;
+    }
+
     if ( $left->[0] ne $right->[0] ) {
       $sql_differ = sprintf "OP [$left->[0]] != [$right->[0]] in\nleft: %s\nright: %s\n",
         $sqlat->unparse($left),
@@ -325,6 +332,11 @@ If true, SQL comparisons will be case-sensitive. Default is false;
 If true, SQL comparison will preserve and report difference in nested
 parenthesis. Useful while testing C<IN (( x ))> vs C<IN ( x )>.
 Defaults to false;
+
+=head2 $order_by_asc_significant
+
+If true SQL comparison will consider C<ORDER BY foo ASC> and
+C<ORDER BY foo> to be different. Default is false;
 
 =head2 $sql_differ
 

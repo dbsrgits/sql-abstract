@@ -760,6 +760,30 @@ sub _parenthesis_unroll {
   } while ($changes);
 }
 
+sub _strip_asc_from_order_by {
+  my ($self, $ast) = @_;
+
+  return $ast if (
+    ref $ast ne 'ARRAY'
+      or
+    $ast->[0] ne 'ORDER BY'
+  );
+
+
+  my $to_replace;
+
+  if (@{$ast->[1]} == 1 and $ast->[1][0][0] eq '-ASC') {
+    $to_replace = [ $ast->[1][0] ];
+  }
+  elsif (@{$ast->[1]} == 1 and $ast->[1][0][0] eq '-LIST') {
+    $to_replace = [ grep { $_->[0] eq '-ASC' } @{$ast->[1][0][1]} ];
+  }
+
+  @$_ = @{$_->[1][0]} for @$to_replace;
+
+  $ast;
+}
+
 sub format { my $self = shift; $self->unparse($self->parse($_[0]), $_[1]) }
 
 1;

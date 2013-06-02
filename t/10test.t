@@ -592,6 +592,34 @@ my @sql_tests = (
         ]
       },
 
+      # order by
+      {
+        equal => 1,
+        statements => [
+          q/SELECT * FROM foo ORDER BY bar/,
+          q/SELECT * FROM foo ORDER BY bar ASC/,
+          q/SELECT * FROM foo ORDER BY bar asc/,
+        ],
+      },
+      {
+        equal => 1,
+        statements => [
+          q/SELECT * FROM foo ORDER BY bar, baz ASC/,
+          q/SELECT * FROM foo ORDER BY bar ASC, baz/,
+          q/SELECT * FROM foo ORDER BY bar asc, baz ASC/,
+          q/SELECT * FROM foo ORDER BY bar, baz/,
+        ],
+      },
+      {
+        equal => 0,
+        opts => { order_by_asc_significant => 1 },
+        statements => [
+          q/SELECT * FROM foo ORDER BY bar/,
+          q/SELECT * FROM foo ORDER BY bar ASC/,
+          q/SELECT * FROM foo ORDER BY bar desc/,
+        ],
+      },
+
       # list permutations
       {
         equal => 0,
