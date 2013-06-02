@@ -596,14 +596,17 @@ sub _unparse {
   }
   else {
     my ($l, $r) = @{$self->pad_keyword($op, $depth)};
-    return sprintf "$l%s%s%s$r",
-      $self->format_keyword($op),
+
+    my $rhs = $self->_unparse($args, $bindargs, $depth);
+
+    return sprintf "$l%s$r", join(
       ( ref $args eq 'ARRAY' and @{$args} == 1 and $args->[0][0] eq '-PAREN' )
         ? ''    # mysql--
         : ' '
       ,
-      $self->_unparse($args, $bindargs, $depth),
-    ;
+      $self->format_keyword($op),
+      (length $rhs ? $rhs : () ),
+    );
   }
 }
 
