@@ -97,19 +97,19 @@ $expr_start_re = qr/ $op_look_behind (?i: $expr_start_re ) $op_look_ahead /x;
 # * AS is not really an operator but is handled here as it's also LHS/RHS
 
 # this will be included in the $binary_op_re, the distinction is interesting during
-# testing as one is tighter than the other, plus mathops have different look
-# ahead/behind (e.g. "x"="y" )
-my @math_op_keywords = (qw/ - + < > != <> = <= >= /);
-my $math_op_re = join ("\n\t|\n", map
+# testing as one is tighter than the other, plus alphanum cmp ops have different
+# look ahead/behind (e.g. "x"="y" )
+my @alphanum_cmp_op_keywords = (qw/< > != <> = <= >= /);
+my $alphanum_cmp_op_re = join ("\n\t|\n", map
   { "(?: (?<= [\\w\\s] | $quote_right ) | \\A )"  . quotemeta ($_) . "(?: (?= [\\w\\s] | $quote_left ) | \\z )" }
-  @math_op_keywords
+  @alphanum_cmp_op_keywords
 );
-$math_op_re = qr/$math_op_re/x;
+$alphanum_cmp_op_re = qr/$alphanum_cmp_op_re/x;
 
 my $binary_op_re = '(?: NOT \s+)? (?:' . join ('|', qw/IN BETWEEN R?LIKE/) . ')';
 $binary_op_re = join "\n\t|\n",
   "$op_look_behind (?i: $binary_op_re | AS ) $op_look_ahead",
-  $math_op_re,
+  $alphanum_cmp_op_re,
   $op_look_behind . 'IS (?:\s+ NOT)?' . "(?= \\s+ NULL \\b | $op_look_ahead )",
 ;
 $binary_op_re = qr/$binary_op_re/x;
@@ -129,7 +129,7 @@ my $tokenizer_re = join("\n\t|\n",
   $unary_op_re,
   $asc_desc_re,
   $and_or_re,
-  "$op_look_behind \\* $op_look_ahead",
+  $op_look_behind . ' \* ' . $op_look_ahead,
   (map { quotemeta $_ } qw/, ( )/),
   $placeholder_re,
 );
@@ -149,8 +149,7 @@ use constant PARSE_LIST_ELT => 5;
 
 my $expr_term_re = qr/$expr_start_re | \)/x;
 my $rhs_term_re = qr/ $expr_term_re | $binary_op_re | $unary_op_re | $asc_desc_re | $and_or_re | \, /x;
-my $common_single_args_re = qr/ \* | $placeholder_re /x;
-my $all_std_keywords_re = qr/ $rhs_term_re | \( | $common_single_args_re /x;
+my $all_std_keywords_re = qr/ $rhs_term_re | \( | $placeholder_re /x;
 
 # anchor everything - even though keywords are separated by the tokenizer, leakage may occur
 for (
@@ -158,14 +157,13 @@ for (
   $quote_right,
   $placeholder_re,
   $expr_start_re,
-  $math_op_re,
+  $alphanum_cmp_op_re,
   $binary_op_re,
   $unary_op_re,
   $asc_desc_re,
   $and_or_re,
   $expr_term_re,
   $rhs_term_re,
-  $common_single_args_re,
   $all_std_keywords_re,
 ) {
   $_ = qr/ \A $_ \z /x;
@@ -444,7 +442,7 @@ sub _recurse_parse {
     }
 
     # check if the current token is an unknown op-start
-    elsif (@$tokens and ($tokens->[0] eq '(' or $tokens->[0] =~ $common_single_args_re ) ) {
+    elsif (@$tokens and ($tokens->[0] eq '(' or $tokens->[0] =~ $placeholder_re ) ) {
       push @left, [ $token => [ $self->_recurse_parse($tokens, PARSE_RHS) ] ];
     }
 
@@ -466,20 +464,10 @@ sub _recurse_parse {
       push @left, @lits;
     }
 
-    # deal with post-fix operators (only when sql is sane - i.e. we have one element to apply to)
-    if (@left == 1 and @$tokens) {
-
+    if (@$tokens) {
       # asc/desc
       if ($tokens->[0] =~ $asc_desc_re) {
-        my $op = shift @$tokens;
-
-        # if -MISC - this is a literal collection, do not promote asc/desc to an op
-        if ($left[0][0] eq '-MISC') {
-          push @{$left[0][1]}, [ -LITERAL => [ $op ] ];
-        }
-        else {
-          @left = [ ('-' . uc ($op)) => [ @left ] ];
-        }
+        @left = [ ('-' . uc (shift @$tokens)) => [ @left ] ];
       }
     }
   }
@@ -698,9 +686,9 @@ sub _parenthesis_unroll {
         @{$child->[1][0][1]} == 2
           and
         ! (
-          $child->[1][0][0] =~ $math_op_re
+          $child->[1][0][0] =~ $alphanum_cmp_op_re
             and
-          $ast->[0] =~ $math_op_re
+          $ast->[0] =~ $alphanum_cmp_op_re
         )
       ) {
         push @children, @{$child->[1]};
@@ -718,9 +706,9 @@ sub _parenthesis_unroll {
           and
         @{$child->[1][0][1]} == 1
           and
-        $ast->[0] =~ $math_op_re
+        $ast->[0] =~ $alphanum_cmp_op_re
           and
-        $child->[1][0][0] !~ $math_op_re
+        $child->[1][0][0] !~ $alphanum_cmp_op_re
           and
         (
           $child->[1][0][1][0][0] eq '-PAREN'

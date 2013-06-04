@@ -21,7 +21,7 @@ my @sql = (
   "SELECT * FROM foo WHERE NOT EXISTS (SELECT bar FROM baz)",
   "SELECT * FROM (SELECT SUM (CASE WHEN me.artist = 'foo' THEN 1 ELSE 0 END AS artist_sum) FROM foobar) WHERE foo.a = 1 and foo.b LIKE 'station'",
   "SELECT COUNT( * ) FROM foo me JOIN bar rel_bar ON rel_bar.id_bar = me.fk_bar WHERE NOT EXISTS (SELECT inner_baz.id_baz FROM baz inner_baz WHERE ( ( inner_baz.fk_a != ? AND ( fk_bar = me.fk_bar AND name = me.name ) ) ) )",
-  "SELECT foo AS bar FROM baz ORDER BY x + ? DESC, baz.g",
+  "SELECT foo AS bar FROM baz ORDER BY x + ? DESC, oomph, y - ? DESC, unf, baz.g / ? ASC, buzz * 0 DESC, foo DESC, ickk ASC",
 );
 
 # FIXME FIXME FIXME
