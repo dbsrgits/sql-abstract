@@ -7,8 +7,9 @@ use Test::Exception;
 use SQL::Abstract::Test import => ['is_same_sql_bind'];
 
 use Data::Dumper;
-use Storable qw/dclone/;
 use SQL::Abstract;
+
+my $dclone = eval { require Storable; \&Storable::dclone };
 
 #### WARNING ####
 #
@@ -380,8 +381,6 @@ my @nest_tests = (
  },
 );
 
-plan tests => @and_or_tests*4 + @numbered_mods*4 + @nest_tests*2;
-
 for my $case (@and_or_tests) {
   TODO: {
     local $TODO = $case->{todo} if $case->{todo};
@@ -392,7 +391,9 @@ for my $case (@and_or_tests) {
     local $SIG{__WARN__} = sub { push @w, @_ };
 
     my $sql = SQL::Abstract->new ($case->{args} || {});
-    my $where_copy = dclone($case->{where});
+
+    my $where_copy = $dclone->($case->{where})
+      if $dclone;;
 
     lives_ok (sub { 
       my ($stmt, @bind) = $sql->where($case->{where});
@@ -407,7 +408,8 @@ for my $case (@and_or_tests) {
     is (@w, 0, 'No warnings within and-or tests')
       || diag join "\n", 'Emitted warnings:', @w;
 
-    is_deeply ($case->{where}, $where_copy, 'Where conditions unchanged');
+    is_deeply ($case->{where}, $where_copy, 'Where conditions unchanged')
+      if $dclone;
   }
 }
 
@@ -469,3 +471,4 @@ for my $case (@numbered_mods) {
   }
 }
 
+done_testing;
