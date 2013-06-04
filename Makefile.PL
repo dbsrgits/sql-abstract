@@ -13,6 +13,8 @@ resources 'bugtracker'  => 'http://rt.cpan.org/NoAuth/Bugs.html?Dist=SQL-Abstrac
 
 all_from 'lib/SQL/Abstract.pm';
 
+dynamic_config 0;
+
 requires 'List::Util'   => 0;
 requires 'Scalar::Util' => 0;
 requires 'Class::Accessor::Grouped' => 0.10005;
