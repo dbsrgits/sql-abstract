@@ -1,5 +1,7 @@
 Revision history for SQL::Abstract
 
+revision 1.74  2013-06-04
+----------------------------
     - Fix insufficient parenthesis unroll during operator comparison
     - 'ORDER BY foo' and 'ORDER BY foo ASC' are now considered equal
       by default (with a switch to reenable old behavior when necessary)
