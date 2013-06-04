@@ -449,11 +449,18 @@ sub _recurse_parse {
     # we're now in "unknown token" land - start eating tokens until
     # we see something familiar, OR in the case of RHS (binop) stop
     # after the first token
+    # Also stop processing when we could end up with an unknown func
     else {
       my @lits = [ -LITERAL => [$token] ];
 
       unless ( $state == PARSE_RHS ) {
-        while (@$tokens and $tokens->[0] !~ $all_std_keywords_re) {
+        while (
+          @$tokens
+            and
+          $tokens->[0] !~ $all_std_keywords_re
+            and
+          ! ( @$tokens > 1 and $tokens->[1] eq '(' )
+        ) {
           push @lits, [ -LITERAL => [ shift @$tokens ] ];
          }
       }

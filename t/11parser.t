@@ -800,7 +800,7 @@ is_deeply($sqlat->parse('SELECT foo FROM bar ORDER BY x + ? DESC, oomph, y - ? D
   ]
 ], 'Crazy ORDER BY parsed correctly');
 
-is_deeply( $sqlat->parse("META SELECT * * FROM (SELECT *, FROM foobar baz buzz) foo bar WHERE NOT NOT NOT EXISTS (SELECT 'cr,ap') AND foo.a = ? STUFF and not (foo.b LIKE 'station') and x = y and a = b and GROUP BY , ORDER BY x x1 x2 y asc, max(y) desc x z desc"), [
+is_deeply( $sqlat->parse("META SELECT * * FROM (SELECT *, FROM foobar baz buzz) foo bar WHERE NOT NOT NOT EXISTS (SELECT 'cr,ap') AND foo.a = ? STUFF moar(stuff) and not (foo.b LIKE 'station') and x = y and a = b and GROUP BY , ORDER BY x x1 x2 y asc, max(y) desc x z desc"), [
   [
     "-LITERAL",
     [
@@ -972,6 +972,22 @@ is_deeply( $sqlat->parse("META SELECT * * FROM (SELECT *, FROM foobar baz buzz) 
                     ]
                   ]
                 ],
+              ],
+              [
+                'moar',
+                [
+                  [
+                    '-PAREN',
+                    [
+                      [
+                        '-LITERAL',
+                        [
+                          'stuff'
+                        ]
+                      ]
+                    ]
+                  ]
+                ]
               ]
             ]
           ],
