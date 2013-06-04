@@ -447,13 +447,16 @@ sub _recurse_parse {
     }
 
     # we're now in "unknown token" land - start eating tokens until
-    # we see something familiar
+    # we see something familiar, OR in the case of RHS (binop) stop
+    # after the first token
     else {
       my @lits = [ -LITERAL => [$token] ];
 
-      while (@$tokens and $tokens->[0] !~ $all_std_keywords_re) {
-        push @lits, [ -LITERAL => [ shift @$tokens ] ];
-       }
+      unless ( $state == PARSE_RHS ) {
+        while (@$tokens and $tokens->[0] !~ $all_std_keywords_re) {
+          push @lits, [ -LITERAL => [ shift @$tokens ] ];
+         }
+      }
 
       if (@left == 1) {
         unshift @lits, pop @left;
@@ -465,10 +468,13 @@ sub _recurse_parse {
     }
 
     if (@$tokens) {
-      # asc/desc
+
+      # deal with post-fix operators (asc/desc)
       if ($tokens->[0] =~ $asc_desc_re) {
         @left = [ ('-' . uc (shift @$tokens)) => [ @left ] ];
       }
+
+      return @left if $state == PARSE_RHS and $left[-1][0] eq '-LITERAL';
     }
   }
 }
