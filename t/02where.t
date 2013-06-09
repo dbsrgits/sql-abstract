@@ -407,8 +407,6 @@ my @handle_tests = (
     },
 );
 
-plan tests => ( @handle_tests * 2 );
-
 for my $case (@handle_tests) {
     local $Data::Dumper::Terse = 1;
     my $sql = SQL::Abstract->new;
@@ -422,3 +420,5 @@ for my $case (@handle_tests) {
        fail "Died: $e: Search term:\n" . Dumper $case->{where};
     }
 }
+
+done_testing;

@@ -7,8 +7,9 @@ use Test::Exception;
 use SQL::Abstract::Test import => ['is_same_sql_bind'];
 
 use Data::Dumper;
-use Storable qw/dclone/;
 use SQL::Abstract;
+
+my $dclone = eval { require Storable; \&Storable::dclone };
 
 #### WARNING ####
 #
@@ -307,8 +308,8 @@ my @and_or_tests = (
   },
 );
 
-# modN and mod_N were a bad design decision - they go away in SQLA2, warn now
-my @numbered_mods = (
+# modN and mod_N were a bad design decision - they went away
+my @invalid_numbered_mods = (
     {
       -and => [a => 10, b => 11],
       -and2 => [ c => 20, d => 21 ],
@@ -358,9 +359,31 @@ my @nest_tests = (
    stmt  => 'WHERE ( ( a = ? OR ( b = ? AND c = ? ) OR d = ? OR e = ? ) )',
    bind  => [qw/1 2 3 4 5/],
  },
+ {
+   where => { -and => [
+    -and => [a => 10, b => 11],
+    -and => [ c => 20, d => 21 ],
+    -nest => [ x => 1 ],
+    -nest => [ y => 2 ],
+    -or => { m => 7, n => 8 },
+    -or => { m => 17, n => 18 },
+   ] },
+   stmt => 'WHERE ( ( a = ? AND b = ? AND c = ? AND d = ? AND ( x = ? ) AND ( y = ? ) AND ( m = ? OR n = ? ) AND ( m = ? OR n = ? ) ) )',
+   bind => [ 10, 11, 20, 21, 1, 2, 7, 8, 17, 18 ],
+ },
+ {
+   where => [ -and => [
+    -and => [a => 10, b => 11],
+    -and => [ c => 20, d => 21 ],
+    -nest => [ x => 1 ],
+    -nest => [ y => 2 ],
+    -or => { m => 7, n => 8 },
+    -or => { m => 17, n => 18 },
+   ] ],
+   stmt => 'WHERE ( ( ( a = ? AND b = ? AND c = ? AND d = ? AND ( x = ? ) AND ( y = ? ) AND ( m = ? OR n = ? ) AND ( m = ? OR n = ? ) ) ) )',
+   bind => [ 10, 11, 20, 21, 1, 2, 7, 8, 17, 18 ],
+ },
 );
-
-plan tests => @and_or_tests*4 + @numbered_mods + @nest_tests*2;
 
 for my $case (@and_or_tests) {
   TODO: {
@@ -372,7 +395,9 @@ for my $case (@and_or_tests) {
     local $SIG{__WARN__} = sub { push @w, @_ };
 
     my $sql = SQL::Abstract->new ($case->{args} || {});
-    my $where_copy = dclone($case->{where});
+
+    my $where_copy = $dclone->($case->{where})
+      if $dclone;;
 
     lives_ok (sub { 
       my ($stmt, @bind) = $sql->where($case->{where});
@@ -387,7 +412,8 @@ for my $case (@and_or_tests) {
     is (@w, 0, 'No warnings within and-or tests')
       || diag join "\n", 'Emitted warnings:', @w;
 
-    is_deeply ($case->{where}, $where_copy, 'Where conditions unchanged');
+    is_deeply ($case->{where}, $where_copy, 'Where conditions unchanged')
+      if $dclone;
   }
 }
 
@@ -412,18 +438,11 @@ for my $case (@nest_tests) {
   }
 }
 
-
-
-my $w_str = "\QUse of [and|or|nest]_N modifiers is deprecated and will be removed in SQLA v2.0\E";
-for my $case (@numbered_mods) {
-  TODO: {
-    local $Data::Dumper::Terse = 1;
-
-    my @w;
+for my $case (@invalid_numbered_mods) {
     my $sql = SQL::Abstract->new ($case->{args} || {});
     throws_ok (sub {
       $sql->where($case);
     }, qr/\QUse of [and|or|nest]_N modifiers is no longer supported/, 'Exception thrown on bogus syntax');
-  }
 }
 
+done_testing;

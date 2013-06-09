@@ -8,7 +8,7 @@ use Test::Exception;
 use SQL::Abstract;
 
 use SQL::Abstract::Test import => ['is_same_sql_bind'];
-my @cases = 
+my @cases =
   (
    {
     given => \'colA DESC',
@@ -31,14 +31,14 @@ my @cases =
     expects_quoted => ' ORDER BY `colA`, `colB`',
    },
    {  # it may look odd, but this is the desired behaviour (mst)
-    given => ['colA', 'colB DESC'],
-    expects => ' ORDER BY colA, colB DESC',
-    expects_quoted => ' ORDER BY `colA`, `colB DESC`',
+    given => ['colA ASC', 'colB DESC'],
+    expects => ' ORDER BY colA ASC, colB DESC',
+    expects_quoted => ' ORDER BY `colA ASC`, `colB DESC`',
    },
    {
     given => {-asc => 'colA'},
-    expects => ' ORDER BY colA',
-    expects_quoted => ' ORDER BY `colA`',
+    expects => ' ORDER BY colA ASC',
+    expects_quoted => ' ORDER BY `colA` ASC',
    },
    {
     given => {-desc => 'colB'},
@@ -47,8 +47,8 @@ my @cases =
    },
    {
     given => [{-asc => 'colA'}, {-desc => 'colB'}],
-    expects => ' ORDER BY colA, colB DESC',
-    expects_quoted => ' ORDER BY `colA`, `colB` DESC',
+    expects => ' ORDER BY colA ASC, colB DESC',
+    expects_quoted => ' ORDER BY `colA` ASC, `colB` DESC',
    },
    {
     given => ['colA', {-desc => 'colB'}],
@@ -68,13 +68,13 @@ my @cases =
    },
    {
     given => [{-desc => [ qw/colA colB/ ] }, {-asc => 'colC'}],
-    expects => ' ORDER BY colA DESC, colB DESC, colC',
-    expects_quoted => ' ORDER BY `colA` DESC, `colB` DESC, `colC`',
+    expects => ' ORDER BY colA DESC, colB DESC, colC ASC',
+    expects_quoted => ' ORDER BY `colA` DESC, `colB` DESC, `colC` ASC',
    },
    {
     given => [{-desc => [ qw/colA colB/ ] }, {-asc => [ qw/colC colD/ ] }],
-    expects => ' ORDER BY colA DESC, colB DESC, colC, colD',
-    expects_quoted => ' ORDER BY `colA` DESC, `colB` DESC, `colC`, `colD`',
+    expects => ' ORDER BY colA DESC, colB DESC, colC ASC, colD ASC',
+    expects_quoted => ' ORDER BY `colA` DESC, `colB` DESC, `colC` ASC, `colD` ASC',
    },
    {
     given => [{-desc => [ qw/colA colB/ ] }, {-desc => 'colC' }],
@@ -83,8 +83,8 @@ my @cases =
    },
    {
     given => [{ -asc => 'colA' }, { -desc => [qw/colB/] }, { -asc => [qw/colC colD/] }],
-    expects => ' ORDER BY colA, colB DESC, colC, colD',
-    expects_quoted => ' ORDER BY `colA`, `colB` DESC, `colC`, `colD`',
+    expects => ' ORDER BY colA ASC, colB DESC, colC ASC, colD ASC',
+    expects_quoted => ' ORDER BY `colA` ASC, `colB` DESC, `colC` ASC, `colD` ASC',
    },
    {
     given => { -desc => \['colA LIKE ?', 'test'] },
@@ -100,8 +100,8 @@ my @cases =
    },
    {
     given => [ { -asc => \['colA'] }, { -desc => \['colB LIKE ?', 'test'] }, { -asc => \['colC LIKE ?', 'tost'] }],
-    expects => ' ORDER BY colA, colB LIKE ? DESC, colC LIKE ?',
-    expects_quoted => ' ORDER BY colA, colB LIKE ? DESC, colC LIKE ?',
+    expects => ' ORDER BY colA ASC, colB LIKE ? DESC, colC LIKE ? ASC',
+    expects_quoted => ' ORDER BY colA ASC, colB LIKE ? DESC, colC LIKE ? ASC',
     bind => [qw/test tost/],
    },
    {
@@ -120,9 +120,6 @@ my @cases =
     expects_quoted => ' ORDER BY `colA` NULLS FIRST, `colB` NULLS FIRST',
    },
   );
-
-
-plan tests => (scalar(@cases) * 2) + 4;
 
 my $sql  = SQL::Abstract->new;
 my $sqlq = SQL::Abstract->new({quote_char => '`'});
@@ -170,3 +167,5 @@ throws_ok(
   qr/invalid value for -nulls/,
   'Invalid nulls exception',
 );
+
+done_testing;

@@ -1,5 +1,19 @@
 Revision history for SQL::Abstract
 
+    - Fix false negative comparison of ORDER BY <function> ASC
+
+revision 1.74  2013-06-04
+----------------------------
+    - Fix insufficient parenthesis unroll during operator comparison
+    - 'ORDER BY foo' and 'ORDER BY foo ASC' are now considered equal
+      by default (with a switch to reenable old behavior when necessary)
+    - Change parser to not eagerly slurp RHS expressions it doesn't recognize
+
+revision 1.73  2012-07-10
+----------------------------
+    - Fix parsing of ORDER BY foo + ?
+    - Stop filling in placeholders in `format-sql` since it does not support
+      passing values for them anyway
     - Fix parsing of NOT EXISTS
     - Fix over-eager parenthesis unrolling
     - Fix deep recursion warnings while parsing obnoxiously long sql statements

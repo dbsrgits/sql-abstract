@@ -152,10 +152,10 @@ my @in_between_tests = (
     parenthesis_significant => 1,
     where => {
       customer => { -in => \[
-        '( SELECT cust_id FROM cust WHERE balance > ? )',
+        'SELECT cust_id FROM cust WHERE balance > ?',
         2000,
       ]},
-      status => { -in => \'( SELECT status_codes FROM states )' },
+      status => { -in => \'SELECT status_codes FROM states' },
     },
     stmt => "
       WHERE ((
@@ -186,8 +186,6 @@ my @in_between_tests = (
   },
 );
 
-plan tests => @in_between_tests*3;
-
 for my $case (@in_between_tests) {
   TODO: {
     local $TODO = $case->{todo} if $case->{todo};
@@ -214,3 +212,5 @@ for my $case (@in_between_tests) {
     diag "Error: $e\n Search term:\n".Dumper($case->{where}) if $e;
   }
 }
+
+done_testing;

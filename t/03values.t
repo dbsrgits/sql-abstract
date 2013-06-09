@@ -55,9 +55,6 @@ my @data = (
     },
 );
 
-
-plan tests => (@data * 5  +  2);
-
 # test insert() and values() for reentrancy
 my($insert_hash, $insert_array, $numfields);
 my $a_sql = SQL::Abstract->new;
@@ -119,3 +116,5 @@ for my $record (@data) {
     'values() output matches that of initial bind'
   ) || diag "Corresponding SQL statement: $stmt";
 }
+
+done_testing;

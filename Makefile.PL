@@ -13,6 +13,8 @@ resources 'bugtracker'  => 'http://rt.cpan.org/NoAuth/Bugs.html?Dist=SQL-Abstrac
 
 all_from 'lib/SQL/Abstract.pm';
 
+dynamic_config 0;
+
 requires 'List::Util'   => 0;
 requires 'Scalar::Util' => 0;
 requires 'Class::Accessor::Grouped' => 0.10005;
@@ -23,6 +25,7 @@ requires 'Moo' => '0.009014';
 test_requires "Test::More"      => 0.92;
 test_requires "Test::Exception" => 0;
 test_requires "Test::Warn"      => 0;
+test_requires "Test::Deep"      => '0.101';
 test_requires "Storable"        => 0;   # for cloning in tests
 
 no_index package => 'DBIx::Class::Storage::Debug::PrettyPrint';

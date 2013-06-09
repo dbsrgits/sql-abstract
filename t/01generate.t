@@ -547,10 +547,6 @@ my @tests = (
       },
 );
 
-
-plan tests => scalar(grep { !$_->{warning_like} } @tests) * 2
-            + scalar(grep { $_->{warning_like} } @tests) * 4;
-
 for my $t (@tests) {
   local $"=', ';
 
@@ -600,3 +596,5 @@ for my $t (@tests) {
     }
   }
 }
+
+done_testing;

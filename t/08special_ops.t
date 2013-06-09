@@ -54,16 +54,10 @@ my @tests = (
 
 );
 
-
-plan tests => scalar(@tests);
-
 for (@tests) {
 
   my($stmt, @bind) = $sqlmaker->where($_->{where}, $_->{order});
   is_same_sql_bind($stmt, \@bind, $_->{stmt}, $_->{bind});
 }
 
-
-
-
-
+done_testing;

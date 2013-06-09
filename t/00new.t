@@ -102,8 +102,6 @@ my @handle_tests = (
 );
 
 
-plan tests => (1 + scalar(@handle_tests));
-
 use_ok('SQL::Abstract');
 
 for (@handle_tests) {
@@ -119,4 +117,4 @@ for (@handle_tests) {
   is_same_sql_bind($stmt, [@bind ? 1 : 0], $_->{stmt}, [1]);
 }
 
-
+done_testing;

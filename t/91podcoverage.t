@@ -17,7 +17,6 @@ plan skip_all => 'set TEST_POD to enable this test'
   unless ( $ENV{TEST_POD} || -e 'MANIFEST.SKIP' );
 
 my @modules = sort { $a cmp $b } ( Test::Pod::Coverage::all_modules() );
-plan tests => scalar(@modules);
 
 # Since this is about checking documentation, a little documentation
 # of what this is doing might be in order...
@@ -56,3 +55,5 @@ foreach my $module (@modules) {
         pod_coverage_ok( $module, $parms, "$module POD coverage" );
     }
 }
+
+done_testing;

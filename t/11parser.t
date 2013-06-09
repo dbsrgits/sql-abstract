@@ -619,13 +619,217 @@ is_deeply($sqlat->parse("SELECT x, y FROM foo WHERE x IN (?, ?, ?, ?)"), [
   ]
 ], 'Lists parsed correctly');
 
-is_deeply($sqlat->parse("SELECT * * FROM (SELECT *, FROM foobar baz buzz) foo bar WHERE NOT NOT NOT EXISTS (SELECT 'cr,ap') AND foo.a = ? and not (foo.b LIKE 'station') and x = y and a = b and GROUP BY , ORDER BY x x1 x2 y asc, max(y) desc x z desc"), [
+is_deeply($sqlat->parse('SELECT foo FROM bar ORDER BY x + ? DESC, oomph, y - ? DESC, unf, baz.g / ? ASC, buzz * 0 DESC, foo LIKE ? DESC, ickk ASC'), [
   [
     "SELECT",
     [
       [
-        "*",
+        "-LITERAL",
         [
+          "foo"
+        ]
+      ]
+    ]
+  ],
+  [
+    "FROM",
+    [
+      [
+        "-LITERAL",
+        [
+          "bar"
+        ]
+      ]
+    ]
+  ],
+  [
+    "ORDER BY",
+    [
+      [
+        "-LIST",
+        [
+          [
+            "-DESC",
+            [
+              [
+                "-MISC",
+                [
+                  [
+                    "-LITERAL",
+                    [
+                      "x"
+                    ]
+                  ],
+                  [
+                    "-LITERAL",
+                    [
+                      "+"
+                    ]
+                  ]
+                ]
+              ],
+              [
+                "-PLACEHOLDER",
+                [
+                  "?"
+                ]
+              ]
+            ]
+          ],
+          [
+            "-LITERAL",
+            [
+              "oomph"
+            ]
+          ],
+          [
+            "-DESC",
+            [
+              [
+                "-MISC",
+                [
+                  [
+                    "-LITERAL",
+                    [
+                      "y"
+                    ]
+                  ],
+                  [
+                    "-LITERAL",
+                    [
+                      "-"
+                    ]
+                  ]
+                ]
+              ],
+              [
+                "-PLACEHOLDER",
+                [
+                  "?"
+                ]
+              ]
+            ]
+          ],
+          [
+            "-LITERAL",
+            [
+              "unf"
+            ]
+          ],
+          [
+            "-ASC",
+            [
+              [
+                "-MISC",
+                [
+                  [
+                    "-LITERAL",
+                    [
+                      "baz.g"
+                    ]
+                  ],
+                  [
+                    "-LITERAL",
+                    [
+                      "/"
+                    ]
+                  ]
+                ]
+              ],
+              [
+                "-PLACEHOLDER",
+                [
+                  "?"
+                ]
+              ]
+            ]
+          ],
+          [
+            "-DESC",
+            [
+              [
+                "-MISC",
+                [
+                  [
+                    "-LITERAL",
+                    [
+                      "buzz"
+                    ]
+                  ],
+                  [
+                    "-LITERAL",
+                    [
+                      "*"
+                    ]
+                  ],
+                  [
+                    "-LITERAL",
+                    [
+                      0
+                    ]
+                  ]
+                ]
+              ]
+            ]
+          ],
+          [
+            "-DESC",
+            [
+              [
+                "LIKE",
+                [
+                  [
+                    "-LITERAL",
+                    [
+                      "foo"
+                    ]
+                  ],
+                  [
+                    "-PLACEHOLDER",
+                    [
+                      "?"
+                    ]
+                  ],
+                ],
+              ],
+            ]
+          ],
+          [
+            "-ASC",
+            [
+              [
+                "-LITERAL",
+                [
+                  "ickk"
+                ]
+              ]
+            ]
+          ]
+        ]
+      ]
+    ]
+  ]
+], 'Crazy ORDER BY parsed correctly');
+
+is_deeply( $sqlat->parse("META SELECT * * FROM (SELECT *, FROM foobar baz buzz) foo bar WHERE NOT NOT NOT EXISTS (SELECT 'cr,ap') AND foo.a = ? STUFF moar(stuff) and not (foo.b LIKE 'station') and x = y and a = b and GROUP BY , ORDER BY x x1 x2 y asc, max(y) desc x z desc"), [
+  [
+    "-LITERAL",
+    [
+      "META"
+    ]
+  ],
+  [
+    "SELECT",
+    [
+      [
+        "-MISC",
+        [
+          [
+            "-LITERAL",
+            [
+              "*"
+            ]
+          ],
           [
             "-LITERAL",
             [
@@ -764,9 +968,36 @@ is_deeply($sqlat->parse("SELECT * * FROM (SELECT *, FROM foobar baz buzz) foo ba
                 ]
               ],
               [
-                "-PLACEHOLDER",
+                "-MISC",
                 [
-                  "?"
+                  [
+                    "-PLACEHOLDER",
+                    [
+                      "?"
+                    ]
+                  ],
+                  [
+                    "-LITERAL",
+                    [
+                      "STUFF"
+                    ]
+                  ]
+                ],
+              ],
+              [
+                'moar',
+                [
+                  [
+                    '-PAREN',
+                    [
+                      [
+                        '-LITERAL',
+                        [
+                          'stuff'
+                        ]
+                      ]
+                    ]
+                  ]
                 ]
               ]
             ]
@@ -855,62 +1086,11 @@ is_deeply($sqlat->parse("SELECT * * FROM (SELECT *, FROM foobar baz buzz) foo ba
         "-LIST",
         [
           [
-            "-MISC",
-            [
-              [
-                "-LITERAL",
-                [
-                  "x"
-                ]
-              ],
-              [
-                "-LITERAL",
-                [
-                  "x1"
-                ]
-              ],
-              [
-                "-LITERAL",
-                [
-                  "x2"
-                ]
-              ],
-              [
-                "-LITERAL",
-                [
-                  "y"
-                ]
-              ],
-              [
-                "-LITERAL",
-                [
-                  "asc"
-                ]
-              ]
-            ]
-          ],
-          [
-            "max",
+            "-ASC",
             [
               [
                 "-MISC",
                 [
-                  [
-                    "-DESC",
-                    [
-                      [
-                        "-PAREN",
-                        [
-                          [
-                            "-LITERAL",
-                            [
-                              "y"
-                            ]
-                          ]
-                        ]
-                      ]
-                    ]
-                  ],
                   [
                     "-LITERAL",
                     [
@@ -920,13 +1100,62 @@ is_deeply($sqlat->parse("SELECT * * FROM (SELECT *, FROM foobar baz buzz) foo ba
                   [
                     "-LITERAL",
                     [
-                      "z"
+                      "x1"
                     ]
                   ],
                   [
                     "-LITERAL",
                     [
-                      "desc"
+                      "x2"
+                    ]
+                  ],
+                  [
+                    "-LITERAL",
+                    [
+                      "y"
+                    ]
+                  ]
+                ]
+              ],
+            ],
+          ],
+          [
+                "-DESC",
+                [
+                  [
+                    "-MISC",
+                    [
+                      [
+                        "-DESC",
+                        [
+                          [
+                            "max",
+                            [
+                              [
+                                "-PAREN",
+                                [
+                                  [
+                                    "-LITERAL",
+                                    [
+                                      "y"
+                                    ]
+                                  ]
+                                ]
+                              ]
+                            ],
+                          ]
+                        ]
+                      ],
+                      [
+                        "-LITERAL",
+                        [
+                          "x"
+                        ]
+                      ],
+                  [
+                    "-LITERAL",
+                    [
+                      "z"
                     ]
                   ]
                 ]
