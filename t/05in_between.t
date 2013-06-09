@@ -186,8 +186,6 @@ my @in_between_tests = (
   },
 );
 
-plan tests => @in_between_tests*4;
-
 for my $case (@in_between_tests) {
   TODO: {
     local $TODO = $case->{todo} if $case->{todo};
@@ -215,3 +213,5 @@ for my $case (@in_between_tests) {
     }, "$case->{test} doesn't die");
   }
 }
+
+done_testing;

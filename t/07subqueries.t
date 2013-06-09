@@ -99,16 +99,10 @@ push @tests, {
   bind => [100, "foo%", 1234],
 };
 
-
-plan tests => scalar(@tests);
-
 for (@tests) {
 
   my($stmt, @bind) = $sql->where($_->{where}, $_->{order});
   is_same_sql_bind($stmt, \@bind, $_->{stmt}, $_->{bind});
 }
 
-
-
-
-
+done_testing;

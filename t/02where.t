@@ -402,8 +402,6 @@ my @handle_tests = (
     },
 );
 
-plan tests => ( @handle_tests * 2 ) + 1;
-
 for my $case (@handle_tests) {
     local $Data::Dumper::Terse = 1;
     my $sql = SQL::Abstract->new;
@@ -419,3 +417,5 @@ dies_ok {
     my $sql = SQL::Abstract->new;
     $sql->where({ foo => { '>=' => [] }},);
 };
+
+done_testing;

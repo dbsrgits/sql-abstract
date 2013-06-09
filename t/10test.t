@@ -960,19 +960,6 @@ my @bind_tests = (
   },
 );
 
-plan tests => 1 +
-  sum(
-    map { $_ * ($_ - 1) / 2 }
-      map { scalar @{$_->{statements}} }
-        @sql_tests
-  ) +
-  sum(
-    map { $_ * ($_ - 1) / 2 }
-      map { scalar @{$_->{bindvals}} }
-        @bind_tests
-  ) +
-  9;
-
 use_ok('SQL::Abstract::Test', import => [qw(
   eq_sql_bind eq_sql eq_bind is_same_sql_bind
 )]);
@@ -1098,3 +1085,4 @@ like(
   'expected debug of missing branch',
 );
 
+done_testing;

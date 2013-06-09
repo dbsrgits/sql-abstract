@@ -5,8 +5,6 @@ use warnings;
 use Test::More;
 use SQL::Abstract;
 
-plan tests => 13;
-
 my $obj = bless {}, "Foo::Bar";
 
 is(SQL::Abstract->_refkind(undef), 'UNDEF', 'UNDEF');
@@ -29,3 +27,4 @@ is(SQL::Abstract->_refkind($obj), 'SCALAR', 'SCALAR');
 is(SQL::Abstract->_refkind(\$obj), 'SCALARREF', 'SCALARREF');
 is(SQL::Abstract->_refkind(\\$obj), 'SCALARREFREF', 'SCALARREFREF');
 
+done_testing;

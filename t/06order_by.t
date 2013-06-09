@@ -8,7 +8,7 @@ use Test::Exception;
 use SQL::Abstract;
 
 use SQL::Abstract::Test import => ['is_same_sql_bind'];
-my @cases = 
+my @cases =
   (
    {
     given => \'colA DESC',
@@ -106,9 +106,6 @@ my @cases =
    },
   );
 
-
-plan tests => (scalar(@cases) * 2) + 2;
-
 my $sql  = SQL::Abstract->new;
 my $sqlq = SQL::Abstract->new({quote_char => '`'});
 
@@ -143,3 +140,5 @@ throws_ok (
   qr/hash passed .+ must have exactly one key/,
   'Undeterministic order exception',
 );
+
+done_testing;
