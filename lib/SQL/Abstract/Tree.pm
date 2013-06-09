@@ -478,6 +478,7 @@ sub _recurse_parse {
 
       # deal with post-fix operators (asc/desc)
       if ($tokens->[0] =~ $asc_desc_re) {
+        return @left if $state == PARSE_RHS;
         @left = [ ('-' . uc (shift @$tokens)) => [ @left ] ];
       }
 

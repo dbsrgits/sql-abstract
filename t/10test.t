@@ -611,6 +611,13 @@ my @sql_tests = (
         ],
       },
       {
+        equal => 1,
+        statements => [
+          q/ORDER BY colA, colB LIKE ? DESC, colC LIKE ?/,
+          q/ORDER BY colA ASC, colB LIKE ? DESC, colC LIKE ? ASC/,
+        ],
+      },
+      {
         equal => 0,
         opts => { order_by_asc_significant => 1 },
         statements => [

@@ -1,5 +1,7 @@
 Revision history for SQL::Abstract
 
+    - Fix false negative comparison of ORDER BY <function> ASC
+
 revision 1.74  2013-06-04
 ----------------------------
     - Fix insufficient parenthesis unroll during operator comparison
