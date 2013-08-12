@@ -86,7 +86,7 @@ sub new {
   # default comparison is "=", but can be overridden
   $opt{cmp} ||= '=';
 
-  # try to recognize which are the 'equality' and 'unequality' ops
+  # try to recognize which are the 'equality' and 'inequality' ops
   # (temporary quickfix, should go through a more seasoned API)
   $opt{equality_op}   = qr/^(\Q$opt{cmp}\E|is|(is\s+)?like)$/i;
   $opt{inequality_op} = qr/^(!=|<>|(is\s+)?not(\s+like)?)$/i;
@@ -104,7 +104,7 @@ sub new {
   $opt{unary_ops} ||= [];
   push @{$opt{unary_ops}}, @BUILTIN_UNARY_OPS;
 
-  # rudimentary saniy-check for user supplied bits treated as functions/operators
+  # rudimentary sanity-check for user supplied bits treated as functions/operators
   # If a purported  function matches this regular expression, an exception is thrown.
   # Literal SQL is *NOT* subject to this check, only functions (and column names
   # when quoting is not in effect)
@@ -1699,7 +1699,7 @@ C<cmp> to C<like> you would get SQL such as:
 
     WHERE name like 'nwiger' AND email like 'nate@wiger.org'
 
-You can also override the comparsion on an individual basis - see
+You can also override the comparison on an individual basis - see
 the huge section on L</"WHERE CLAUSES"> at the bottom.
 
 =item sqltrue, sqlfalse
@@ -2431,7 +2431,7 @@ Note that if you were to simply say:
         array => [1, 2, 3]
     );
 
-the result would porbably be not what you wanted:
+the result would probably not be what you wanted:
 
     $stmt = 'WHERE array = ? OR array = ? OR array = ?';
     @bind = (1, 2, 3);

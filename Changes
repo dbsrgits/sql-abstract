@@ -1,6 +1,7 @@
 Revision history for SQL::Abstract
 
     - Fix false negative comparison of ORDER BY <function> ASC
+    - Fix typos in POD and comments (RT#87776)
 
 revision 1.74  2013-06-04
 ----------------------------

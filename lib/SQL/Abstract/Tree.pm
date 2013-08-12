@@ -91,8 +91,8 @@ $expr_start_re = qr/ $op_look_behind (?i: $expr_start_re ) $op_look_ahead /x;
 # These are binary operator keywords always a single LHS and RHS
 # * AND/OR are handled separately as they are N-ary
 # * so is NOT as being unary
-# * BETWEEN without paranthesis around the ANDed arguments (which
-#   makes it a non-binary op) is detected and accomodated in
+# * BETWEEN without parentheses around the ANDed arguments (which
+#   makes it a non-binary op) is detected and accommodated in
 #   _recurse_parse()
 # * AS is not really an operator but is handled here as it's also LHS/RHS
 
@@ -136,7 +136,7 @@ my $tokenizer_re = join("\n\t|\n",
 
 # this one *is* capturing for the split below
 # splits on whitespace if all else fails
-# has to happen before the composiign qr's are anchored (below)
+# has to happen before the composing qr's are anchored (below)
 $tokenizer_re = qr/ \s* ( $tokenizer_re ) \s* | \s+ /x;
 
 # Parser states for _recurse_parse()
@@ -649,7 +649,7 @@ sub _parenthesis_unroll {
         $changes++;
       }
 
-      # if the parent operator explcitly allows it nuke the parenthesis
+      # if the parent operator explicitly allows it nuke the parenthesis
       if ( $ast->[0] =~ $unrollable_ops_re ) {
         push @children, @{$child->[1]};
         $changes++;
