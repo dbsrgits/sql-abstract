@@ -81,7 +81,15 @@ sub _ident_to_dq {
   my ($self, $ident) = @_;
   $self->_assert_pass_injection_guard($ident)
     unless $self->renderer_will_quote;
-  $self->_maybe_convert_dq(Identifier(split /\Q${\$self->identifier_sep}/, $ident));
+  $self->_maybe_convert_dq(
+    Identifier(do {
+      if (my $sep = $self->identifier_sep) {
+        split /\Q$sep/, $ident
+      } else {
+        $ident
+      }
+    })
+  );
 }
 
 sub _maybe_convert_dq {
