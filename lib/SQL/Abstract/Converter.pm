@@ -554,6 +554,8 @@ sub _order_by_to_dq {
     return $outer;
   } elsif (ref($arg) eq 'REF' and ref($$arg) eq 'ARRAY') {
     $dq->{by} = $self->_literal_to_dq($$arg);
+  } elsif (ref($arg) eq 'REF' and ref($$arg) eq 'HASH') {
+    $dq->{by} = $$arg;
   } elsif (ref($arg) eq 'SCALAR') {
 
     # < mst> right, but if it doesn't match that, it goes "ok, right, not sure, 
