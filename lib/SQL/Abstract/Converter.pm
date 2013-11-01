@@ -568,7 +568,11 @@ sub _order_by_to_dq {
     #        dbihacks crack combined with old literal order_by crack
     # < ribasushi> heh :)
 
-    if (my ($ident, $dir) = $$arg =~ /^(\w+)(?:\s+(desc|asc))?$/i) {
+    # this should take into account our quote char and name sep
+
+    my $match_ident = '\w+(?:\.\w+)*';
+
+    if (my ($ident, $dir) = $$arg =~ /^(${match_ident})(?:\s+(desc|asc))?$/i) {
       $dq->{by} = $self->_ident_to_dq($ident);
       $dq->{reverse} = 1 if $dir and lc($dir) eq 'desc';
     } else {
