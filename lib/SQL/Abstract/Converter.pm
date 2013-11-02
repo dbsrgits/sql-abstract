@@ -466,10 +466,14 @@ sub _where_hashpair_to_dq {
             my $x = $$rhs;
             1 while ($x =~ s/\A\s*\((.*)\)\s*\Z/$1/s);
             $rhs = \$x;
-          } else {
-            my ($x, @rest) = @{$$rhs};
-            1 while ($x =~ s/\A\s*\((.*)\)\s*\Z/$1/s);
-            $rhs = \[ $x, @rest ];
+          } elsif (ref($rhs) eq 'REF') {
+            if (ref($$rhs) eq 'ARRAY') {
+              my ($x, @rest) = @{$$rhs};
+              1 while ($x =~ s/\A\s*\((.*)\)\s*\Z/$1/s);
+              $rhs = \[ $x, @rest ];
+            } elsif (ref($$rhs) eq 'HASH') {
+              return $self->_op_to_dq($op, $self->_ident_to_dq($k), $$rhs);
+            }
           }
         }
         return $self->_op_to_dq(
