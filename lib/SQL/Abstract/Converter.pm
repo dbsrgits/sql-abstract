@@ -536,7 +536,7 @@ sub _order_by_to_dq {
   my $dq = Order(
     undef,
     (defined($dir) ? (!!($dir =~ /desc/i)) : undef),
-    (defined($nulls) ? ($nulls =~ /first/i ? 1 : -1) : undef),
+    $nulls,
     ($from ? ($from) : undef),
   );
 
@@ -594,7 +594,7 @@ sub _order_by_to_dq {
         $val = $arg->{$key};
       } elsif ($key =~ /^-nulls$/i)  {
         $nulls = $arg->{$key};
-        die "invalid value for -nulls" unless $nulls =~ /^(?:first|last)$/i;
+        die "invalid value for -nulls" unless $nulls =~ /^(?:first|last|none)$/i;
       } else {
         die "invalid key ${key} in hash passed to _order_by_to_dq";
       }
