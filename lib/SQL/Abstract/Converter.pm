@@ -268,6 +268,18 @@ sub _where_to_dq {
   return $self->_expr_to_dq($where, $logic);
 }
 
+my %op_conversions = (
+  '==' => '=',
+  'eq' => '=',
+  'ne' => '!=',
+  '!' => 'NOT',
+  'gt' => '>',
+  'ge' => '>=',
+  'lt' => '<',
+  'le' => '<=',
+  'defined' => 'IS NOT NULL',
+);
+
 sub _expr_to_dq {
   my ($self, $where, $logic) = @_;
 
@@ -281,7 +293,20 @@ sub _expr_to_dq {
   ) {
     return $self->_literal_to_dq($$where);
   } elsif (ref($where) eq 'REF' and ref($$where) eq 'HASH') {
-    return $$where;
+    return map_dq_tree {
+      if (
+        is_Operator
+        and not $_->{operator}{'SQL.Naive'}
+        and my $op = $_->{operator}{'Perl'}
+      ) {
+        my $sql_op = $op_conversions{$op} || uc($op);
+        return +{
+          %{$_},
+          operator => { 'SQL.Naive' => $sql_op }
+        };
+      }
+      return $_;
+    } $$where;
   } elsif (!ref($where) or Scalar::Util::blessed($where)) {
     return $self->_value_to_dq($where);
   }
