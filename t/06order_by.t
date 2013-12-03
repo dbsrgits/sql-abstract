@@ -158,7 +158,7 @@ throws_ok (
 
 throws_ok(
   sub { $sql->_order_by({-wibble => "fleem" }) },
-  qr/invalid key in hash/,
+  qr/invalid key -wibble in hash/,
   'Invalid order exception',
 );
 
