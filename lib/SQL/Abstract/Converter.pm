@@ -505,7 +505,9 @@ sub _where_hashpair_to_dq {
           $op, $self->_ident_to_dq($k), $self->_literal_to_dq($$rhs)
         );
       }
-      return $self->_literal_to_dq($self->{sqlfalse}) unless @$rhs;
+      return $self->_literal_to_dq(
+        $op =~ /^NOT/ ? $self->{sqltrue} : $self->{sqlfalse}
+      ) unless @$rhs;
       return $self->_op_to_dq(
         $op, $self->_ident_to_dq($k), map $self->_expr_to_dq($_), @$rhs
       )

@@ -545,6 +545,13 @@ my @tests = (
               stmt_q => 'SELECT * FROM `test` WHERE ( `Y` = ( MAX( LENGTH( MIN ? ) ) ) )',
               bind   => [[Y => 'x']],
       },
+      {
+              func => 'select',
+              args => ['test', '*', { a => { -in => [] }, b => { -not_in => [] } }],
+              stmt => 'SELECT * FROM test WHERE ( 0=1 AND 1=1 )',
+              stmt_q => 'SELECT * FROM `test` WHERE ( 0=1 AND 1=1 )',
+              bind => [],
+      },
 );
 
 for my $t (@tests) {
