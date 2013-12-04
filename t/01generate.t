@@ -559,6 +559,13 @@ my @tests = (
               stmt_q => 'SELECT * FROM `test` WHERE ( ( `a` IN ( ? ) OR `a` IS NULL ) AND `b` NOT IN ( ? ) AND `b` IS NOT NULL )',
               bind => [ 42, 42 ],
       },
+      {
+              func => 'select',
+              args => ['test', '*', { a => { -in => [undef] }, b => { -not_in => [undef] } } ],
+              stmt => 'SELECT * FROM test WHERE ( a IS NULL AND b IS NOT NULL )',
+              stmt_q => 'SELECT * FROM `test` WHERE ( `a` IS NULL AND `b` IS NOT NULL )',
+              bind => [],
+      },
 );
 
 for my $t (@tests) {

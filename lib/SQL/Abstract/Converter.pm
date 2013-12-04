@@ -510,10 +510,16 @@ sub _where_hashpair_to_dq {
         my ($inop, $logic, $nullop) = $op =~ /^NOT/
           ? (-not_in => AND => { '!=' => undef })
           : (-in => OR => undef);
-        return $self->_expr_to_dq_ARRAYREF([
-            { $k => { $inop => [grep defined, @$rhs] } },
+        if (my @defined = grep defined, @$rhs) {
+          return $self->_expr_to_dq_ARRAYREF([
+            { $k => { $inop => \@defined } },
             { $k => $nullop },
           ], $logic);
+        } else {
+          return $self->_expr_to_dq_HASHREF({
+            $k => $nullop,
+          });
+        }
       }
       return $self->_literal_to_dq(
         $op =~ /^NOT/ ? $self->{sqltrue} : $self->{sqlfalse}
