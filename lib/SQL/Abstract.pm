@@ -2231,7 +2231,8 @@ would generate:
     )";
     @bind = ('2000');
 
-
+Finally, if the argument to C<-in> is not a reference, it will be
+treated as a single-element array.
 
 Another pair of operators is C<-between> and C<-not_between>,
 used with an arrayref of two values:
