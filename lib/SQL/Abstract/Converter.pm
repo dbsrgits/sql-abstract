@@ -515,11 +515,8 @@ sub _where_hashpair_to_dq {
             { $k => { $inop => \@defined } },
             { $k => $nullop },
           ], $logic);
-        } else {
-          return $self->_expr_to_dq_HASHREF({
-            $k => $nullop,
-          });
         }
+        return $self->_expr_to_dq_HASHREF({ $k => $nullop });
       }
       return $self->_literal_to_dq(
         $op =~ /^NOT/ ? $self->{sqltrue} : $self->{sqlfalse}
