@@ -483,6 +483,7 @@ sub _where_hashpair_to_dq {
       }
     };
     if ($op eq 'BETWEEN' or $op eq 'IN' or $op eq 'NOT IN' or $op eq 'NOT BETWEEN') {
+      $rhs = [$rhs] unless ref $rhs;
       if (ref($rhs) ne 'ARRAY') {
         if ($op =~ /IN$/) {
           # have to add parens if none present because -in => \"SELECT ..."
