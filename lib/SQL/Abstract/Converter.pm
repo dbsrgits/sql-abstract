@@ -536,9 +536,9 @@ sub _where_hashpair_to_dq {
       );
     } elsif (!defined($rhs)) {
       my $null_op = do {
-        if ($op eq '=' or $op eq 'LIKE') {
+        if ($op eq '=' or $op eq 'LIKE' or $op eq 'IS') {
           'IS NULL'
-        } elsif ($op eq '!=') {
+        } elsif ($op eq '!=' or $op eq 'NOT LIKE' or $op eq 'IS NOT') {
           'IS NOT NULL'
         } else {
           die "Can't do undef -> NULL transform for operator ${op}";
