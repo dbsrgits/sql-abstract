@@ -581,6 +581,38 @@ my @tests = (
               args => ['test', '*', { a => { -in => undef } }],
               throws => qr/Argument passed to the 'IN' operator can not be undefined/,
       },
+      {
+              func => 'select',
+              args => ['test', '*', { a => { '=' => undef }, b => { -is => undef }, c => { -like => undef } }],
+              stmt => 'SELECT * FROM test WHERE ( a IS NULL AND b IS NULL AND c IS NULL )',
+              stmt_q => 'SELECT * FROM `test` WHERE ( `a` IS NULL AND `b` IS NULL AND `c` IS NULL )',
+              bind => [],
+              warns => qr/\QSupplying an undefined argument to 'LIKE' is deprecated/,
+      },
+      {
+              func => 'select',
+              args => ['test', '*', { a => { '!=' => undef }, b => { -is_not => undef }, c => { -not_like => undef } }],
+              stmt => 'SELECT * FROM test WHERE ( a IS NOT NULL AND b IS NOT  NULL AND c IS NOT  NULL )',
+              stmt_q => 'SELECT * FROM `test` WHERE ( `a` IS NOT  NULL AND `b` IS NOT  NULL AND `c` IS NOT  NULL )',
+              bind => [],
+              warns => qr/\QSupplying an undefined argument to 'NOT LIKE' is deprecated/,
+      },
+      {
+              func => 'select',
+              args => ['test', '*', { a => { IS => undef }, b => { LIKE => undef } }],
+              stmt => 'SELECT * FROM test WHERE ( a IS NULL AND b IS NULL )',
+              stmt_q => 'SELECT * FROM `test` WHERE ( `a` IS NULL AND `b` IS NULL )',
+              bind => [],
+              warns => qr/\QSupplying an undefined argument to 'LIKE' is deprecated/,
+      },
+      {
+              func => 'select',
+              args => ['test', '*', { a => { 'IS NOT' => undef }, b => { 'NOT LIKE' => undef } }],
+              stmt => 'SELECT * FROM test WHERE ( a IS NOT NULL AND b IS NOT  NULL )',
+              stmt_q => 'SELECT * FROM `test` WHERE ( `a` IS NOT  NULL AND `b` IS NOT  NULL )',
+              bind => [],
+              warns => qr/\QSupplying an undefined argument to 'NOT LIKE' is deprecated/,
+      },
 );
 
 # check is( not) => undef
