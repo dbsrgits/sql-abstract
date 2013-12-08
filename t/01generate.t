@@ -594,6 +594,11 @@ my @tests = (
               stmt_q => 'SELECT * FROM `test` WHERE ( `a` IS NOT  NULL AND `b` IS NOT  NULL )',
               bind => [],
       },
+      {
+              func => 'select',
+              args => ['test', '*', { a => { -in => undef } }],
+              exception_like => qr/Can't use undef argument for operator IN/,
+      },
 );
 
 for my $t (@tests) {
