@@ -1089,8 +1089,12 @@ sub _where_field_IN {
       return ("$label $op ( $sql )", @bind);
     },
 
+    UNDEF => sub {
+      puke "Argument passed to the '$op' operator can not be undefined";
+    },
+
     FALLBACK => sub {
-      puke "special op 'in' requires an arrayref (or scalarref/arrayref-ref)";
+      puke "special op $op requires an arrayref (or scalarref/arrayref-ref)";
     },
   });
 
