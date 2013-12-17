@@ -169,7 +169,8 @@ for (
   $_ = qr/ \A $_ \z /x;
 }
 
-
+# what can be bunched together under one MISC in an AST
+my $compressable_node_re = qr/^ \- (?: MISC | LITERAL | PLACEHOLDER ) $/x;
 
 my %indents = (
    select        => 0,
@@ -453,6 +454,8 @@ sub _recurse_parse {
     else {
       my @lits = [ -LITERAL => [$token] ];
 
+      unshift @lits, pop @left if @left == 1;
+
       unless ( $state == PARSE_RHS ) {
         while (
           @$tokens
@@ -462,27 +465,38 @@ sub _recurse_parse {
           ! ( @$tokens > 1 and $tokens->[1] eq '(' )
         ) {
           push @lits, [ -LITERAL => [ shift @$tokens ] ];
-         }
+        }
       }
-
-      if (@left == 1) {
-        unshift @lits, pop @left;
-       }
 
       @lits = [ -MISC => [ @lits ] ] if @lits > 1;
 
       push @left, @lits;
     }
 
-    if (@$tokens) {
+    # compress -LITERAL -MISC and -PLACEHOLDER pieces into a single
+    # -MISC container
+    if (@left > 1) {
+      my $i = 0;
+      while ($#left > $i) {
+        if ($left[$i][0] =~ $compressable_node_re and $left[$i+1][0] =~ $compressable_node_re) {
+          splice @left, $i, 2, [ -MISC => [
+            map { $_->[0] eq '-MISC' ? @{$_->[1]} : $_ } (@left[$i, $i+1])
+          ]];
+        }
+        else {
+          $i++;
+        }
+      }
+    }
 
-      # deal with post-fix operators (asc/desc)
+    return @left if $state == PARSE_RHS;
+
+    # deal with post-fix operators
+    if (@$tokens) {
+      # asc/desc
       if ($tokens->[0] =~ $asc_desc_re) {
-        return @left if $state == PARSE_RHS;
         @left = [ ('-' . uc (shift @$tokens)) => [ @left ] ];
       }
-
-      return @left if $state == PARSE_RHS and $left[-1][0] eq '-LITERAL';
     }
   }
 }

@@ -6,6 +6,7 @@ Revision history for SQL::Abstract
       but subtle changes to query results in production
 
     - Fix false negative comparison of ORDER BY <function> ASC
+    - More improvements of incorrect parsing (literal at end of list elt)
     - Fix typos in POD and comments (RT#87776)
 
 revision 1.74  2013-06-04
