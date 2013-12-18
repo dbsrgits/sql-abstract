@@ -11,7 +11,7 @@ use SQL::Abstract;
 my $sqlmaker = SQL::Abstract->new(special_ops => [
 
   # special op for MySql MATCH (field) AGAINST(word1, word2, ...)
-  {regex => qr/^match$/i, 
+  {regex => qr/^match$/i,
    handler => sub {
      my ($self, $field, $op, $arg) = @_;
      $arg = [$arg] if not ref $arg;
@@ -26,7 +26,7 @@ my $sqlmaker = SQL::Abstract->new(special_ops => [
    },
 
   # special op for Basis+ NATIVE
-  {regex => qr/^native$/i, 
+  {regex => qr/^native$/i,
    handler => sub {
      my ($self, $field, $op, $arg) = @_;
      $arg =~ s/'/''/g;
@@ -39,7 +39,7 @@ my $sqlmaker = SQL::Abstract->new(special_ops => [
 
 my @tests = (
 
-  #1 
+  #1
   { where => {foo => {-match => 'foo'},
               bar => {-match => [qw/foo bar/]}},
     stmt  => " WHERE ( MATCH (bar) AGAINST (?, ?) AND MATCH (foo) AGAINST (?) )",

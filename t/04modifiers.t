@@ -25,7 +25,7 @@ Test -and -or and -nest modifiers, assuming the following:
     limitation of one modifier type per hahsref)
   * When in condition context i.e. where => { -or { a = 1 } }, each modifier
     affects only the immediate element following it.
-  * When in column multi-condition context i.e. 
+  * When in column multi-condition context i.e.
     where => { x => { '!=', [-and, [qw/1 2 3/]] } }, a modifier affects the
     OUTER ARRAYREF if and only if it is the first element of said ARRAYREF
 
@@ -76,7 +76,7 @@ my @and_or_tests = (
     %{$and_or_args->{or}},
   },
 
-  # test modifiers within hashrefs 
+  # test modifiers within hashrefs
   {
     where => { -or => [
       [ foo => 1, bar => 2 ],
@@ -92,7 +92,7 @@ my @and_or_tests = (
     %{$and_or_args->{or_and}},
   },
 
-  # test modifiers within arrayrefs 
+  # test modifiers within arrayrefs
   {
     where => [ -or => [
       [ foo => 1, bar => 2 ],
@@ -170,8 +170,8 @@ my @and_or_tests = (
 
   # the -and should affect the OUTER arrayref, while the internal structures remain intact
   {
-    where => { x => [ 
-      -and => [ 1, 2 ], { -like => 'x%' } 
+    where => { x => [
+      -and => [ 1, 2 ], { -like => 'x%' }
     ]},
     stmt => 'WHERE (x = ? OR x = ?) AND x LIKE ?',
     bind => [qw/1 2 x%/],
@@ -217,7 +217,7 @@ my @and_or_tests = (
     bind => [1 .. 13],
   },
 
-  # 1st -and is in column mode, thus flips the entire array, whereas the 
+  # 1st -and is in column mode, thus flips the entire array, whereas the
   # 2nd one is just a condition modifier
   {
     where => [
@@ -393,7 +393,7 @@ for my $case (@and_or_tests) {
 
     my $where_copy = dclone($case->{where});
 
-    lives_ok (sub { 
+    lives_ok (sub {
       my ($stmt, @bind) = $sql->where($case->{where});
       is_same_sql_bind(
         $stmt,
