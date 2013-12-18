@@ -1051,7 +1051,12 @@ sub _where_field_IN {
               $self->_where_unary_op ($1 => $arg);
             },
             UNDEF => sub {
-              return $self->_sqlcase('null');
+              puke(
+                'SQL::Abstract before v1.75 used to generate incorrect SQL when the '
+              . "-$op operator was given an undef-containing list: !!!AUDIT YOUR CODE "
+              . 'AND DATA!!! (the upcoming Data::Query-based version of SQL::Abstract '
+              . 'will emit the logically correct SQL instead of raising this exception)'
+              );
             },
           });
           push @all_sql, $sql;

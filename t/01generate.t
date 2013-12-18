@@ -552,6 +552,34 @@ my @tests = (
               stmt_q => 'SELECT * FROM `test` WHERE ( 0=1 AND 1=1 )',
               bind => [],
       },
+      {
+              exception_like => qr/
+                \QSQL::Abstract before v1.75 used to generate incorrect SQL \E
+                \Qwhen the -IN operator was given an undef-containing list: \E
+                \Q!!!AUDIT YOUR CODE AND DATA!!! (the upcoming Data::Query-based \E
+                \Qversion of SQL::Abstract will emit the logically correct SQL \E
+                \Qinstead of raising this exception)\E
+              /x,
+              func => 'select',
+              args => ['test', '*', { a => { -in => [42, undef] }, b => { -not_in => [42, undef] } } ],
+              stmt => 'SELECT * FROM test WHERE ( ( a IN ( ? ) OR a IS NULL ) AND b NOT IN ( ? ) AND b IS NOT NULL )',
+              stmt_q => 'SELECT * FROM `test` WHERE ( ( `a` IN ( ? ) OR `a` IS NULL ) AND `b` NOT IN ( ? ) AND `b` IS NOT NULL )',
+              bind => [ 42, 42 ],
+      },
+      {
+              exception_like => qr/
+                \QSQL::Abstract before v1.75 used to generate incorrect SQL \E
+                \Qwhen the -IN operator was given an undef-containing list: \E
+                \Q!!!AUDIT YOUR CODE AND DATA!!! (the upcoming Data::Query-based \E
+                \Qversion of SQL::Abstract will emit the logically correct SQL \E
+                \Qinstead of raising this exception)\E
+              /x,
+              func => 'select',
+              args => ['test', '*', { a => { -in => [undef] }, b => { -not_in => [undef] } } ],
+              stmt => 'SELECT * FROM test WHERE ( a IS NULL AND b IS NOT NULL )',
+              stmt_q => 'SELECT * FROM `test` WHERE ( `a` IS NULL AND `b` IS NOT NULL )',
+              bind => [],
+      },
 );
 
 for my $t (@tests) {
@@ -591,6 +619,7 @@ for my $t (@tests) {
       else {
         $cref->();
       }
+
       is_same_sql_bind(
         $stmt,
         \@bind,

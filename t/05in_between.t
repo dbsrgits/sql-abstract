@@ -173,16 +173,30 @@ my @in_between_tests = (
     test => '-in with an array of function array refs with args',
   },
   {
+    exception => qr/
+      \QSQL::Abstract before v1.75 used to generate incorrect SQL \E
+      \Qwhen the -IN operator was given an undef-containing list: \E
+      \Q!!!AUDIT YOUR CODE AND DATA!!! (the upcoming Data::Query-based \E
+      \Qversion of SQL::Abstract will emit the logically correct SQL \E
+      \Qinstead of raising this exception)\E
+    /x,
     where => { x => { -in => [ 1, undef ] } },
-    stmt => " WHERE ( x IN ( ?, NULL ) )",
+    stmt => " WHERE ( x IN ( ? ) OR x IS NULL )",
     bind => [ 1 ],
     test => '-in with undef as an element', 
   },
   {
+    exception => qr/
+      \QSQL::Abstract before v1.75 used to generate incorrect SQL \E
+      \Qwhen the -IN operator was given an undef-containing list: \E
+      \Q!!!AUDIT YOUR CODE AND DATA!!! (the upcoming Data::Query-based \E
+      \Qversion of SQL::Abstract will emit the logically correct SQL \E
+      \Qinstead of raising this exception)\E
+    /x,
     where => { x => { -in => [ 1, undef, 2, 3, undef ] } },
-    stmt => " WHERE ( x IN ( ?, NULL, ?, ?, NULL ) )",
+    stmt => " WHERE ( x IN ( ?, ?, ? ) OR x IS NULL )",
     bind => [ 1, 2, 3 ],
-    test => '-in with undef as an element',
+    test => '-in with multiple undef elements',
   },
 );
 
@@ -193,24 +207,27 @@ for my $case (@in_between_tests) {
 
     local $Data::Dumper::Terse = 1;
 
-    lives_ok (sub {
+    my @w;
+    local $SIG{__WARN__} = sub { push @w, @_ };
+    my $sql = SQL::Abstract->new ($case->{args} || {});
 
-      my @w;
-      local $SIG{__WARN__} = sub { push @w, @_ };
-      my $sql = SQL::Abstract->new ($case->{args} || {});
-      lives_ok (sub { 
+    if ($case->{exception}) {
+      throws_ok { $sql->where($case->{where}) } $case->{exception};
+    }
+    else {
+      lives_ok {
         my ($stmt, @bind) = $sql->where($case->{where});
         is_same_sql_bind(
           $stmt,
           \@bind,
           $case->{stmt},
           $case->{bind},
-        )
-          || diag "Search term:\n" . Dumper $case->{where};
-      });
-      is (@w, 0, $case->{test} || 'No warnings within in-between tests')
-        || diag join "\n", 'Emitted warnings:', @w;
-    }, "$case->{test} doesn't die");
+        ) || diag "Search term:\n" . Dumper $case->{where};
+      } "$case->{test} doesn't die";
+    }
+
+    is (@w, 0, $case->{test} || 'No warnings within in-between tests')
+      || diag join "\n", 'Emitted warnings:', @w;
   }
 }
 
