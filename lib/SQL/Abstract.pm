@@ -2310,15 +2310,19 @@ then you should use the and/or operators:-
     my %where  = (
         -and           => [
             -bool      => 'one',
-            -bool      => 'two',
-            -bool      => 'three',
-            -not_bool  => 'four',
+            -not_bool  => { two=> { -rlike => 'bar' } },
+            -not_bool  => { three => [ { '=', 2 }, { '>', 5 } ] },
         ],
     );
 
 Would give you:
 
-    WHERE one AND two AND three AND NOT four
+    WHERE
+      one
+        AND
+      (NOT two RLIKE ?)
+        AND
+      (NOT ( three = ? OR three > ? ))
 
 
 =head2 Nested conditions, -and/-or prefixes
