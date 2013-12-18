@@ -4,6 +4,10 @@ use strict;
 use Test::More;
 use Test::Exception;
 
+use Data::Dumper;
+$Data::Dumper::Terse = 1;
+$Data::Dumper::Sortkeys = 1;
+
 use SQL::Abstract::Test import => ['is_same_sql'];
 use SQL::Abstract::Tree;
 
@@ -24,6 +28,7 @@ my @sql = (
   "SELECT foo AS bar FROM baz ORDER BY x + ? DESC, oomph, y - ? DESC, unf, baz.g / ? ASC, buzz * 0 DESC, foo DESC, ickk ASC",
   "SELECT inner_forum_roles.forum_id FROM forum_roles AS inner_forum_roles LEFT JOIN user_roles AS inner_user_roles USING(user_role_type_id) WHERE inner_user_roles.user_id = users__row.user_id",
   "SELECT * FROM foo WHERE foo.a @@ to_tsquery('word')",
+  "SELECT * FROM foo ORDER BY name + ?, [me].[id]",
 );
 
 # FIXME FIXME FIXME
@@ -55,7 +60,16 @@ for my $orig (@sql) {
   $_ =~ s/\s*([\(\)])\s*/$1 /g
     for ($orig, $reassembled);
 
-  is (lc($reassembled), lc($orig), sprintf 'roundtrip works (%s...)', substr $orig, 0, 20);
+  is (
+    lc($reassembled),
+    lc($orig),
+    sprintf( 'roundtrip works (%s...)', substr $orig, 0, 20 )
+  ) or do {
+    my ($ast1, $ast2) = map { Dumper $sqlat->parse($_) } ( $orig, $reassembled );
+
+    note "ast1: $ast1";
+    note "ast2: $ast2";
+  };
 }
 
 lives_ok { $sqlat->unparse( $sqlat->parse( <<'EOS' ) ) } 'Able to parse/unparse grossly malformed sql';

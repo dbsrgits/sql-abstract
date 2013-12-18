@@ -91,8 +91,8 @@ $expr_start_re = qr/ $op_look_behind (?i: $expr_start_re ) $op_look_ahead /x;
 # These are binary operator keywords always a single LHS and RHS
 # * AND/OR are handled separately as they are N-ary
 # * so is NOT as being unary
-# * BETWEEN without paranthesis around the ANDed arguments (which
-#   makes it a non-binary op) is detected and accomodated in
+# * BETWEEN without parentheses around the ANDed arguments (which
+#   makes it a non-binary op) is detected and accommodated in
 #   _recurse_parse()
 # * AS is not really an operator but is handled here as it's also LHS/RHS
 
@@ -136,7 +136,7 @@ my $tokenizer_re = join("\n\t|\n",
 
 # this one *is* capturing for the split below
 # splits on whitespace if all else fails
-# has to happen before the composiign qr's are anchored (below)
+# has to happen before the composing qr's are anchored (below)
 $tokenizer_re = qr/ \s* ( $tokenizer_re ) \s* | \s+ /x;
 
 # Parser states for _recurse_parse()
@@ -169,7 +169,8 @@ for (
   $_ = qr/ \A $_ \z /x;
 }
 
-
+# what can be bunched together under one MISC in an AST
+my $compressable_node_re = qr/^ \- (?: MISC | LITERAL | PLACEHOLDER ) $/x;
 
 my %indents = (
    select        => 0,
@@ -453,6 +454,8 @@ sub _recurse_parse {
     else {
       my @lits = [ -LITERAL => [$token] ];
 
+      unshift @lits, pop @left if @left == 1;
+
       unless ( $state == PARSE_RHS ) {
         while (
           @$tokens
@@ -462,27 +465,38 @@ sub _recurse_parse {
           ! ( @$tokens > 1 and $tokens->[1] eq '(' )
         ) {
           push @lits, [ -LITERAL => [ shift @$tokens ] ];
-         }
+        }
       }
-
-      if (@left == 1) {
-        unshift @lits, pop @left;
-       }
 
       @lits = [ -MISC => [ @lits ] ] if @lits > 1;
 
       push @left, @lits;
     }
 
-    if (@$tokens) {
+    # compress -LITERAL -MISC and -PLACEHOLDER pieces into a single
+    # -MISC container
+    if (@left > 1) {
+      my $i = 0;
+      while ($#left > $i) {
+        if ($left[$i][0] =~ $compressable_node_re and $left[$i+1][0] =~ $compressable_node_re) {
+          splice @left, $i, 2, [ -MISC => [
+            map { $_->[0] eq '-MISC' ? @{$_->[1]} : $_ } (@left[$i, $i+1])
+          ]];
+        }
+        else {
+          $i++;
+        }
+      }
+    }
 
-      # deal with post-fix operators (asc/desc)
+    return @left if $state == PARSE_RHS;
+
+    # deal with post-fix operators
+    if (@$tokens) {
+      # asc/desc
       if ($tokens->[0] =~ $asc_desc_re) {
-        return @left if $state == PARSE_RHS;
         @left = [ ('-' . uc (shift @$tokens)) => [ @left ] ];
       }
-
-      return @left if $state == PARSE_RHS and $left[-1][0] eq '-LITERAL';
     }
   }
 }
@@ -649,7 +663,7 @@ sub _parenthesis_unroll {
         $changes++;
       }
 
-      # if the parent operator explcitly allows it nuke the parenthesis
+      # if the parent operator explicitly allows it nuke the parenthesis
       if ( $ast->[0] =~ $unrollable_ops_re ) {
         push @children, @{$child->[1]};
         $changes++;

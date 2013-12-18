@@ -483,7 +483,7 @@ sub _where_hashpair_to_dq {
       }
     };
     if ($op eq 'BETWEEN' or $op eq 'IN' or $op eq 'NOT IN' or $op eq 'NOT BETWEEN') {
-      die "Can't use undef argument for operator $op" unless defined $rhs;
+      die "Argument passed to the '$op' operator can not be undefined" unless defined $rhs;
       $rhs = [$rhs] unless ref $rhs;
       if (ref($rhs) ne 'ARRAY') {
         if ($op =~ /IN$/) {

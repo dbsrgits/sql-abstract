@@ -665,15 +665,15 @@ is_deeply($sqlat->parse('SELECT foo FROM bar ORDER BY x + ? DESC, oomph, y - ? D
                     [
                       "+"
                     ]
+                  ],
+                  [
+                    "-PLACEHOLDER",
+                    [
+                      "?"
+                    ]
                   ]
                 ]
               ],
-              [
-                "-PLACEHOLDER",
-                [
-                  "?"
-                ]
-              ]
             ]
           ],
           [
@@ -699,15 +699,15 @@ is_deeply($sqlat->parse('SELECT foo FROM bar ORDER BY x + ? DESC, oomph, y - ? D
                     [
                       "-"
                     ]
-                  ]
+                  ],
+                  [
+                    "-PLACEHOLDER",
+                    [
+                      "?"
+                    ]
+                  ],
                 ]
               ],
-              [
-                "-PLACEHOLDER",
-                [
-                  "?"
-                ]
-              ]
             ]
           ],
           [
@@ -733,15 +733,15 @@ is_deeply($sqlat->parse('SELECT foo FROM bar ORDER BY x + ? DESC, oomph, y - ? D
                     [
                       "/"
                     ]
-                  ]
+                  ],
+                  [
+                    "-PLACEHOLDER",
+                    [
+                      "?"
+                    ]
+                  ],
                 ]
               ],
-              [
-                "-PLACEHOLDER",
-                [
-                  "?"
-                ]
-              ]
             ]
           ],
           [
@@ -959,45 +959,45 @@ is_deeply( $sqlat->parse("META SELECT * * FROM (SELECT *, FROM foobar baz buzz) 
             ]
           ],
           [
-            "=",
+            "-MISC",
             [
               [
-                "-LITERAL",
+                "=",
                 [
-                  "foo.a"
-                ]
-              ],
-              [
-                "-MISC",
-                [
+                  [
+                    "-LITERAL",
+                    [
+                      "foo.a"
+                    ]
+                  ],
                   [
                     "-PLACEHOLDER",
                     [
                       "?"
                     ]
                   ],
-                  [
-                    "-LITERAL",
-                    [
-                      "STUFF"
-                    ]
-                  ]
                 ],
               ],
               [
-                'moar',
+                "-LITERAL",
+                [
+                  "STUFF"
+                ]
+              ],
+            ],
+          ],
+          [
+            'moar',
+            [
+              [
+                '-PAREN',
                 [
                   [
-                    '-PAREN',
+                    '-LITERAL',
                     [
-                      [
-                        '-LITERAL',
-                        [
-                          'stuff'
-                        ]
-                      ]
+                      'stuff'
                     ]
-                  ]
+                 ]
                 ]
               ]
             ]

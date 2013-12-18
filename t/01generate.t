@@ -554,6 +554,13 @@ my @tests = (
       },
       {
               func => 'select',
+              args => ['test', '*', { a => { -in => [] }, b => { -not_in => [] } }],
+              stmt => 'SELECT * FROM test WHERE ( 0=1 AND 1=1 )',
+              stmt_q => 'SELECT * FROM `test` WHERE ( 0=1 AND 1=1 )',
+              bind => [],
+      },
+      {
+              func => 'select',
               args => ['test', '*', { a => { -in => [42, undef] }, b => { -not_in => [42, undef] } } ],
               stmt => 'SELECT * FROM test WHERE ( ( a IN ( ? ) OR a IS NULL ) AND b NOT IN ( ? ) AND b IS NOT NULL )',
               stmt_q => 'SELECT * FROM `test` WHERE ( ( `a` IN ( ? ) OR `a` IS NULL ) AND `b` NOT IN ( ? ) AND `b` IS NOT NULL )',
@@ -597,7 +604,7 @@ my @tests = (
       {
               func => 'select',
               args => ['test', '*', { a => { -in => undef } }],
-              exception_like => qr/Can't use undef argument for operator IN/,
+              exception_like => qr/Argument passed to the 'IN' operator can not be undefined/,
       },
 );
 
@@ -641,6 +648,7 @@ for my $t (@tests) {
               .Dumper($t)."Exception was: $@";
         }
       }
+
       is_same_sql_bind(
         $stmt,
         \@bind,

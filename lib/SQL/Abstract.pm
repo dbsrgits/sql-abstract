@@ -621,7 +621,7 @@ C<cmp> to C<like> you would get SQL such as:
 
     WHERE name like 'nwiger' AND email like 'nate@wiger.org'
 
-You can also override the comparsion on an individual basis - see
+You can also override the comparison on an individual basis - see
 the huge section on L</"WHERE CLAUSES"> at the bottom.
 
 =item sqltrue, sqlfalse
@@ -1153,7 +1153,8 @@ would generate:
     )";
     @bind = ('2000');
 
-
+Finally, if the argument to C<-in> is not a reference, it will be
+treated as a single-element array.
 
 Another pair of operators is C<-between> and C<-not_between>,
 used with an arrayref of two values:
@@ -1353,7 +1354,7 @@ Note that if you were to simply say:
         array => [1, 2, 3]
     );
 
-the result would porbably be not what you wanted:
+the result would probably not be what you wanted:
 
     $stmt = 'WHERE array = ? OR array = ? OR array = ?';
     @bind = (1, 2, 3);

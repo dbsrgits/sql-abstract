@@ -82,17 +82,21 @@ sub is_same_bind {
 sub _sql_differ_diag {
   my ($sql1, $sql2) = @_;
 
-  $tb->diag("SQL expressions differ\n"
+  $tb->${\( $tb->in_todo ? 'note' : 'diag')} (
+       "SQL expressions differ\n"
       ."     got: $sql1\n"
       ."expected: $sql2\n"
       ."differing in :\n$sql_differ\n"
-      );
+  );
 }
 
 sub _bind_differ_diag {
   my ($bind_ref1, $bind_ref2) = @_;
 
-  $tb->diag("BIND values differ\n"
+  local $Data::Dumper::Maxdepth;
+
+  $tb->${\( $tb->in_todo ? 'note' : 'diag')} (
+       "BIND values differ\n"
       ."     got: " . Dumper($bind_ref1)
       ."expected: " . Dumper($bind_ref2)
       );

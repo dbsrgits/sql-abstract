@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 use Test::More;
-use Test::Fatal;
+use Test::Exception;
 use SQL::Abstract::Test import => ['is_same_sql_bind'];
 
 use Data::Dumper;
@@ -182,7 +182,7 @@ my @in_between_tests = (
     where => { x => { -in => [ 1, undef, 2, 3, undef ] } },
     stmt => " WHERE ( x IN ( ?, ?, ? ) OR x IS NULL )",
     bind => [ 1, 2, 3 ],
-    test => '-in with undef as an element',
+    test => '-in with multiple undef elements',
   },
 );
 
@@ -193,23 +193,27 @@ for my $case (@in_between_tests) {
 
     local $Data::Dumper::Terse = 1;
 
-    ok(!(my $e = exception {
+    my @w;
+    local $SIG{__WARN__} = sub { push @w, @_ };
+    my $sql = SQL::Abstract->new ($case->{args} || {});
 
-      my @w;
-      local $SIG{__WARN__} = sub { push @w, @_ };
-      my $sql = SQL::Abstract->new ($case->{args} || {});
-      my ($stmt, @bind) = $sql->where($case->{where});
-      is_same_sql_bind(
-        $stmt,
-        \@bind,
-        $case->{stmt},
-        $case->{bind},
-      )
-        || diag "Search term:\n" . Dumper $case->{where};
-      is (@w, 0, $case->{test} || 'No warnings within in-between tests')
-        || diag join "\n", 'Emitted warnings:', @w;
-    }), "$case->{test} doesn't die");
-    diag "Error: $e\n Search term:\n".Dumper($case->{where}) if $e;
+    if ($case->{exception}) {
+      throws_ok { $sql->where($case->{where}) } $case->{exception};
+    }
+    else {
+      lives_ok {
+        my ($stmt, @bind) = $sql->where($case->{where});
+        is_same_sql_bind(
+          $stmt,
+          \@bind,
+          $case->{stmt},
+          $case->{bind},
+        ) || diag "Search term:\n" . Dumper $case->{where};
+      } "$case->{test} doesn't die";
+    }
+
+    is (@w, 0, $case->{test} || 'No warnings within in-between tests')
+      || diag join "\n", 'Emitted warnings:', @w;
   }
 }
 
