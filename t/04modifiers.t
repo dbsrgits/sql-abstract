@@ -8,8 +8,7 @@ use SQL::Abstract::Test import => ['is_same_sql_bind'];
 
 use Data::Dumper;
 use SQL::Abstract;
-
-my $dclone = eval { require Storable; \&Storable::dclone };
+use Storable 'dclone';
 
 #### WARNING ####
 #
@@ -392,8 +391,7 @@ for my $case (@and_or_tests) {
 
     my $sql = SQL::Abstract->new ($case->{args} || {});
 
-    my $where_copy = $dclone->($case->{where})
-      if $dclone;;
+    my $where_copy = dclone($case->{where});
 
     lives_ok (sub { 
       my ($stmt, @bind) = $sql->where($case->{where});
@@ -408,8 +406,7 @@ for my $case (@and_or_tests) {
     is (@w, 0, 'No warnings within and-or tests')
       || diag join "\n", 'Emitted warnings:', @w;
 
-    is_deeply ($case->{where}, $where_copy, 'Where conditions unchanged')
-      if $dclone;
+    is_deeply ($case->{where}, $where_copy, 'Where conditions unchanged');
   }
 }
 
