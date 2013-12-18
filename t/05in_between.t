@@ -64,6 +64,26 @@ my @in_between_tests = (
     bind => [],
     test => '-between with literal sql with a literal (\"\'this\' AND \'that\'")',
   },
+
+  # generate a set of invalid -between tests
+  ( map { {
+    where => { x => { -between => $_ } },
+    test => 'invalid -between args',
+    exception => qr|Operator 'BETWEEN' requires either an arrayref with two defined values or expressions, or a single literal scalarref/arrayref-ref|,
+  } } (
+    [ 1, 2, 3 ],
+    [ 1, undef, 3 ],
+    [ undef, 2, 3 ],
+    [ 1, 2, undef ],
+    [ 1, undef ],
+    [ undef, 2 ],
+    [ undef, undef ],
+    [ 1 ],
+    [ undef ],
+    [],
+    1,
+    undef,
+  )),
   {
     where => {
       start0 => { -between => [ 1, { -upper => 2 } ] },

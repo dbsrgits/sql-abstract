@@ -961,6 +961,8 @@ sub _where_field_BETWEEN {
   $placeholder = $self->_convert('?');
   $op               = $self->_sqlcase($op);
 
+  my $invalid_args = "Operator '$op' requires either an arrayref with two defined values or expressions, or a single literal scalarref/arrayref-ref";
+
   my ($clause, @bind) = $self->_SWITCH_refkind($vals, {
     ARRAYREFREF => sub {
       my ($s, @b) = @$$vals;
@@ -971,8 +973,7 @@ sub _where_field_BETWEEN {
       return $$vals;
     },
     ARRAYREF => sub {
-      puke "special op 'between' accepts an arrayref with exactly two values"
-        if @$vals != 2;
+      puke $invalid_args if @$vals != 2;
 
       my (@all_sql, @all_bind);
       foreach my $val (@$vals) {
@@ -994,7 +995,10 @@ sub _where_field_BETWEEN {
                if (@rest or $func !~ /^ \- (.+)/x);
              local $self->{_nested_func_lhs} = $k;
              $self->_where_unary_op ($1 => $arg);
-           }
+           },
+           FALLBACK => sub {
+             puke $invalid_args,
+           },
         });
         push @all_sql, $sql;
         push @all_bind, @bind;
@@ -1006,7 +1010,7 @@ sub _where_field_BETWEEN {
       );
     },
     FALLBACK => sub {
-      puke "special op 'between' accepts an arrayref with two values, or a single literal scalarref/arrayref-ref";
+      puke $invalid_args,
     },
   });
 
