@@ -15,7 +15,7 @@ my @handle_tests = (
 #              stmt => 'SELECT * FROM test WHERE ( a = ? OR b = ? )'
 # LDNOTE: modified the line above (changing the test suite!!!) because
 # the test was not consistent with the doc: hashrefs should not be
-# influenced by the current logic, they always mean 'AND'. So 
+# influenced by the current logic, they always mean 'AND'. So
 # { a => 4, b => 0} should ALWAYS mean ( a = ? AND b = ? ).
 #
 # acked by RIBASUSHI
@@ -92,11 +92,11 @@ my @handle_tests = (
       {
               args => {convert => "upper"},
               stmt => 'SELECT * FROM test WHERE ( ( UPPER(hostname) IN ( UPPER(?), UPPER(?), UPPER(?), UPPER(?) ) AND ( ( UPPER(ticket) = UPPER(?) ) OR ( UPPER(ticket) = UPPER(?) ) OR ( UPPER(ticket) = UPPER(?) ) ) ) OR ( UPPER(tack) BETWEEN UPPER(?) AND UPPER(?) ) OR ( ( ( UPPER(a) = UPPER(?) ) OR ( UPPER(a) = UPPER(?) ) OR ( UPPER(a) = UPPER(?) ) ) AND ( ( UPPER(e) != UPPER(?) ) OR ( UPPER(e) != UPPER(?) ) ) AND UPPER(q) NOT IN ( UPPER(?), UPPER(?), UPPER(?), UPPER(?), UPPER(?), UPPER(?), UPPER(?) ) ) )',
-              where => [ { ticket => [11, 12, 13], 
+              where => [ { ticket => [11, 12, 13],
                            hostname => { in => ['ntf', 'avd', 'bvd', '123'] } },
                         { tack => { between => [qw/tick tock/] } },
-                        { a => [qw/b c d/], 
-                          e => { '!=', [qw(f g)] }, 
+                        { a => [qw/b c d/],
+                          e => { '!=', [qw(f g)] },
                           q => { 'not in', [14..20] } } ],
       },
 );

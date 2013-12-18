@@ -638,13 +638,13 @@ sub _order_by_to_dq {
     $dq->{by} = $$arg;
   } elsif (ref($arg) eq 'SCALAR') {
 
-    # < mst> right, but if it doesn't match that, it goes "ok, right, not sure, 
+    # < mst> right, but if it doesn't match that, it goes "ok, right, not sure,
     #        totally leaving this untouched as a literal"
     # < mst> so I -think- it's relatively robust
     # < ribasushi> right, it's relatively safe then
     # < ribasushi> is this regex centralized?
     # < mst> it only exists in _order_by_to_dq in SQL::Abstract::Converter
-    # < mst> it only exists because you were kind enough to support new 
+    # < mst> it only exists because you were kind enough to support new
     #        dbihacks crack combined with old literal order_by crack
     # < ribasushi> heh :)
 

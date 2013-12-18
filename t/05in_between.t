@@ -176,7 +176,7 @@ my @in_between_tests = (
     where => { x => { -in => [ 1, undef ] } },
     stmt => " WHERE ( x IN ( ? ) OR x IS NULL )",
     bind => [ 1 ],
-    test => '-in with undef as an element', 
+    test => '-in with undef as an element',
   },
   {
     where => { x => { -in => [ 1, undef, 2, 3, undef ] } },

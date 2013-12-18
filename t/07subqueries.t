@@ -36,7 +36,7 @@ push @tests, {
 
 #2
 ($sub_stmt, @sub_bind)
-     = $sql->select("t1", "c1", {c2 => {"<" => 100}, 
+     = $sql->select("t1", "c1", {c2 => {"<" => 100},
                                  c3 => {-like => "foo%"}});
 $where = {
     foo => 1234,
@@ -49,7 +49,7 @@ push @tests, {
 };
 
 #3
-($sub_stmt, @sub_bind) 
+($sub_stmt, @sub_bind)
      = $sql->select("t1", "*", {c1 => 1, c2 => \"> t0.c0"});
 $where = {
     foo                  => 1234,
@@ -73,7 +73,7 @@ push @tests, {
 
 
 #5
-($sub_stmt, @sub_bind) 
+($sub_stmt, @sub_bind)
   = $sql->where({age => [{"<" => 10}, {">" => 20}]});
 $sub_stmt =~ s/^ where //i; # don't want "WHERE" in the subclause
 $where = {

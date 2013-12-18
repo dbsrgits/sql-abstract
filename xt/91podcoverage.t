@@ -1,3 +1,6 @@
+use warnings;
+use strict;
+
 use Test::More;
 
 # TEMPORARY

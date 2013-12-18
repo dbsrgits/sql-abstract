@@ -267,11 +267,9 @@ sub _quote {
 sub _assert_pass_injection_guard {
   if ($_[1] =~ $_[0]->{injection_guard}) {
     my $class = ref $_[0];
-    die "Possible SQL injection attempt '$_[1]'. If this is indeed a part of the
- "
-     . "desired SQL use literal SQL ( \'...' or \[ '...' ] ) or supply your own 
-"
-     . "{injection_guard} attribute to ${class}->new()"
+    die "Possible SQL injection attempt '$_[1]'. If this is indeed a part of "
+      . "the desired SQL use literal SQL ( \'...' or \[ '...' ] ) or supply "
+      . "your own {injection_guard} attribute to ${class}->new()"
   }
 }
 

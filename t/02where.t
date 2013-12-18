@@ -106,7 +106,7 @@ my @handle_tests = (
     },
 
     {
-        where => {  
+        where => {
             priority  => [ {'>', 3}, {'<', 1} ],
             requestor => \'is not null',
         },
@@ -116,7 +116,7 @@ my @handle_tests = (
     },
 
     {
-        where => {  
+        where => {
             requestor => { '!=', ['-and', undef, ''] },
         },
         stmt => " WHERE ( requestor IS NOT NULL AND requestor != ? )",
@@ -124,9 +124,9 @@ my @handle_tests = (
     },
 
     {
-        where => {  
+        where => {
             priority  => [ {'>', 3}, {'<', 1} ],
-            requestor => { '!=', undef }, 
+            requestor => { '!=', undef },
         },
         order => [qw/a b c d e f g/],
         stmt => " WHERE ( ( ( priority > ? ) OR ( priority < ? ) ) AND requestor IS NOT NULL )"
@@ -135,9 +135,9 @@ my @handle_tests = (
     },
 
     {
-        where => {  
+        where => {
             priority  => { 'between', [1, 3] },
-            requestor => { 'like', undef }, 
+            requestor => { 'like', undef },
         },
         order => \'requestor, ticket',
 #LDNOTE: modified parentheses
@@ -149,12 +149,12 @@ my @handle_tests = (
 
 
     {
-        where => {  
-            id  => 1,
-	    num => {
-	     '<=' => 20,
-	     '>'  => 10,
-	    },
+        where => {
+          id  => 1,
+          num => {
+           '<=' => 20,
+           '>'  => 10,
+          },
         },
 # LDNOTE : modified test below, just parentheses differ
 #
@@ -406,7 +406,7 @@ for my $case (@handle_tests) {
     local $Data::Dumper::Terse = 1;
     my $sql = SQL::Abstract->new;
     my($stmt, @bind);
-    ok(!(my $e = exception { 
+    ok(!(my $e = exception {
       ($stmt, @bind) = $sql->where($case->{where}, $case->{order});
       is_same_sql_bind($stmt, \@bind, $case->{stmt}, $case->{bind})
         || diag "Search term:\n" . Dumper $case->{where};
