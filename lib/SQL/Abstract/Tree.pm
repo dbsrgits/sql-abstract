@@ -68,6 +68,7 @@ my @expression_start_keywords = (
   'HAVING',
   'ORDER \s+ BY',
   'SKIP',
+  'FETCH',
   'FIRST',
   'LIMIT',
   'OFFSET',

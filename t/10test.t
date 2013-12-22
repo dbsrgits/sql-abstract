@@ -773,6 +773,14 @@ my @sql_tests = (
           ) AND [source] = ? ) )',
         ],
       },
+      {
+        equal => 1,
+        statements => [
+          'WHERE foo = ? FETCH FIRST 1 ROWS ONLY',
+          'WHERE ( foo = ? ) FETCH FIRST 1 ROWS ONLY',
+          'WHERE (( foo = ? )) FETCH FIRST 1 ROWS ONLY',
+        ],
+      },
 );
 
 my @bind_tests = (
