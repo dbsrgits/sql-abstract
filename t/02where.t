@@ -1,7 +1,6 @@
 use strict;
 use warnings;
 use Test::More;
-use Test::Exception;
 use SQL::Abstract::Test import => [qw(is_same_sql_bind diag_where) ];
 
 use SQL::Abstract;
@@ -392,10 +391,5 @@ for my $case (@handle_tests) {
     is_same_sql_bind($stmt, \@bind, $case->{stmt}, $case->{bind})
       || diag_where ( $case->{where} );
 }
-
-dies_ok {
-    my $sql = SQL::Abstract->new;
-    $sql->where({ foo => { '>=' => [] }},);
-};
 
 done_testing;

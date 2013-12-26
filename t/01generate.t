@@ -416,6 +416,11 @@ my @tests = (
       },
       {
               func   => 'select',
+              args   => ['test', '*', { foo => { '>=' => [] }} ],
+              throws => qr/\Qoperator '>=' applied on an empty array (field 'foo')/,
+      },
+      {
+              func   => 'select',
               new    => {bindtype => 'columns'},
               args   => ['test', '*', { a => {-in => \["(SELECT d FROM to_date(?, 'MM/DD/YY') AS d)", [dummy => '02/02/02']]}, b => 8 }],
               stmt   => 'SELECT * FROM test WHERE ( a IN (SELECT d FROM to_date(?, \'MM/DD/YY\') AS d) AND b = ? )',
