@@ -1,5 +1,3 @@
-#!/usr/bin/perl
-
 use strict;
 use warnings;
 use Test::More;
@@ -7,9 +5,6 @@ use Test::Exception;
 use SQL::Abstract::Test import => [qw(is_same_sql_bind diag_where) ];
 
 use SQL::Abstract;
-
-# Make sure to test the examples, since having them break is somewhat
-# embarrassing. :-(
 
 my $not_stringifiable = bless {}, 'SQLA::NotStringifiable';
 
@@ -81,9 +76,6 @@ my @handle_tests = (
             completion_date => { 'between', ['2002-10-01', '2003-02-06'] },
         },
         order => \'ticket, requestor',
-#LDNOTE: modified parentheses
-#
-# acked by RIBASUSHI
         stmt => "WHERE ( ( completion_date BETWEEN ? AND ? ) AND status = ? ) ORDER BY ticket, requestor",
         bind => [qw/2002-10-01 2003-02-06 completed/],
     },
@@ -139,9 +131,6 @@ my @handle_tests = (
             requestor => { 'like', undef },
         },
         order => \'requestor, ticket',
-#LDNOTE: modified parentheses
-#
-# acked by RIBASUSHI
         stmt => " WHERE ( ( priority BETWEEN ? AND ? ) AND requestor IS NULL ) ORDER BY requestor, ticket",
         bind => [qw/1 3/],
     },
@@ -155,15 +144,11 @@ my @handle_tests = (
            '>'  => 10,
           },
         },
-# LDNOTE : modified test below, just parentheses differ
-#
-# acked by RIBASUSHI
         stmt => " WHERE ( id = ? AND ( num <= ? AND num > ? ) )",
         bind => [qw/1 20 10/],
     },
 
     {
-# LDNOTE 23.03.09 : modified test below, just parentheses differ
         where => { foo => {-not_like => [7,8,9]},
                    fum => {'like' => [qw/a b/]},
                    nix => {'between' => [100,200] },

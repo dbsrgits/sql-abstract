@@ -1,5 +1,3 @@
-#!/usr/bin/perl
-
 use strict;
 use warnings;
 use Test::More;
@@ -150,10 +148,12 @@ my @in_between_tests = (
     bind => [],
     test => '-in with a literal scalarref',
   },
+
+  # note that outer parens are opened even though literal was requested below
   {
     parenthesis_significant => 1,
     where => { x => { -in => \['( ( ?,?,lower(y) ) )', 1, 2] } },
-    stmt => "WHERE ( x IN ( ?,?,lower(y) ) )",  # note that outer parens are opened even though literal was requested (RIBASUSHI)
+    stmt => "WHERE ( x IN ( ?,?,lower(y) ) )",
     bind => [1, 2],
     test => '-in with a literal arrayrefref',
   },
@@ -162,7 +162,6 @@ my @in_between_tests = (
     where => {
       status => { -in => \"(SELECT status_codes\nFROM states)" },
     },
-    # failed to open outer parens on a multi-line query in 1.61 (semifor)
     stmt => " WHERE ( status IN ( SELECT status_codes FROM states )) ",
     bind => [],
     test => '-in multi-line subquery test',
@@ -185,6 +184,7 @@ my @in_between_tests = (
     bind => [2000],
     test => '-in POD test',
   },
+
   {
     where => { x => { -in => [ \['LOWER(?)', 'A' ], \'LOWER(b)', { -lower => 'c' } ] } },
     stmt => " WHERE ( x IN ( LOWER(?), LOWER(b), LOWER ? ) )",

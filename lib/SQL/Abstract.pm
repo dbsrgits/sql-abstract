@@ -1,10 +1,5 @@
 package SQL::Abstract; # see doc at end of file
 
-# LDNOTE : this code is heavy refactoring from original SQLA.
-# Several design decisions will need discussion during
-# the test / diffusion / acceptance phase; those are marked with flag
-# 'LDNOTE' (note by laurent.dami AT free.fr)
-
 use strict;
 use warnings;
 use Carp ();
@@ -79,8 +74,6 @@ sub new {
   $opt{logic} = $opt{logic} ? uc $opt{logic} : 'OR';
 
   # how to return bind vars
-  # LDNOTE: changed nwiger code : why this 'delete' ??
-  # $opt{bindtype} ||= delete($opt{bind_type}) || 'normal';
   $opt{bindtype} ||= 'normal';
 
   # default comparison is "=", but can be overridden
@@ -457,11 +450,6 @@ sub _where_ARRAYREF {
       },
 
       HASHREF   => sub {$self->_recurse_where($el, 'and') if %$el},
-           # LDNOTE : previous SQLA code for hashrefs was creating a dirty
-           # side-effect: the first hashref within an array would change
-           # the global logic to 'AND'. So [ {cond1, cond2}, [cond3, cond4] ]
-           # was interpreted as "(cond1 AND cond2) OR (cond3 AND cond4)",
-           # whereas it should be "(cond1 AND cond2) OR (cond3 OR cond4)".
 
       SCALARREF => sub { ($$el);                                 },
 
@@ -741,7 +729,6 @@ sub _where_hashpair_ARRAYREF {
     return $self->_recurse_where(\@distributed, $logic);
   }
   else {
-    # LDNOTE : not sure of this one. What does "distribute over nothing" mean?
     $self->_debug("empty ARRAY($k) means 0=1");
     return ($self->{sqlfalse});
   }
@@ -1252,16 +1239,6 @@ sub _quote {
 # Conversion, if applicable
 sub _convert ($) {
   #my ($self, $arg) = @_;
-
-# LDNOTE : modified the previous implementation below because
-# it was not consistent : the first "return" is always an array,
-# the second "return" is context-dependent. Anyway, _convert
-# seems always used with just a single argument, so make it a
-# scalar function.
-#     return @_ unless $self->{convert};
-#     my $conv = $self->_sqlcase($self->{convert});
-#     my @ret = map { $conv.'('.$_.')' } @_;
-#     return wantarray ? @ret : $ret[0];
   if ($_[0]->{convert}) {
     return $_[0]->_sqlcase($_[0]->{convert}) .'(' . $_[1] . ')';
   }
@@ -1271,11 +1248,6 @@ sub _convert ($) {
 # And bindtype
 sub _bindtype (@) {
   #my ($self, $col, @vals) = @_;
-
-  #LDNOTE : changed original implementation below because it did not make
-  # sense when bindtype eq 'columns' and @vals > 1.
-#  return $self->{bindtype} eq 'columns' ? [ $col, @vals ] : @vals;
-
   # called often - tighten code
   return $_[0]->{bindtype} eq 'columns'
     ? map {[$_[1], $_]} @_[2 .. $#_]
@@ -2844,6 +2816,9 @@ really like this part (I do, at least). Building up a complex query
 can be as simple as the following:
 
     #!/usr/bin/perl
+
+    use warnings;
+    use strict;
 
     use CGI::FormBuilder;
     use SQL::Abstract;

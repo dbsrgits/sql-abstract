@@ -1,5 +1,3 @@
-#!/usr/bin/perl
-
 use strict;
 use warnings;
 use Test::More;
@@ -253,10 +251,6 @@ my @tests = (
       },
       {
               func   => 'update',
-# LDNOTE : removed the "-maybe", because we no longer admit unknown ops
-#
-# acked by RIBASUSHI
-#              args   => ['fhole', {fpoles => 4}, [-maybe => {race => [-and => [qw(black white asian)]]},
               args   => ['fhole', {fpoles => 4}, [
                           { race => [qw/-or black white asian /] },
                           { -nest => { firsttime => [-or => {'=','yes'}, undef] } },
@@ -277,11 +271,6 @@ my @tests = (
       },
       {
               func   => 'select',
-# LDNOTE: modified test below because we agreed with MST that literal SQL
-#         should not automatically insert a '='; the user has to do it
-#
-# acked by MSTROUT
-#              args   => ['test', '*', { a => \["to_date(?, 'MM/DD/YY')", '02/02/02']}],
               args   => ['test', '*', { a => \["= to_date(?, 'MM/DD/YY')", '02/02/02']}],
               stmt   => q{SELECT * FROM test WHERE ( a = to_date(?, 'MM/DD/YY') )},
               stmt_q => q{SELECT * FROM `test` WHERE ( `a` = to_date(?, 'MM/DD/YY') )},
@@ -588,10 +577,7 @@ my @tests = (
 );
 
 for my $t (@tests) {
-  local $"=', ';
-
   my $new = $t->{new} || {};
-  $new->{debug} = $ENV{DEBUG} || 0;
 
   for my $quoted (0, 1) {
 
