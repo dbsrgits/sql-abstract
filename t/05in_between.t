@@ -1,6 +1,7 @@
 use strict;
 use warnings;
 use Test::More;
+use Test::Warn;
 use Test::Exception;
 use SQL::Abstract::Test import => [qw(is_same_sql_bind diag_where)];
 
@@ -66,7 +67,7 @@ my @in_between_tests = (
   ( map { {
     where => { x => { -between => $_ } },
     test => 'invalid -between args',
-    exception => qr|Operator 'BETWEEN' requires either an arrayref with two defined values or expressions, or a single literal scalarref/arrayref-ref|,
+    throws => qr|Operator 'BETWEEN' requires either an arrayref with two defined values or expressions, or a single literal scalarref/arrayref-ref|,
   } } (
     [ 1, 2, 3 ],
     [ 1, undef, 3 ],
@@ -192,7 +193,7 @@ my @in_between_tests = (
     test => '-in with an array of function array refs with args',
   },
   {
-    exception => qr/
+    throws => qr/
       \QSQL::Abstract before v1.75 used to generate incorrect SQL \E
       \Qwhen the -IN operator was given an undef-containing list: \E
       \Q!!!AUDIT YOUR CODE AND DATA!!! (the upcoming Data::Query-based \E
@@ -205,7 +206,7 @@ my @in_between_tests = (
     test => '-in with undef as an element',
   },
   {
-    exception => qr/
+    throws => qr/
       \QSQL::Abstract before v1.75 used to generate incorrect SQL \E
       \Qwhen the -IN operator was given an undef-containing list: \E
       \Q!!!AUDIT YOUR CODE AND DATA!!! (the upcoming Data::Query-based \E
@@ -224,17 +225,17 @@ for my $case (@in_between_tests) {
     local $TODO = $case->{todo} if $case->{todo};
     local $SQL::Abstract::Test::parenthesis_significant = $case->{parenthesis_significant};
 
-
-    my @w;
-    local $SIG{__WARN__} = sub { push @w, @_ };
-
     my $sql = SQL::Abstract->new ($case->{args} || {});
 
-    if ($case->{exception}) {
-      throws_ok { $sql->where($case->{where}) } $case->{exception};
+    if (my $e = $case->{throws}) {
+      throws_ok { $sql->where($case->{where}) } $e;
     }
     else {
-      my ($stmt, @bind) = $sql->where($case->{where});
+      my ($stmt, @bind);
+      warnings_are {
+        ($stmt, @bind) = $sql->where($case->{where});
+      } [], 'No warnings within in-between tests';
+
       is_same_sql_bind(
         $stmt,
         \@bind,
@@ -242,9 +243,6 @@ for my $case (@in_between_tests) {
         $case->{bind},
       ) || diag_where ( $case->{where} );
     }
-
-    is (@w, 0, $case->{test} || 'No warnings within in-between tests')
-      || diag join "\n", 'Emitted warnings:', @w;
   }
 }
 

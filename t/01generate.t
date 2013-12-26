@@ -328,7 +328,7 @@ my @tests = (
               stmt   => 'INSERT INTO test (a, b, c, d, e) VALUES (?, ?, ?, ?, ?)',
               stmt_q => 'INSERT INTO `test` (`a`, `b`, `c`, `d`, `e`) VALUES (?, ?, ?, ?, ?)',
               bind   => [qw/1 2 3 4/, { answer => 42}],
-              warning_like => qr/HASH ref as bind value in insert is not supported/i,
+              warns  => qr/HASH ref as bind value in insert is not supported/i,
       },
       {
               func   => 'update',
@@ -394,25 +394,25 @@ my @tests = (
               func   => 'insert',
               new    => {bindtype => 'columns'},
               args   => ['test', {a => 1, b => \["to_date(?, 'MM/DD/YY')", '02/02/02']}],
-              exception_like => qr/bindtype 'columns' selected, you need to pass: \[column_name => bind_value\]/,
+              throws => qr/bindtype 'columns' selected, you need to pass: \[column_name => bind_value\]/,
       },
       {
               func   => 'update',
               new    => {bindtype => 'columns'},
               args   => ['test', {a => 1, b => \["to_date(?, 'MM/DD/YY')", '02/02/02']}, {a => {'between', [1,2]}}],
-              exception_like => qr/bindtype 'columns' selected, you need to pass: \[column_name => bind_value\]/,
+              throws => qr/bindtype 'columns' selected, you need to pass: \[column_name => bind_value\]/,
       },
       {
               func   => 'select',
               new    => {bindtype => 'columns'},
               args   => ['test', '*', { a => \["= to_date(?, 'MM/DD/YY')", '02/02/02']}],
-              exception_like => qr/bindtype 'columns' selected, you need to pass: \[column_name => bind_value\]/,
+              throws => qr/bindtype 'columns' selected, you need to pass: \[column_name => bind_value\]/,
       },
       {
               func   => 'select',
               new    => {bindtype => 'columns'},
               args   => ['test', '*', { a => {'<' => \["to_date(?, 'MM/DD/YY')", '02/02/02']}, b => 8 }],
-              exception_like => qr/bindtype 'columns' selected, you need to pass: \[column_name => bind_value\]/,
+              throws => qr/bindtype 'columns' selected, you need to pass: \[column_name => bind_value\]/,
       },
       {
               func   => 'select',
@@ -426,7 +426,7 @@ my @tests = (
               func   => 'select',
               new    => {bindtype => 'columns'},
               args   => ['test', '*', { a => {-in => \["(SELECT d FROM to_date(?, 'MM/DD/YY') AS d)", '02/02/02']}, b => 8 }],
-              exception_like => qr/bindtype 'columns' selected, you need to pass: \[column_name => bind_value\]/,
+              throws => qr/bindtype 'columns' selected, you need to pass: \[column_name => bind_value\]/,
       },
       {
               func   => 'insert',
@@ -542,7 +542,7 @@ my @tests = (
               bind => [],
       },
       {
-              exception_like => qr/
+              throws => qr/
                 \QSQL::Abstract before v1.75 used to generate incorrect SQL \E
                 \Qwhen the -IN operator was given an undef-containing list: \E
                 \Q!!!AUDIT YOUR CODE AND DATA!!! (the upcoming Data::Query-based \E
@@ -556,7 +556,7 @@ my @tests = (
               bind => [ 42, 42 ],
       },
       {
-              exception_like => qr/
+              throws => qr/
                 \QSQL::Abstract before v1.75 used to generate incorrect SQL \E
                 \Qwhen the -IN operator was given an undef-containing list: \E
                 \Q!!!AUDIT YOUR CODE AND DATA!!! (the upcoming Data::Query-based \E
@@ -572,7 +572,7 @@ my @tests = (
       {
               func => 'select',
               args => ['test', '*', { a => { -in => undef } }],
-              exception_like => qr/Argument passed to the 'IN' operator can not be undefined/,
+              throws => qr/Argument passed to the 'IN' operator can not be undefined/,
       },
 );
 
@@ -593,23 +593,17 @@ for my $t (@tests) {
       ($stmt, @bind) = $maker->$op (@ { $t->{args} } );
     };
 
-    if ($t->{exception_like}) {
+    if (my $e = $t->{throws}) {
       throws_ok(
         sub { $cref->() },
-        $t->{exception_like},
-        "throws the expected exception ($t->{exception_like})"
+        $e,
       );
-    } else {
-      if ($t->{warning_like}) {
-        warning_like(
-          sub { $cref->() },
-          $t->{warning_like},
-          "issues the expected warning ($t->{warning_like})"
-        );
-      }
-      else {
-        $cref->();
-      }
+    }
+    else {
+      warnings_exist(
+        sub { $cref->() },
+        $t->{warns} || [],
+      );
 
       is_same_sql_bind(
         $stmt,

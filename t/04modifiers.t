@@ -2,6 +2,7 @@ use strict;
 use warnings;
 use Test::More;
 use Test::Exception;
+use Test::Warn;
 use SQL::Abstract::Test import => [qw(is_same_sql_bind diag_where)];
 
 use SQL::Abstract;
@@ -381,14 +382,11 @@ for my $case (@and_or_tests) {
   TODO: {
     local $TODO = $case->{todo} if $case->{todo};
 
-    my @w;
-    local $SIG{__WARN__} = sub { push @w, @_ };
-
     my $sql = SQL::Abstract->new ($case->{args} || {});
 
     my $where_copy = dclone($case->{where});
 
-    lives_ok (sub {
+    warnings_are {
       my ($stmt, @bind) = $sql->where($case->{where});
       is_same_sql_bind(
         $stmt,
@@ -396,9 +394,7 @@ for my $case (@and_or_tests) {
         $case->{stmt},
         $case->{bind},
       ) || diag_where( $case->{where} );
-    });
-    is (@w, 0, 'No warnings within and-or tests')
-      || diag join "\n", 'Emitted warnings:', @w;
+    } [], 'No warnings within and-or tests';
 
     is_deeply ($case->{where}, $where_copy, 'Where conditions unchanged');
   }
@@ -423,17 +419,16 @@ for my $case (@nest_tests) {
   }
 }
 
-
-
-my $w_str = "\QUse of [and|or|nest]_N modifiers is deprecated and will be removed in SQLA v2.0\E";
 for my $case (@numbered_mods) {
   TODO: {
     local $TODO = $case->{todo} if $case->{todo};
 
+    # not using Test::Warn here - variable amount of warnings
     my @w;
     local $SIG{__WARN__} = sub { push @w, @_ };
+
     my $sql = SQL::Abstract->new ($case->{args} || {});
-    lives_ok (sub {
+    {
       my ($old_s, @old_b) = $sql->where($case->{backcompat});
       my ($new_s, @new_b) = $sql->where($case->{correct});
       is_same_sql_bind(
@@ -444,17 +439,12 @@ for my $case (@numbered_mods) {
         backcompat => $case->{backcompat},
         correct => $case->{correct},
       });
-    });
+    };
 
-    ok (@w, 'Warnings were emitted about a mod_N construct');
-
-    my @non_match;
-    for (@w) {
-      push @non_match, $_ if ($_ !~ /$w_str/);
-    }
-
-    is (@non_match, 0, 'All warnings match the deprecation message')
-      || diag join "\n", 'Rogue warnings:', @non_match;
+    ok ( (grep
+      { $_ =~ qr/\QUse of [and|or|nest]_N modifiers is deprecated and will be removed in SQLA v2.0/ }
+      @w
+    ), 'Warnings were emitted about a mod_N construct');
   }
 }
 
