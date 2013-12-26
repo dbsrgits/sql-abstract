@@ -4,9 +4,8 @@ use strict;
 use warnings;
 use Test::More;
 use Test::Exception;
-use SQL::Abstract::Test import => ['is_same_sql_bind'];
+use SQL::Abstract::Test import => [qw(is_same_sql_bind diag_where)];
 
-use Data::Dumper;
 use SQL::Abstract;
 
 my @in_between_tests = (
@@ -225,25 +224,23 @@ for my $case (@in_between_tests) {
     local $TODO = $case->{todo} if $case->{todo};
     local $SQL::Abstract::Test::parenthesis_significant = $case->{parenthesis_significant};
 
-    local $Data::Dumper::Terse = 1;
 
     my @w;
     local $SIG{__WARN__} = sub { push @w, @_ };
+
     my $sql = SQL::Abstract->new ($case->{args} || {});
 
     if ($case->{exception}) {
       throws_ok { $sql->where($case->{where}) } $case->{exception};
     }
     else {
-      lives_ok {
-        my ($stmt, @bind) = $sql->where($case->{where});
-        is_same_sql_bind(
-          $stmt,
-          \@bind,
-          $case->{stmt},
-          $case->{bind},
-        ) || diag "Search term:\n" . Dumper $case->{where};
-      } "$case->{test} doesn't die";
+      my ($stmt, @bind) = $sql->where($case->{where});
+      is_same_sql_bind(
+        $stmt,
+        \@bind,
+        $case->{stmt},
+        $case->{bind},
+      ) || diag_where ( $case->{where} );
     }
 
     is (@w, 0, $case->{test} || 'No warnings within in-between tests')

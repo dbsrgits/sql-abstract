@@ -4,9 +4,8 @@ use strict;
 use warnings;
 use Test::More;
 use Test::Exception;
-use SQL::Abstract::Test import => ['is_same_sql_bind'];
+use SQL::Abstract::Test import => [qw(is_same_sql_bind diag_where)];
 
-use Data::Dumper;
 use SQL::Abstract;
 use Storable 'dclone';
 
@@ -384,8 +383,6 @@ for my $case (@and_or_tests) {
   TODO: {
     local $TODO = $case->{todo} if $case->{todo};
 
-    local $Data::Dumper::Terse = 1;
-
     my @w;
     local $SIG{__WARN__} = sub { push @w, @_ };
 
@@ -400,8 +397,7 @@ for my $case (@and_or_tests) {
         \@bind,
         $case->{stmt},
         $case->{bind},
-      )
-        || diag "Search term:\n" . Dumper $case->{where};
+      ) || diag_where( $case->{where} );
     });
     is (@w, 0, 'No warnings within and-or tests')
       || diag join "\n", 'Emitted warnings:', @w;
@@ -415,7 +411,6 @@ for my $case (@nest_tests) {
     local $TODO = $case->{todo} if $case->{todo};
 
     local $SQL::Abstract::Test::parenthesis_significant = 1;
-    local $Data::Dumper::Terse = 1;
 
     my $sql = SQL::Abstract->new ($case->{args} || {});
     lives_ok (sub {
@@ -425,8 +420,7 @@ for my $case (@nest_tests) {
         \@bind,
         $case->{stmt},
         $case->{bind},
-      )
-        || diag "Search term:\n" . Dumper $case->{where};
+      ) || diag_where ( $case->{where} );
     });
   }
 }
@@ -438,8 +432,6 @@ for my $case (@numbered_mods) {
   TODO: {
     local $TODO = $case->{todo} if $case->{todo};
 
-    local $Data::Dumper::Terse = 1;
-
     my @w;
     local $SIG{__WARN__} = sub { push @w, @_ };
     my $sql = SQL::Abstract->new ($case->{args} || {});
@@ -450,10 +442,10 @@ for my $case (@numbered_mods) {
         $old_s, \@old_b,
         $new_s, \@new_b,
         'Backcompat and the correct(tm) syntax result in identical statements',
-      ) || diag "Search terms:\n" . Dumper {
-          backcompat => $case->{backcompat},
-          correct => $case->{correct},
-        };
+      ) || diag_where ( {
+        backcompat => $case->{backcompat},
+        correct => $case->{correct},
+      });
     });
 
     ok (@w, 'Warnings were emitted about a mod_N construct');

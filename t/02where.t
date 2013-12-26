@@ -4,9 +4,8 @@ use strict;
 use warnings;
 use Test::More;
 use Test::Exception;
-use SQL::Abstract::Test import => ['is_same_sql_bind'];
+use SQL::Abstract::Test import => [qw(is_same_sql_bind diag_where) ];
 
-use Data::Dumper;
 use SQL::Abstract;
 
 # Make sure to test the examples, since having them break is somewhat
@@ -403,14 +402,10 @@ my @handle_tests = (
 );
 
 for my $case (@handle_tests) {
-    local $Data::Dumper::Terse = 1;
     my $sql = SQL::Abstract->new;
-    my($stmt, @bind);
-    lives_ok (sub {
-      ($stmt, @bind) = $sql->where($case->{where}, $case->{order});
-      is_same_sql_bind($stmt, \@bind, $case->{stmt}, $case->{bind})
-        || diag "Search term:\n" . Dumper $case->{where};
-    });
+    my ($stmt, @bind) = $sql->where($case->{where}, $case->{order});
+    is_same_sql_bind($stmt, \@bind, $case->{stmt}, $case->{bind})
+      || diag_where ( $case->{where} );
 }
 
 dies_ok {

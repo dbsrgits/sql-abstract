@@ -4,11 +4,7 @@ use strict;
 use Test::More;
 use Test::Exception;
 
-use Data::Dumper;
-$Data::Dumper::Terse = 1;
-$Data::Dumper::Sortkeys = 1;
-
-use SQL::Abstract::Test import => ['is_same_sql'];
+use SQL::Abstract::Test import => [qw(is_same_sql dumper)];
 use SQL::Abstract::Tree;
 
 my $sqlat = SQL::Abstract::Tree->new;
@@ -65,7 +61,7 @@ for my $orig (@sql) {
     lc($orig),
     sprintf( 'roundtrip works (%s...)', substr $orig, 0, 20 )
   ) or do {
-    my ($ast1, $ast2) = map { Dumper $sqlat->parse($_) } ( $orig, $reassembled );
+    my ($ast1, $ast2) = map { dumper( $sqlat->parse($_) ) } ( $orig, $reassembled );
 
     note "ast1: $ast1";
     note "ast2: $ast2";

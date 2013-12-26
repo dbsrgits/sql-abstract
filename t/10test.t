@@ -2,13 +2,12 @@
 
 use strict;
 use warnings;
-use List::Util qw(sum);
 
 use Test::More;
 
-use Data::Dumper;
-$Data::Dumper::Terse = 1;
-$Data::Dumper::Sortkeys = 1;
+use SQL::Abstract::Test import => [qw(
+  eq_sql_bind eq_sql eq_bind is_same_sql_bind dumper $sql_differ
+)];
 
 my @sql_tests = (
       # WHERE condition - equal
@@ -975,10 +974,6 @@ my @bind_tests = (
   },
 );
 
-use_ok('SQL::Abstract::Test', import => [qw(
-  eq_sql_bind eq_sql eq_bind is_same_sql_bind
-)]);
-
 for my $test ( @sql_tests ) {
 
   # this does not work on 5.8.8 and earlier :(
@@ -1010,11 +1005,11 @@ for my $test ( @sql_tests ) {
 
         if ($equal ^ $test->{equal}) {
           my ($ast1, $ast2) = map { SQL::Abstract::Test::parse ($_) } ($sql1, $sql2);
-          $_ = Dumper $_ for ($ast1, $ast2);
+          $_ = dumper($_) for ($ast1, $ast2);
 
           diag "sql1: $sql1";
           diag "sql2: $sql2";
-          note $SQL::Abstract::Test::sql_differ;
+          note $sql_differ || 'No differences found';
           note "ast1: $ast1";
           note "ast2: $ast2";
         }
@@ -1039,8 +1034,8 @@ for my $test (@bind_tests) {
       }
 
       if ($equal ^ $test->{equal}) {
-        diag("bind1: " . Dumper($bind1));
-        diag("bind2: " . Dumper($bind2));
+        diag("bind1: " . dumper($bind1));
+        diag("bind2: " . dumper($bind2));
       }
     }
   }
@@ -1074,7 +1069,7 @@ ok (! eq_sql (
   'SELECT owner_name FROM books me WHERE ( sUOrce = ? )',
 ));
 like(
-  $SQL::Abstract::Test::sql_differ,
+  $sql_differ,
   qr/\Q[ source ] != [ sUOrce ]/,
   'expected debug of literal diff',
 );
@@ -1084,7 +1079,7 @@ ok (! eq_sql (
   'SELECT owner_name FROM books me GROUP BY owner_name',
 ));
 like(
-  $SQL::Abstract::Test::sql_differ,
+  $sql_differ,
   qr/\QOP [ORDER BY] != [GROUP BY]/,
   'expected debug of op diff',
 );
@@ -1095,7 +1090,7 @@ ok (! eq_sql (
 ));
 
 like(
-  $SQL::Abstract::Test::sql_differ,
+  $sql_differ,
   qr|\Q[WHERE source = ?] != [N/A]|,
   'expected debug of missing branch',
 );
