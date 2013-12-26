@@ -4,7 +4,12 @@ Revision history for SQL::Abstract
       on undef-containing lists fed to -in and -not_in. An exception will
       be raised for a while before properly fixing this, to avoid quiet
       but subtle changes to query results in production
+    - Deprecate and warn when supplying an empty arrayref to like/not_like
+      operators (likely to be removed before 2.0)
 
+    - Warn when using an inequality operator with a multi-value array to
+      arrive at what amounts to a 1=1 condition (no pre-2.0 plans to fix
+      this behavior due to backwards comp concerns)
     - Fix false negative comparison of ORDER BY <function> ASC
     - More improvements of incorrect parsing (literal at end of list elt)
     - Fix typos in POD and comments (RT#87776)

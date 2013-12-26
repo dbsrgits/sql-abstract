@@ -1,6 +1,7 @@
 use strict;
 use warnings;
 use Test::More;
+use Test::Warn;
 
 use SQL::Abstract::Test import => ['is_same_sql'];
 use SQL::Abstract;
@@ -82,16 +83,20 @@ my @handle_tests = (
                         { a => [qw/b c d/],
                           e => { '!=', [qw(f g)] },
                           q => { 'not in', [14..20] } } ],
+              warns => qr/\QA multi-element arrayref as an argument to the inequality op '!=' is technically equivalent to an always-true 1=1/,
       },
 );
 
 for (@handle_tests) {
   my $sqla  = SQL::Abstract->new($_->{args});
-  my($stmt) = $sqla->select(
-    'test',
-    '*',
-    $_->{where} || { a => 4, b => 0}
-  );
+  my $stmt;
+  warnings_exist {
+    $stmt = $sqla->select(
+      'test',
+      '*',
+      $_->{where} || { a => 4, b => 0}
+    );
+  } $_->{warns} || [];
 
   is_same_sql($stmt, $_->{stmt});
 }

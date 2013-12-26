@@ -80,9 +80,12 @@ sub new {
   $opt{cmp} ||= '=';
 
   # try to recognize which are the 'equality' and 'inequality' ops
-  # (temporary quickfix, should go through a more seasoned API)
-  $opt{equality_op}   = qr/^(\Q$opt{cmp}\E|is|(is\s+)?like)$/i;
-  $opt{inequality_op} = qr/^(!=|<>|(is\s+)?not(\s+like)?)$/i;
+  # (temporary quickfix (in 2007), should go through a more seasoned API)
+  $opt{equality_op}   = qr/^( \Q$opt{cmp}\E | \= )$/ix;
+  $opt{inequality_op} = qr/^( != | <> )$/ix;
+
+  $opt{like_op}       = qr/^ (is\s+)? r?like $/xi;
+  $opt{not_like_op}   = qr/^ (is\s+)? not \s+ r?like $/xi;
 
   # SQL booleans
   $opt{sqltrue}  ||= '1=1';
@@ -797,9 +800,13 @@ sub _where_hashpair_HASHREF {
         },
 
         UNDEF => sub {          # CASE: col => {op => undef} : sql "IS (NOT)? NULL"
-          my $is = ($op =~ $self->{equality_op})   ? 'is'     :
-                   ($op =~ $self->{inequality_op}) ? 'is not' :
-               puke "unexpected operator '$orig_op' with undef operand";
+          my $is =
+            $op =~ $self->{equality_op}   ? 'is'
+          : $op =~ $self->{like_op}       ? belch("Supplying an undefined argument to '@{[ uc $op]}' is deprecated") && 'is'
+          : $op =~ $self->{inequality_op} ? 'is not'
+          : $op =~ $self->{not_like_op}   ? belch("Supplying an undefined argument to '@{[ uc $op]}' is deprecated") && 'is not'
+          : puke "unexpected operator '$orig_op' with undef operand";
+
           $sql = $self->_quote($k) . $self->_sqlcase(" $is null");
         },
 
@@ -844,27 +851,35 @@ sub _where_field_op_ARRAYREF {
       shift @vals;
     }
 
+    # a long standing API wart - an attempt to change this behavior during
+    # the 1.50 series failed *spectacularly*. Warn instead and leave the
+    # behavior as is
+    if (
+      @vals > 1
+        and
+      (!$logic or $logic eq 'OR')
+        and
+      ( $op =~ $self->{inequality_op} or $op =~ $self->{not_like_op} )
+    ) {
+      my $o = uc($op);
+      belch "A multi-element arrayref as an argument to the inequality op '$o' "
+          . 'is technically equivalent to an always-true 1=1 (you probably wanted '
+          . "to say ...{ \$inequality_op => [ -and => \@values ] }... instead)"
+      ;
+    }
+
     # distribute $op over each remaining member of @vals, append logic if exists
     return $self->_recurse_where([map { {$k => {$op, $_}} } @vals], $logic);
-
-    # LDNOTE : had planned to change the distribution logic when
-    # $op =~ $self->{inequality_op}, because of Morgan laws :
-    # with {field => {'!=' => [22, 33]}}, it would be ridiculous to generate
-    # WHERE field != 22 OR  field != 33 : the user probably means
-    # WHERE field != 22 AND field != 33.
-    # To do this, replace the above to roughly :
-    # my $logic = ($op =~ $self->{inequality_op}) ? 'AND' : 'OR';
-    # return $self->_recurse_where([map { {$k => {$op, $_}} } @vals], $logic);
 
   }
   else {
     # try to DWIM on equality operators
-    # LDNOTE : not 100% sure this is the correct thing to do ...
-    return ($self->{sqlfalse}) if $op =~ $self->{equality_op};
-    return ($self->{sqltrue})  if $op =~ $self->{inequality_op};
-
-    # otherwise
-    puke "operator '$op' applied on an empty array (field '$k')";
+    return
+      $op =~ $self->{equality_op}   ? $self->{sqlfalse}
+    : $op =~ $self->{like_op}       ? belch("Supplying an empty arrayref to '@{[ uc $op]}' is deprecated") && $self->{sqlfalse}
+    : $op =~ $self->{inequality_op} ? $self->{sqltrue}
+    : $op =~ $self->{not_like_op}   ? belch("Supplying an empty arrayref to '@{[ uc $op]}' is deprecated") && $self->{sqltrue}
+    : puke "operator '$op' applied on an empty array (field '$k')";
   }
 }
 

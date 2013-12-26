@@ -4,7 +4,7 @@ use Test::More;
 use Test::Warn;
 use Test::Exception;
 
-use SQL::Abstract::Test import => ['is_same_sql_bind'];
+use SQL::Abstract::Test import => [qw( is_same_sql_bind diag_where dumper )];
 
 use SQL::Abstract;
 
@@ -232,6 +232,8 @@ my @tests = (
                                            tasty => { '!=', [qw(yes YES)] },
                                            -nest => [ face => [ -or => {'=', 'mr.happy'}, {'=', undef} ] ] },
                         ],
+              warns  => qr/\QA multi-element arrayref as an argument to the inequality op '!=' is technically equivalent to an always-true 1=1/,
+
               stmt   => 'UPDATE taco_punches SET one = ?, three = ? WHERE ( ( ( ( ( face = ? ) OR ( face IS NULL ) ) ) )'
                       . ' AND ( ( bland != ? ) AND ( bland != ? ) ) AND ( ( tasty != ? ) OR ( tasty != ? ) ) )',
               stmt_q => 'UPDATE `taco_punches` SET `one` = ?, `three` = ? WHERE ( ( ( ( ( `face` = ? ) OR ( `face` IS NULL ) ) ) )'
@@ -581,6 +583,70 @@ my @tests = (
       },
 );
 
+# check single-element inequality ops for no warnings
+for my $op ( qw(!= <>) ) {
+  for my $val (undef, 42) {
+    push @tests, {
+      func => 'where',
+      args => [ { x => { "$_$op" => [ $val ] } } ],
+      stmt => "WHERE x " . ($val ? "$op ?" : 'IS NOT NULL'),
+      stmt_q => "WHERE `x` " . ($val ? "$op ?" : 'IS NOT NULL'),
+      bind => [ $val || () ],
+    } for ('', '-');  # with and without -
+  }
+}
+
+# check single-element not-like ops for no warnings, and NULL exception
+# (the last two "is not X" are a weird syntax, but mebbe a dialect...)
+for my $op (qw(not_like not_rlike), 'not like', 'not rlike', 'is not like','is not rlike') {
+  (my $sop = uc $op) =~ s/_/ /gi;
+
+  for my $val (undef, 42) {
+    push @tests, {
+      func => 'where',
+      args => [ { x => { "$_$op" => [ $val ] } } ],
+      $val ? (
+        stmt => "WHERE x $sop ?",
+        stmt_q => "WHERE `x` $sop ?",
+        bind => [ $val ],
+      ) : (
+        stmt => "WHERE x IS NOT NULL",
+        stmt_q => "WHERE `x` IS NOT NULL",
+        bind => [],
+        warns => qr/\QSupplying an undefined argument to '$sop' is deprecated/,
+      ),
+    } for ('', '-');  # with and without -
+  }
+}
+
+# check all multi-element inequality/not-like ops for warnings
+for my $op ( qw(!= <> not_like not_rlike), 'not like', 'not rlike', 'is not like','is not rlike') {
+  (my $sop = uc $op) =~ s/_/ /gi;
+
+  push @tests, {
+    func => 'where',
+    args => [ { x => { "$_$op" => [ 42, 69 ] } } ],
+    stmt => "WHERE x $sop ? OR x $sop ?",
+    stmt_q => "WHERE `x` $sop ? OR `x` $sop ?",
+    bind => [ 42, 69 ],
+    warns  => qr/\QA multi-element arrayref as an argument to the inequality op '$sop' is technically equivalent to an always-true 1=1/,
+  } for ('', '-');  # with and without -
+}
+
+# check all like/not-like ops for empty-arrayref warnings
+for my $op ( qw(like rlike not_like not_rlike), 'not like', 'not rlike', 'is like', 'is not like', 'is rlike', 'is not rlike') {
+  (my $sop = uc $op) =~ s/_/ /gi;
+
+  push @tests, {
+    func => 'where',
+    args => [ { x => { "$_$op" => [] } } ],
+    stmt => ( $sop =~ /NOT/ ? "WHERE 1=1" : "WHERE 0=1" ),
+    stmt_q => ( $sop =~ /NOT/ ? "WHERE 1=1" : "WHERE 0=1" ),
+    bind => [],
+    warns  => qr/\QSupplying an empty arrayref to '$sop' is deprecated/,
+  } for ('', '-');  # with and without -
+}
+
 for my $t (@tests) {
   my $new = $t->{new} || {};
 
@@ -602,7 +668,7 @@ for my $t (@tests) {
       throws_ok(
         sub { $cref->() },
         $e,
-      );
+      ) || diag dumper ({ args => $t->{args}, result => $stmt });
     }
     else {
       warnings_exist(

@@ -1,6 +1,7 @@
 use strict;
 use warnings;
 use Test::More;
+use Test::Warn;
 use SQL::Abstract::Test import => [qw(is_same_sql_bind diag_where) ];
 
 use SQL::Abstract;
@@ -132,6 +133,7 @@ my @handle_tests = (
         order => \'requestor, ticket',
         stmt => " WHERE ( ( priority BETWEEN ? AND ? ) AND requestor IS NULL ) ORDER BY requestor, ticket",
         bind => [qw/1 3/],
+        warns => qr/Supplying an undefined argument to 'LIKE' is deprecated/,
     },
 
 
@@ -157,6 +159,7 @@ my @handle_tests = (
                  },
         stmt => " WHERE ( ( ( foo NOT LIKE ? ) OR ( foo NOT LIKE ? ) OR ( foo NOT LIKE ? ) ) AND ( ( fum LIKE ? ) OR ( fum LIKE ? ) ) AND ( nix BETWEEN ? AND ? ) AND ( nox NOT BETWEEN ? AND ? ) AND wix IN ( ?, ? ) AND wux NOT IN ( ?, ? ) )",
         bind => [7,8,9,'a','b',100,200,150,160,'zz','yy','30','40'],
+        warns => qr/\QA multi-element arrayref as an argument to the inequality op 'NOT LIKE' is technically equivalent to an always-true 1=1/,
     },
 
     {
@@ -387,7 +390,11 @@ my @handle_tests = (
 
 for my $case (@handle_tests) {
     my $sql = SQL::Abstract->new;
-    my ($stmt, @bind) = $sql->where($case->{where}, $case->{order});
+    my ($stmt, @bind);
+    warnings_exist {
+      ($stmt, @bind) = $sql->where($case->{where}, $case->{order});
+    } $case->{warns} || [];
+
     is_same_sql_bind($stmt, \@bind, $case->{stmt}, $case->{bind})
       || diag_where ( $case->{where} );
 }
