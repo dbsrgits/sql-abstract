@@ -69,20 +69,6 @@ my @tests = (
       },
       {
               func   => 'select',
-              args   => [[qw/test1 test2/], '*', { 'test1.a' => { 'In', ['boom', 'bang'] } }],
-              stmt   => 'SELECT * FROM test1, test2 WHERE ( test1.a IN ( ?, ? ) )',
-              stmt_q => 'SELECT * FROM `test1`, `test2` WHERE ( `test1`.`a` IN ( ?, ? ) )',
-              bind   => ['boom', 'bang']
-      },
-      {
-              func   => 'select',
-              args   => ['test', '*', { a => { 'between', ['boom', 'bang'] } }],
-              stmt   => 'SELECT * FROM test WHERE ( a BETWEEN ? AND ? )',
-              stmt_q => 'SELECT * FROM `test` WHERE ( `a` BETWEEN ? AND ? )',
-              bind   => ['boom', 'bang']
-      },
-      {
-              func   => 'select',
               args   => ['test', '*', { a => { '!=', 'boom' } }],
               stmt   => 'SELECT * FROM test WHERE ( a != ? )',
               stmt_q => 'SELECT * FROM `test` WHERE ( `a` != ? )',
@@ -533,53 +519,6 @@ my @tests = (
               stmt   => 'SELECT * FROM test WHERE ( Y = ( MAX( LENGTH( MIN ? ) ) ) )',
               stmt_q => 'SELECT * FROM `test` WHERE ( `Y` = ( MAX( LENGTH( MIN ? ) ) ) )',
               bind   => [[Y => 'x']],
-      },
-      {
-              func => 'select',
-              args => ['test', '*', { a => { -in => [] }, b => { -not_in => [] }, c => { -in => 42 } }],
-              stmt => 'SELECT * FROM test WHERE ( 0=1 AND 1=1 AND c IN ( ? ))',
-              stmt_q => 'SELECT * FROM `test` WHERE ( 0=1 AND 1=1 AND `c` IN ( ? ))',
-              bind => [ 42 ],
-      },
-      {
-              func => 'select',
-              args => ['test', '*', { a => { -in => [] }, b => { -not_in => [] } }],
-              stmt => 'SELECT * FROM test WHERE ( 0=1 AND 1=1 )',
-              stmt_q => 'SELECT * FROM `test` WHERE ( 0=1 AND 1=1 )',
-              bind => [],
-      },
-      {
-              throws => qr/
-                \QSQL::Abstract before v1.75 used to generate incorrect SQL \E
-                \Qwhen the -IN operator was given an undef-containing list: \E
-                \Q!!!AUDIT YOUR CODE AND DATA!!! (the upcoming Data::Query-based \E
-                \Qversion of SQL::Abstract will emit the logically correct SQL \E
-                \Qinstead of raising this exception)\E
-              /x,
-              func => 'select',
-              args => ['test', '*', { a => { -in => [42, undef] }, b => { -not_in => [42, undef] } } ],
-              stmt => 'SELECT * FROM test WHERE ( ( a IN ( ? ) OR a IS NULL ) AND b NOT IN ( ? ) AND b IS NOT NULL )',
-              stmt_q => 'SELECT * FROM `test` WHERE ( ( `a` IN ( ? ) OR `a` IS NULL ) AND `b` NOT IN ( ? ) AND `b` IS NOT NULL )',
-              bind => [ 42, 42 ],
-      },
-      {
-              throws => qr/
-                \QSQL::Abstract before v1.75 used to generate incorrect SQL \E
-                \Qwhen the -IN operator was given an undef-containing list: \E
-                \Q!!!AUDIT YOUR CODE AND DATA!!! (the upcoming Data::Query-based \E
-                \Qversion of SQL::Abstract will emit the logically correct SQL \E
-                \Qinstead of raising this exception)\E
-              /x,
-              func => 'select',
-              args => ['test', '*', { a => { -in => [undef] }, b => { -not_in => [undef] } } ],
-              stmt => 'SELECT * FROM test WHERE ( a IS NULL AND b IS NOT NULL )',
-              stmt_q => 'SELECT * FROM `test` WHERE ( `a` IS NULL AND `b` IS NOT NULL )',
-              bind => [],
-      },
-      {
-              func => 'select',
-              args => ['test', '*', { a => { -in => undef } }],
-              throws => qr/Argument passed to the 'IN' operator can not be undefined/,
       },
       {
               func => 'select',
