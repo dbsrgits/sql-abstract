@@ -224,23 +224,25 @@ for my $case (@in_between_tests) {
   TODO: {
     local $TODO = $case->{todo} if $case->{todo};
     local $SQL::Abstract::Test::parenthesis_significant = $case->{parenthesis_significant};
+    my $label = $case->{test} || 'in-between test';
 
     my $sql = SQL::Abstract->new ($case->{args} || {});
 
     if (my $e = $case->{throws}) {
-      throws_ok { $sql->where($case->{where}) } $e;
+      throws_ok { $sql->where($case->{where}) } $e, "$label throws correctly";
     }
     else {
       my ($stmt, @bind);
       warnings_are {
         ($stmt, @bind) = $sql->where($case->{where});
-      } [], 'No warnings within in-between tests';
+      } [], "$label gives no warnings";
 
       is_same_sql_bind(
         $stmt,
         \@bind,
         $case->{stmt},
         $case->{bind},
+        "$label generates correct SQL and bind",
       ) || diag_where ( $case->{where} );
     }
   }
