@@ -24,6 +24,7 @@ my @BUILTIN_SPECIAL_OPS = (
   {regex => qr/^ (?: not \s )? in      $/ix, handler => '_where_field_IN'},
   {regex => qr/^ ident                 $/ix, handler => '_where_op_IDENT'},
   {regex => qr/^ value                 $/ix, handler => '_where_op_VALUE'},
+  {regex => qr/^ is (?: \s+ not )?     $/ix, handler => '_where_field_IS'},
 );
 
 # unaryish operators - key maps to handler
@@ -34,7 +35,7 @@ my @BUILTIN_UNARY_OPS = (
   { regex => qr/^ nest (?: [_\s]? \d+ )? $/xi, handler => '_where_op_NEST' },
   { regex => qr/^ (?: not \s )? bool     $/xi, handler => '_where_op_BOOL' },
   { regex => qr/^ ident                  $/xi, handler => '_where_op_IDENT' },
-  { regex => qr/^ value                  $/ix, handler => '_where_op_VALUE' },
+  { regex => qr/^ value                  $/xi, handler => '_where_op_VALUE' },
 );
 
 #======================================================================
@@ -758,6 +759,9 @@ sub _where_hashpair_HASHREF {
 
     $self->_assert_pass_injection_guard($op);
 
+    # fixup is_not
+    $op =~ s/^is_not/IS NOT/i;
+
     # so that -not_foo works correctly
     $op =~ s/^not_/NOT /i;
 
@@ -831,7 +835,22 @@ sub _where_hashpair_HASHREF {
   return ($all_sql, @all_bind);
 }
 
+sub _where_field_IS {
+  my ($self, $k, $op, $v) = @_;
 
+  my ($s) = $self->_SWITCH_refkind($v, {
+    UNDEF => sub {
+      join ' ',
+        $self->_convert($self->_quote($k)),
+        map { $self->_sqlcase($_)} ($op, 'null')
+    },
+    FALLBACK => sub {
+      puke "$op can only take undef as argument";
+    },
+  });
+
+  $s;
+}
 
 sub _where_field_op_ARRAYREF {
   my ($self, $k, $op, $vals) = @_;

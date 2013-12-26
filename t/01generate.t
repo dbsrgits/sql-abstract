@@ -583,6 +583,19 @@ my @tests = (
       },
 );
 
+# check is( not) => undef
+for my $op (qw( is is_not), 'is not' ) {
+  (my $sop = uc $op) =~ s/_/ /gi;
+
+  push @tests, {
+    func => 'where',
+    args => [{ a => { "$_$op" => undef } }],
+    stmt => "WHERE a $sop NULL",
+    stmt_q => "WHERE `a` $sop NULL",
+    bind => [],
+  } for ('', '-');  # with and without -
+}
+
 # check single-element inequality ops for no warnings
 for my $op ( qw(!= <>) ) {
   for my $val (undef, 42) {
