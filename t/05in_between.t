@@ -199,6 +199,7 @@ my @in_between_tests = (
   },
 
   {
+    parenthesis_significant => 1,
     where => { x => { -in => [ \['LOWER(?)', 'A' ], \'LOWER(b)', { -lower => 'c' } ] } },
     stmt => " WHERE ( x IN ( LOWER(?), LOWER(b), LOWER ? ) )",
     bind => [qw/A c/],
@@ -212,6 +213,7 @@ my @in_between_tests = (
       \Qversion of SQL::Abstract will emit the logically correct SQL \E
       \Qinstead of raising this exception)\E
     /x,
+    parenthesis_significant => 1,
     where => { x => { -in => [ 1, undef ] } },
     stmt => " WHERE ( x IN ( ? ) OR x IS NULL )",
     bind => [ 1 ],
@@ -225,14 +227,16 @@ my @in_between_tests = (
       \Qversion of SQL::Abstract will emit the logically correct SQL \E
       \Qinstead of raising this exception)\E
     /x,
+    parenthesis_significant => 1,
     where => { x => { -in => [ 1, undef, 2, 3, undef ] } },
     stmt => " WHERE ( x IN ( ?, ?, ? ) OR x IS NULL )",
     bind => [ 1, 2, 3 ],
     test => '-in with multiple undef elements',
   },
   {
+    parenthesis_significant => 1,
     where => { a => { -in => 42 }, b => { -not_in => 42 } },
-    stmt => ' WHERE a IN ( ? ) AND b NOT IN ( ? )',
+    stmt => ' WHERE ( ( a IN ( ? ) AND b NOT IN ( ? ) ) )',
     bind => [ 42, 42 ],
     test => '-in, -not_in with scalar',
   },
@@ -250,6 +254,7 @@ my @in_between_tests = (
       \Qversion of SQL::Abstract will emit the logically correct SQL \E
       \Qinstead of raising this exception)\E
     /x,
+    parenthesis_significant => 1,
     where => { a => { -in => [42, undef] }, b => { -not_in => [42, undef] } },
     stmt => ' WHERE ( ( a IN ( ? ) OR a IS NULL ) AND b NOT IN ( ? ) AND b IS NOT NULL )',
     bind => [ 42, 42 ],
