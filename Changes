@@ -1,5 +1,7 @@
 Revision history for SQL::Abstract
 
+revision 1.75  2013-12-27
+----------------------------
     - *UPCOMING INCOMPATIBLE BUGFIX*: SQLA used to generate incorrect SQL
       on undef-containing lists fed to -in and -not_in. An exception will
       be raised for a while before properly fixing this, to avoid quiet
@@ -11,7 +13,8 @@ Revision history for SQL::Abstract
       arrive at what amounts to a 1=1 condition (no pre-2.0 plans to fix
       this behavior due to backwards comp concerns)
     - Fix false negative comparison of ORDER BY <function> ASC
-    - More improvements of incorrect parsing (literal at end of list elt)
+    - More improvements of incorrect parsing (placeholder at end of list
+      element)
     - Fix typos in POD and comments (RT#87776)
     - Augment -not_bool example with nesting (RT#89601)
 
