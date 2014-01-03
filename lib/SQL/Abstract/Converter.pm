@@ -54,6 +54,27 @@ has convert => (is => 'ro');
 
 has array_datatypes => (is => 'ro');
 
+has equality_op => (
+  is => 'ro',
+  default => sub { qr/^ (?: = ) $/ix },
+);
+
+has inequality_op => (
+  is => 'ro',
+  default => sub { qr/^ (?: != | <> ) $/ix },
+);
+
+has like_op => (
+  is => 'ro',
+  default => sub { qr/^ (?: is \s+ )? r?like $/xi },
+);
+
+has not_like_op => (
+  is => 'ro',
+  default => sub { qr/^ (?: is \s+ )? not \s+ r?like $/xi },
+);
+
+
 sub _literal_to_dq {
   my ($self, $literal) = @_;
   my @bind;
@@ -527,7 +548,7 @@ sub _where_hashpair_to_dq {
       return $self->_op_to_dq(
         $op, $self->_ident_to_dq($k), map $self->_expr_to_dq($_), @$rhs
       )
-    } elsif ($op =~ s/^NOT (?!LIKE)//) {
+    } elsif ($op =~ s/^NOT (?!R?LIKE)//) {
       return $self->_where_hashpair_to_dq(-not => { $k => { $op => $rhs } });
     } elsif ($op eq 'IDENT') {
       return $self->_op_to_dq(
@@ -539,9 +560,11 @@ sub _where_hashpair_to_dq {
       );
     } elsif (!defined($rhs)) {
       my $null_op = do {
-        if ($op eq '=' or $op eq 'LIKE' or $op eq 'IS') {
+        warn "Supplying an undefined argument to '$op' is deprecated"
+          if $op =~ $self->like_op or $op =~ $self->not_like_op;
+        if ($op =~ $self->equality_op or $op =~ $self->like_op or $op eq 'IS') {
           'IS NULL'
-        } elsif ($op eq '!=' or $op eq 'NOT LIKE' or $op eq 'IS NOT') {
+        } elsif ($op =~ $self->inequality_op or $op =~ $self->not_like_op or $op eq 'IS NOT') {
           'IS NOT NULL'
         } else {
           die "Can't do undef -> NULL transform for operator ${op}";
@@ -551,8 +574,14 @@ sub _where_hashpair_to_dq {
     }
     if (ref($rhs) eq 'ARRAY') {
       if (!@$rhs) {
+        if ($op =~ $self->like_op or $op =~ $self->not_like_op) {
+          warn "Supplying an empty arrayref to '$op' is deprecated";
+        } elsif ($op !~ $self->equality_op and $op !~ $self->inequality_op) {
+          die "operator '$op' applied on an empty array (field '$k')";
+        }
         return $self->_literal_to_dq(
-          $op eq '!=' ? $self->{sqltrue} : $self->{sqlfalse}
+          ($op =~ $self->inequality_op or $op =~ $self->not_like_op)
+            ? $self->{sqltrue} : $self->{sqlfalse}
         );
       } elsif (defined($rhs->[0]) and $rhs->[0] =~ /^-(and|or)$/i) {
         return $self->_expr_to_dq_ARRAYREF([
@@ -560,6 +589,10 @@ sub _where_hashpair_to_dq {
         ], uc($1));
       } elsif ($op =~ /^-(?:AND|OR|NEST)_?\d+/) {
         die "Use of [and|or|nest]_N modifiers is no longer supported";
+      } elsif (@$rhs > 1 and ($op =~ $self->inequality_op or $op =~ $self->not_like_op)) {
+        warn "A multi-element arrayref as an argument to the inequality op '$op' "
+          . 'is technically equivalent to an always-true 1=1 (you probably wanted '
+          . "to say ...{ \$inequality_op => [ -and => \@values ] }... instead)";
       }
       return $self->_expr_to_dq_ARRAYREF([
         map +{ $k => { $op => $_ } }, @$rhs
