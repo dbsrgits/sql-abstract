@@ -655,10 +655,10 @@ for my $t (@tests) {
       ) || diag dumper ({ args => $t->{args}, result => $stmt });
     }
     else {
-      warnings_exist(
+      warnings_like(
         sub { $cref->() },
         $t->{warns} || [],
-      );
+      ) || diag dumper ({ args => $t->{args}, result => $stmt });
 
       is_same_sql_bind(
         $stmt,
