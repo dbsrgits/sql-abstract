@@ -257,10 +257,10 @@ my @sql_tests = (
       },
       {
         equal => 0,
-        opts => { parenthesis_significant => 1 },
         statements => [
-          q/SELECT foo FROM bar WHERE a IN (1,2,3)/,
           q/SELECT foo FROM bar WHERE a IN (1,3,2)/,
+          q/SELECT foo FROM bar WHERE a IN 1,2,3/,
+          q/SELECT foo FROM bar WHERE a IN (1,2,3)/,
           q/SELECT foo FROM bar WHERE a IN ((1,2,3))/,
         ]
       },

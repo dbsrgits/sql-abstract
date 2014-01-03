@@ -53,8 +53,8 @@ for my $orig (@sql) {
     $sqlat->unparse($ast);
   };
 
-  # deal with parenthesis readjustment
-  $_ =~ s/\s*([\(\)])\s*/$1 /g
+  # deal with whitespace around parenthesis readjustment
+  $_ =~ s/ \s* ( [ \(\) ] ) \s* /$1/gx
     for ($orig, $reassembled);
 
   is (
@@ -68,6 +68,15 @@ for my $orig (@sql) {
     note "ast2: $ast2";
   };
 }
+
+# this is invalid SQL, we are just checking that the parser
+# does not inadvertently make it right
+my $sql = 'SELECT * FROM foo WHERE x IN ( ( 1 ) )';
+is(
+  $sqlat->unparse($sqlat->parse($sql)),
+  $sql,
+  'Multi-parens around IN survive',
+);
 
 lives_ok { $sqlat->unparse( $sqlat->parse( <<'EOS' ) ) } 'Able to parse/unparse grossly malformed sql';
 SELECT
