@@ -507,6 +507,8 @@ sub _where_hashpair_to_dq {
           $op, $self->_ident_to_dq($k), $self->_literal_to_dq($$rhs)
         );
       }
+      die "Operator '$op' requires either an arrayref with two defined values or expressions, or a single literal scalarref/arrayref-ref"
+        if $op =~ /^(?:NOT )?BETWEEN$/ and (@$rhs != 2 or grep !defined, @$rhs);
       if (grep !defined, @$rhs) {
         my ($inop, $logic, $nullop) = $op =~ /^NOT/
           ? (-not_in => AND => { '!=' => undef })
