@@ -3,7 +3,7 @@ use warnings;
 use Test::More;
 use Test::Warn;
 use Test::Exception;
-use SQL::Abstract::Test import => [qw(is_same_sql_bind diag_where)];
+use SQL::Abstract::Test import => [qw(is_same_sql_bind diag_where dumper)];
 
 use SQL::Abstract;
 
@@ -277,7 +277,9 @@ for my $case (@in_between_tests) {
     my $sql = SQL::Abstract->new ($case->{args} || {});
 
     if (my $e = $case->{throws}) {
-      throws_ok { $sql->where($case->{where}) } $e, "$label throws correctly";
+      my $stmt;
+      throws_ok { ($stmt) = $sql->where($case->{where}) } $e, "$label throws correctly"
+        or diag dumper ({ where => $case->{where}, result => $stmt });
     }
     else {
       my ($stmt, @bind);
