@@ -162,7 +162,7 @@ sub _mutation_rhs_to_dq {
     my ($op, $arg, @rest) = %$v;
 
     die 'Operator calls in update/insert must be in the form { -op => $arg }'
-      if (@rest or not $op =~ /^\-(.+)/);
+      if (@rest or not $op =~ /^\-/);
   }
   return $self->_expr_to_dq($v);
 }
@@ -465,7 +465,7 @@ sub _where_hashpair_to_dq {
         }
         my ($op, $value) = %$v;
         s/^-//, s/_/ /g for $op;
-        if ($op =~ /^(and|or)$/i) {
+        if ($op =~ /^(?:and|or)$/i) {
           return $self->_expr_to_dq({ $k => $value }, $op);
         } elsif (
           my $special_op = List::Util::first {$op =~ $_->{regex}}
@@ -473,7 +473,7 @@ sub _where_hashpair_to_dq {
         ) {
           return $self->_literal_to_dq(
             [ $special_op->{handler}->($k, $op, $value) ]
-          );;
+          );
         } elsif ($op =~ /^(?:AND|OR|NEST)_?\d+$/i) {
           die "Use of [and|or|nest]_N modifiers is no longer supported";
         }
@@ -486,7 +486,7 @@ sub _where_hashpair_to_dq {
       die "Argument passed to the '$op' operator can not be undefined" unless defined $rhs;
       $rhs = [$rhs] unless ref $rhs;
       if (ref($rhs) ne 'ARRAY') {
-        if ($op =~ /IN$/) {
+        if ($op =~ /^(?:NOT )?IN$/) {
           # have to add parens if none present because -in => \"SELECT ..."
           # got documented. mst hates everything.
           if (ref($rhs) eq 'SCALAR') {
