@@ -400,11 +400,6 @@ my @handle_tests = (
         stmt  => " WHERE ( (NOT ( c AND (NOT ( (NOT a = ?) AND (NOT b) )) )) ) ",
         bind => [ 1 ],
     },
-    {
-        where => { foo => { '>=', [] } },
-        stmt  => " WHERE 0=1",
-        bind => [ ],
-    },
 );
 
 for my $case (@handle_tests) {
