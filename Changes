@@ -1,5 +1,7 @@
 Revision history for SQL::Abstract
 
+    - Reintroduce { -not => undef } column operator (regression from 1.75)
+
 revision 1.75  2013-12-27
 ----------------------------
     - *UPCOMING INCOMPATIBLE BUGFIX*: SQLA used to generate incorrect SQL
