@@ -113,6 +113,13 @@ my @tests = (
               bind   => ['nwiger']
       },
       {
+              func   => 'select',
+              args   => [[\'test1', 'test2'], '*', { 'test1.a' => 'boom' } ],
+              stmt   => 'SELECT * FROM test1, test2 WHERE ( test1.a = ? )',
+              stmt_q => 'SELECT * FROM test1, `test2` WHERE ( `test1`.`a` = ? )',
+              bind   => ['boom']
+      },
+      {
               func   => 'insert',
               args   => ['test', {a => 1, b => 2, c => 3, d => 4, e => 5}],
               stmt   => 'INSERT INTO test (a, b, c, d, e) VALUES (?, ?, ?, ?, ?)',
