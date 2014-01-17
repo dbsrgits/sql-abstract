@@ -15,6 +15,13 @@ has lower_case => (
   is => 'ro'
 );
 
+has legacy_convert_handler => (
+  is => 'ro'
+);
+has sqla_instance => (
+  is => 'ro', weak => 1
+);
+
 has default_logic => (
   is => 'ro', coerce => sub { uc($_[0]) }, default => sub { 'OR' }
 );
@@ -115,6 +122,12 @@ sub _ident_to_dq {
 
 sub _maybe_convert_dq {
   my ($self, $dq) = @_;
+
+  # do in void ctx - nothing seems to be using any of this
+  if ($self->legacy_convert_handler and $dq->{type} eq 'Identifier') {
+    $self->sqla_instance->_convert( join '.', @{$dq->{elements}} )
+  }
+
   if (my $c = $self->{where_convert}) {
     Operator({ 'SQL.Naive' => 'apply' }, [
         Identifier($self->_sqlcase($c)),

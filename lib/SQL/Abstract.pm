@@ -26,6 +26,28 @@ sub puke (@) {
   Carp::croak "[$func] Fatal: ", @_;
 }
 
+# original SQLA treated anything false as "use the default"
+# in addition a lot of CPAN seems to supply undef's for "use the default"
+# (say hi to Class::DBI::Sweet)
+sub BUILDARGS {
+  my $class = shift;
+  my $args = { ref $_[0] eq 'HASH' ? %{$_[0]} : @_ };
+
+  defined $args->{$_} or delete $args->{$_}
+    for keys %$args;
+
+  $args;
+}
+
+# many subclasses on CPAN  assume they can dump a bunch of extra new()
+# parameters, and then get back at them via $obj->{foo}. YAY
+# (Class::DBI::Sweet says hi back)
+sub BUILD {
+  my ($self, $args) = @_;
+  %{$self} = (%$args, %$self);
+  $self;
+}
+
 has converter => (is => 'lazy', clearer => 'clear_converter');
 
 has case => (
@@ -132,7 +154,9 @@ sub _build_renderer_roles { () }
 sub _converter_args {
   my ($self) = @_;
   Scalar::Util::weaken($self);
+
   +{
+    sqla_instance => $self,
     lower_case => $self->case,
     default_logic => $self->logic,
     bind_meta => not($self->bindtype eq 'normal'),
@@ -152,6 +176,8 @@ sub _converter_args {
     renderer_will_quote => (
       defined($self->quote_char) and $self->always_quote
     ),
+
+    legacy_convert_handler => ($self->can('_convert') != \&_convert) ? 1 : 0,
   }
 }
 
