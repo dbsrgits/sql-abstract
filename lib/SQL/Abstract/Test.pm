@@ -1,5 +1,7 @@
 package SQL::Abstract::Test; # see doc at end of file
 
+use SQL::Abstract::_TempExtlib;
+
 use strict;
 use warnings;
 use base qw(Test::Builder::Module Exporter);

@@ -1,5 +1,7 @@
 package SQL::Abstract; # see doc at end of file
 
+use SQL::Abstract::_TempExtlib;
+
 use Carp ();
 use List::Util ();
 use Scalar::Util ();

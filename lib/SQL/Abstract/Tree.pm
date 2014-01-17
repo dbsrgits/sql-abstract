@@ -1,5 +1,7 @@
 package SQL::Abstract::Tree;
 
+use SQL::Abstract::_TempExtlib;
+
 use Carp;
 use Hash::Merge ();
 
