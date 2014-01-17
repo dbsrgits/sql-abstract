@@ -7,7 +7,8 @@ use Module::Runtime qw(use_module);
 use Moo;
 use namespace::clean;
 
-our $VERSION  = '1.74';
+our $VERSION  = '1.77';
+
 # This would confuse some packagers
 $VERSION = eval $VERSION if $VERSION =~ /_/; # numify for warning-free dev releases
 
@@ -276,16 +277,6 @@ sub _assert_pass_injection_guard {
 # Conversion, if applicable
 sub _convert ($) {
   #my ($self, $arg) = @_;
-
-# LDNOTE : modified the previous implementation below because
-# it was not consistent : the first "return" is always an array,
-# the second "return" is context-dependent. Anyway, _convert
-# seems always used with just a single argument, so make it a
-# scalar function.
-#     return @_ unless $self->{convert};
-#     my $conv = $self->_sqlcase($self->{convert});
-#     my @ret = map { $conv.'('.$_.')' } @_;
-#     return wantarray ? @ret : $ret[0];
   if ($_[0]->{convert}) {
     return $_[0]->_sqlcase($_[0]->{convert}) .'(' . $_[1] . ')';
   }
@@ -295,11 +286,6 @@ sub _convert ($) {
 # And bindtype
 sub _bindtype (@) {
   #my ($self, $col, @vals) = @_;
-
-  #LDNOTE : changed original implementation below because it did not make
-  # sense when bindtype eq 'columns' and @vals > 1.
-#  return $self->{bindtype} eq 'columns' ? [ $col, @vals ] : @vals;
-
   # called often - tighten code
   return $_[0]->{bindtype} eq 'columns'
     ? map {[$_[1], $_]} @_[2 .. $#_]
@@ -1217,15 +1203,19 @@ then you should use the and/or operators:-
     my %where  = (
         -and           => [
             -bool      => 'one',
-            -bool      => 'two',
-            -bool      => 'three',
-            -not_bool  => 'four',
+            -not_bool  => { two=> { -rlike => 'bar' } },
+            -not_bool  => { three => [ { '=', 2 }, { '>', 5 } ] },
         ],
     );
 
 Would give you:
 
-    WHERE one AND two AND three AND NOT four
+    WHERE
+      one
+        AND
+      (NOT two RLIKE ?)
+        AND
+      (NOT ( three = ? OR three > ? ))
 
 
 =head2 Nested conditions, -and/-or prefixes
@@ -1747,6 +1737,9 @@ really like this part (I do, at least). Building up a complex query
 can be as simple as the following:
 
     #!/usr/bin/perl
+
+    use warnings;
+    use strict;
 
     use CGI::FormBuilder;
     use SQL::Abstract;

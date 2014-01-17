@@ -1,15 +1,12 @@
-#!/usr/bin/perl
-
 use strict;
 use warnings;
 use Test::More;
 use Test::Exception;
-use SQL::Abstract::Test import => ['is_same_sql_bind'];
+use Test::Warn;
+use SQL::Abstract::Test import => [qw(is_same_sql_bind diag_where)];
 
-use Data::Dumper;
 use SQL::Abstract;
-
-my $dclone = eval { require Storable; \&Storable::dclone };
+use Storable 'dclone';
 
 #### WARNING ####
 #
@@ -389,31 +386,21 @@ for my $case (@and_or_tests) {
   TODO: {
     local $TODO = $case->{todo} if $case->{todo};
 
-    local $Data::Dumper::Terse = 1;
-
-    my @w;
-    local $SIG{__WARN__} = sub { push @w, @_ };
-
     my $sql = SQL::Abstract->new ($case->{args} || {});
 
-    my $where_copy = $dclone->($case->{where})
-      if $dclone;;
+    my $where_copy = dclone($case->{where});
 
-    lives_ok (sub {
+    warnings_are {
       my ($stmt, @bind) = $sql->where($case->{where});
       is_same_sql_bind(
         $stmt,
         \@bind,
         $case->{stmt},
         $case->{bind},
-      )
-        || diag "Search term:\n" . Dumper $case->{where};
-    });
-    is (@w, 0, 'No warnings within and-or tests')
-      || diag join "\n", 'Emitted warnings:', @w;
+      ) || diag_where( $case->{where} );
+    } [], 'No warnings within and-or tests';
 
-    is_deeply ($case->{where}, $where_copy, 'Where conditions unchanged')
-      if $dclone;
+    is_deeply ($case->{where}, $where_copy, 'Where conditions unchanged');
   }
 }
 
@@ -422,7 +409,6 @@ for my $case (@nest_tests) {
     local $TODO = $case->{todo} if $case->{todo};
 
     local $SQL::Abstract::Test::parenthesis_significant = 1;
-    local $Data::Dumper::Terse = 1;
 
     my $sql = SQL::Abstract->new ($case->{args} || {});
     lives_ok (sub {
@@ -432,8 +418,7 @@ for my $case (@nest_tests) {
         \@bind,
         $case->{stmt},
         $case->{bind},
-      )
-        || diag "Search term:\n" . Dumper $case->{where};
+      ) || diag_where ( $case->{where} );
     });
   }
 }

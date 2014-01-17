@@ -1,13 +1,26 @@
 Revision history for SQL::Abstract
 
+revision 1.77  2014-01-17
+----------------------------
+    - Reintroduce { -not => undef } column operator (regression from 1.75)
+
+revision 1.75  2013-12-27
+----------------------------
     - *UPCOMING INCOMPATIBLE BUGFIX*: SQLA used to generate incorrect SQL
       on undef-containing lists fed to -in and -not_in. An exception will
       be raised for a while before properly fixing this, to avoid quiet
       but subtle changes to query results in production
+    - Deprecate and warn when supplying an empty arrayref to like/not_like
+      operators (likely to be removed before 2.0)
 
+    - Warn when using an inequality operator with a multi-value array to
+      arrive at what amounts to a 1=1 condition (no pre-2.0 plans to fix
+      this behavior due to backwards comp concerns)
     - Fix false negative comparison of ORDER BY <function> ASC
-    - More improvements of incorrect parsing (literal at end of list elt)
+    - More improvements of incorrect parsing (placeholder at end of list
+      element)
     - Fix typos in POD and comments (RT#87776)
+    - Augment -not_bool example with nesting (RT#89601)
 
 revision 1.74  2013-06-04
 ----------------------------

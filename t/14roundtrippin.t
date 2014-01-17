@@ -4,11 +4,7 @@ use strict;
 use Test::More;
 use Test::Exception;
 
-use Data::Dumper;
-$Data::Dumper::Terse = 1;
-$Data::Dumper::Sortkeys = 1;
-
-use SQL::Abstract::Test import => ['is_same_sql'];
+use SQL::Abstract::Test import => [qw(is_same_sql dumper)];
 use SQL::Abstract::Tree;
 
 my $sqlat = SQL::Abstract::Tree->new;
@@ -29,6 +25,7 @@ my @sql = (
   "SELECT inner_forum_roles.forum_id FROM forum_roles AS inner_forum_roles LEFT JOIN user_roles AS inner_user_roles USING(user_role_type_id) WHERE inner_user_roles.user_id = users__row.user_id",
   "SELECT * FROM foo WHERE foo.a @@ to_tsquery('word')",
   "SELECT * FROM foo ORDER BY name + ?, [me].[id]",
+  "SELECT foo AS bar FROM baz ORDER BY x + ? DESC, baz.g",
 );
 
 # FIXME FIXME FIXME
@@ -56,8 +53,8 @@ for my $orig (@sql) {
     $sqlat->unparse($ast);
   };
 
-  # deal with parenthesis readjustment
-  $_ =~ s/\s*([\(\)])\s*/$1 /g
+  # deal with whitespace around parenthesis readjustment
+  $_ =~ s/ \s* ( [ \(\) ] ) \s* /$1/gx
     for ($orig, $reassembled);
 
   is (
@@ -65,12 +62,21 @@ for my $orig (@sql) {
     lc($orig),
     sprintf( 'roundtrip works (%s...)', substr $orig, 0, 20 )
   ) or do {
-    my ($ast1, $ast2) = map { Dumper $sqlat->parse($_) } ( $orig, $reassembled );
+    my ($ast1, $ast2) = map { dumper( $sqlat->parse($_) ) } ( $orig, $reassembled );
 
     note "ast1: $ast1";
     note "ast2: $ast2";
   };
 }
+
+# this is invalid SQL, we are just checking that the parser
+# does not inadvertently make it right
+my $sql = 'SELECT * FROM foo WHERE x IN ( ( 1 ) )';
+is(
+  $sqlat->unparse($sqlat->parse($sql)),
+  $sql,
+  'Multi-parens around IN survive',
+);
 
 lives_ok { $sqlat->unparse( $sqlat->parse( <<'EOS' ) ) } 'Able to parse/unparse grossly malformed sql';
 SELECT

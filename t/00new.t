@@ -1,24 +1,15 @@
-#!/usr/bin/perl
-
 use strict;
 use warnings;
 use Test::More;
+use Test::Warn;
 
-use SQL::Abstract::Test import => ['is_same_sql_bind'];
-
-#LDNOTE: renamed all "bind" into "where" because that's what they are
+use SQL::Abstract::Test import => ['is_same_sql'];
+use SQL::Abstract;
 
 my @handle_tests = (
       #1
       {
               args => {logic => 'OR'},
-#              stmt => 'SELECT * FROM test WHERE ( a = ? OR b = ? )'
-# LDNOTE: modified the line above (changing the test suite!!!) because
-# the test was not consistent with the doc: hashrefs should not be
-# influenced by the current logic, they always mean 'AND'. So
-# { a => 4, b => 0} should ALWAYS mean ( a = ? AND b = ? ).
-#
-# acked by RIBASUSHI
               stmt => 'SELECT * FROM test WHERE ( a = ? AND b = ? )'
       },
       #2
@@ -39,9 +30,6 @@ my @handle_tests = (
       #5
       {
               args => {cmp => "=", logic => 'or'},
-# LDNOTE idem
-#              stmt => 'SELECT * FROM test WHERE ( a = ? OR b = ? )'
-# acked by RIBASUSHI
               stmt => 'SELECT * FROM test WHERE ( a = ? AND b = ? )'
       },
       #6
@@ -52,9 +40,6 @@ my @handle_tests = (
       #7
       {
               args => {logic => "or", cmp => "like"},
-# LDNOTE idem
-#              stmt => 'SELECT * FROM test WHERE ( a LIKE ? OR b LIKE ? )'
-# acked by RIBASUSHI
               stmt => 'SELECT * FROM test WHERE ( a LIKE ? AND b LIKE ? )'
       },
       #8
@@ -98,23 +83,22 @@ my @handle_tests = (
                         { a => [qw/b c d/],
                           e => { '!=', [qw(f g)] },
                           q => { 'not in', [14..20] } } ],
+              warns => qr/\QA multi-element arrayref as an argument to the inequality op '!=' is technically equivalent to an always-true 1=1/,
       },
 );
 
-
-use_ok('SQL::Abstract');
-
 for (@handle_tests) {
-  local $" = ', ';
-  #print "creating a handle with args ($_->{args}): ";
-  my $sql  = SQL::Abstract->new($_->{args});
-  my $where = $_->{where} || { a => 4, b => 0};
-  my($stmt, @bind) = $sql->select('test', '*', $where);
+  my $sqla  = SQL::Abstract->new($_->{args});
+  my $stmt;
+  warnings_exist {
+    $stmt = $sqla->select(
+      'test',
+      '*',
+      $_->{where} || { a => 4, b => 0}
+    );
+  } $_->{warns} || [];
 
-  # LDNOTE: this original test suite from NWIGER did no comparisons
-  # on @bind values, just checking if @bind is nonempty.
-  # So here we just fake a [1] bind value for the comparison.
-  is_same_sql_bind($stmt, [@bind ? 1 : 0], $_->{stmt}, [1]);
+  is_same_sql($stmt, $_->{stmt});
 }
 
 done_testing;

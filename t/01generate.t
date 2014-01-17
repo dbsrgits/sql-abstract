@@ -1,13 +1,10 @@
-#!/usr/bin/perl
-
 use strict;
 use warnings;
 use Test::More;
 use Test::Warn;
 use Test::Exception;
-use Data::Dumper;
 
-use SQL::Abstract::Test import => ['is_same_sql_bind'];
+use SQL::Abstract::Test import => [qw( is_same_sql_bind diag_where dumper )];
 
 use SQL::Abstract;
 
@@ -72,27 +69,6 @@ my @tests = (
       },
       {
               func   => 'select',
-              args   => [[qw/test1 test2/], '*', { 'test1.a' => { 'In', ['boom', 'bang'] } }],
-              stmt   => 'SELECT * FROM test1, test2 WHERE ( test1.a IN ( ?, ? ) )',
-              stmt_q => 'SELECT * FROM `test1`, `test2` WHERE ( `test1`.`a` IN ( ?, ? ) )',
-              bind   => ['boom', 'bang']
-      },
-      {
-              func   => 'select',
-              args   => [[\'test1', 'test2'], '*', { 'test1.a' => { 'In', ['boom', 'bang'] } }],
-              stmt   => 'SELECT * FROM test1, test2 WHERE ( test1.a IN ( ?, ? ) )',
-              stmt_q => 'SELECT * FROM test1, `test2` WHERE ( `test1`.`a` IN ( ?, ? ) )',
-              bind   => ['boom', 'bang']
-      },
-      {
-              func   => 'select',
-              args   => ['test', '*', { a => { 'between', ['boom', 'bang'] } }],
-              stmt   => 'SELECT * FROM test WHERE ( a BETWEEN ? AND ? )',
-              stmt_q => 'SELECT * FROM `test` WHERE ( `a` BETWEEN ? AND ? )',
-              bind   => ['boom', 'bang']
-      },
-      {
-              func   => 'select',
               args   => ['test', '*', { a => { '!=', 'boom' } }],
               stmt   => 'SELECT * FROM test WHERE ( a != ? )',
               stmt_q => 'SELECT * FROM `test` WHERE ( `a` != ? )',
@@ -135,6 +111,13 @@ my @tests = (
               stmt   => 'DELETE FROM test1, test2, test3 WHERE ( test1.field != test2.field AND user != ? )',
               stmt_q => 'DELETE FROM `test1`, `test2`, `test3` WHERE ( `test1`.`field` != test2.field AND `user` != ? )',  # test2.field is a literal value, cannnot be quoted.
               bind   => ['nwiger']
+      },
+      {
+              func   => 'select',
+              args   => [[\'test1', 'test2'], '*', { 'test1.a' => 'boom' } ],
+              stmt   => 'SELECT * FROM test1, test2 WHERE ( test1.a = ? )',
+              stmt_q => 'SELECT * FROM test1, `test2` WHERE ( `test1`.`a` = ? )',
+              bind   => ['boom']
       },
       {
               func   => 'insert',
@@ -242,6 +225,8 @@ my @tests = (
                                            tasty => { '!=', [qw(yes YES)] },
                                            -nest => [ face => [ -or => {'=', 'mr.happy'}, {'=', undef} ] ] },
                         ],
+              warns  => qr/\QA multi-element arrayref as an argument to the inequality op '!=' is technically equivalent to an always-true 1=1/,
+
               stmt   => 'UPDATE taco_punches SET one = ?, three = ? WHERE ( ( ( ( ( face = ? ) OR ( face IS NULL ) ) ) )'
                       . ' AND ( ( bland != ? ) AND ( bland != ? ) ) AND ( ( tasty != ? ) OR ( tasty != ? ) ) )',
               stmt_q => 'UPDATE `taco_punches` SET `one` = ?, `three` = ? WHERE ( ( ( ( ( `face` = ? ) OR ( `face` IS NULL ) ) ) )'
@@ -261,10 +246,6 @@ my @tests = (
       },
       {
               func   => 'update',
-# LDNOTE : removed the "-maybe", because we no longer admit unknown ops
-#
-# acked by RIBASUSHI
-#              args   => ['fhole', {fpoles => 4}, [-maybe => {race => [-and => [qw(black white asian)]]},
               args   => ['fhole', {fpoles => 4}, [
                           { race => [qw/-or black white asian /] },
                           { -nest => { firsttime => [-or => {'=','yes'}, undef] } },
@@ -285,11 +266,6 @@ my @tests = (
       },
       {
               func   => 'select',
-# LDNOTE: modified test below because we agreed with MST that literal SQL
-#         should not automatically insert a '='; the user has to do it
-#
-# acked by MSTROUT
-#              args   => ['test', '*', { a => \["to_date(?, 'MM/DD/YY')", '02/02/02']}],
               args   => ['test', '*', { a => \["= to_date(?, 'MM/DD/YY')", '02/02/02']}],
               stmt   => q{SELECT * FROM test WHERE ( a = to_date(?, 'MM/DD/YY') )},
               stmt_q => q{SELECT * FROM `test` WHERE ( `a` = to_date(?, 'MM/DD/YY') )},
@@ -412,25 +388,30 @@ my @tests = (
               func   => 'insert',
               new    => {bindtype => 'columns'},
               args   => ['test', {a => 1, b => \["to_date(?, 'MM/DD/YY')", '02/02/02']}],
-              exception_like => qr/bindtype 'columns' selected, you need to pass: \[column_name => bind_value\]/,
+              throws => qr/bindtype 'columns' selected, you need to pass: \[column_name => bind_value\]/,
       },
       {
               func   => 'update',
               new    => {bindtype => 'columns'},
               args   => ['test', {a => 1, b => \["to_date(?, 'MM/DD/YY')", '02/02/02']}, {a => {'between', [1,2]}}],
-              exception_like => qr/bindtype 'columns' selected, you need to pass: \[column_name => bind_value\]/,
+              throws => qr/bindtype 'columns' selected, you need to pass: \[column_name => bind_value\]/,
       },
       {
               func   => 'select',
               new    => {bindtype => 'columns'},
               args   => ['test', '*', { a => \["= to_date(?, 'MM/DD/YY')", '02/02/02']}],
-              exception_like => qr/bindtype 'columns' selected, you need to pass: \[column_name => bind_value\]/,
+              throws => qr/bindtype 'columns' selected, you need to pass: \[column_name => bind_value\]/,
       },
       {
               func   => 'select',
               new    => {bindtype => 'columns'},
               args   => ['test', '*', { a => {'<' => \["to_date(?, 'MM/DD/YY')", '02/02/02']}, b => 8 }],
-              exception_like => qr/bindtype 'columns' selected, you need to pass: \[column_name => bind_value\]/,
+              throws => qr/bindtype 'columns' selected, you need to pass: \[column_name => bind_value\]/,
+      },
+      {
+              func   => 'select',
+              args   => ['test', '*', { foo => { '>=' => [] }} ],
+              throws => qr/\Qoperator '>=' applied on an empty array (field 'foo')/,
       },
       {
               func   => 'select',
@@ -444,7 +425,7 @@ my @tests = (
               func   => 'select',
               new    => {bindtype => 'columns'},
               args   => ['test', '*', { a => {-in => \["(SELECT d FROM to_date(?, 'MM/DD/YY') AS d)", '02/02/02']}, b => 8 }],
-              exception_like => qr/bindtype 'columns' selected, you need to pass: \[column_name => bind_value\]/,
+              throws => qr/bindtype 'columns' selected, you need to pass: \[column_name => bind_value\]/,
       },
       {
               func   => 'insert',
@@ -547,38 +528,11 @@ my @tests = (
       },
       {
               func => 'select',
-              args => ['test', '*', { a => { -in => [] }, b => { -not_in => [] }, c => { -in => 42 } }],
-              stmt => 'SELECT * FROM test WHERE ( 0=1 AND 1=1 AND c IN ( ? ))',
-              stmt_q => 'SELECT * FROM `test` WHERE ( 0=1 AND 1=1 AND `c` IN ( ? ))',
-              bind => [ 42 ],
-      },
-      {
-              func => 'select',
-              args => ['test', '*', { a => { -in => [] }, b => { -not_in => [] } }],
-              stmt => 'SELECT * FROM test WHERE ( 0=1 AND 1=1 )',
-              stmt_q => 'SELECT * FROM `test` WHERE ( 0=1 AND 1=1 )',
-              bind => [],
-      },
-      {
-              func => 'select',
-              args => ['test', '*', { a => { -in => [42, undef] }, b => { -not_in => [42, undef] } } ],
-              stmt => 'SELECT * FROM test WHERE ( ( a IN ( ? ) OR a IS NULL ) AND b NOT IN ( ? ) AND b IS NOT NULL )',
-              stmt_q => 'SELECT * FROM `test` WHERE ( ( `a` IN ( ? ) OR `a` IS NULL ) AND `b` NOT IN ( ? ) AND `b` IS NOT NULL )',
-              bind => [ 42, 42 ],
-      },
-      {
-              func => 'select',
-              args => ['test', '*', { a => { -in => [undef] }, b => { -not_in => [undef] } } ],
-              stmt => 'SELECT * FROM test WHERE ( a IS NULL AND b IS NOT NULL )',
-              stmt_q => 'SELECT * FROM `test` WHERE ( `a` IS NULL AND `b` IS NOT NULL )',
-              bind => [],
-      },
-      {
-              func => 'select',
               args => ['test', '*', { a => { '=' => undef }, b => { -is => undef }, c => { -like => undef } }],
               stmt => 'SELECT * FROM test WHERE ( a IS NULL AND b IS NULL AND c IS NULL )',
               stmt_q => 'SELECT * FROM `test` WHERE ( `a` IS NULL AND `b` IS NULL AND `c` IS NULL )',
               bind => [],
+              warns => qr/\QSupplying an undefined argument to 'LIKE' is deprecated/,
       },
       {
               func => 'select',
@@ -586,6 +540,7 @@ my @tests = (
               stmt => 'SELECT * FROM test WHERE ( a IS NOT NULL AND b IS NOT  NULL AND c IS NOT  NULL )',
               stmt_q => 'SELECT * FROM `test` WHERE ( `a` IS NOT  NULL AND `b` IS NOT  NULL AND `c` IS NOT  NULL )',
               bind => [],
+              warns => qr/\QSupplying an undefined argument to 'NOT LIKE' is deprecated/,
       },
       {
               func => 'select',
@@ -593,6 +548,7 @@ my @tests = (
               stmt => 'SELECT * FROM test WHERE ( a IS NULL AND b IS NULL )',
               stmt_q => 'SELECT * FROM `test` WHERE ( `a` IS NULL AND `b` IS NULL )',
               bind => [],
+              warns => qr/\QSupplying an undefined argument to 'LIKE' is deprecated/,
       },
       {
               func => 'select',
@@ -600,11 +556,7 @@ my @tests = (
               stmt => 'SELECT * FROM test WHERE ( a IS NOT NULL AND b IS NOT  NULL )',
               stmt_q => 'SELECT * FROM `test` WHERE ( `a` IS NOT  NULL AND `b` IS NOT  NULL )',
               bind => [],
-      },
-      {
-              func => 'select',
-              args => ['test', '*', { a => { -in => undef } }],
-              exception_like => qr/Argument passed to the 'IN' operator can not be undefined/,
+              warns => qr/\QSupplying an undefined argument to 'NOT LIKE' is deprecated/,
       },
 );
 
@@ -627,11 +579,72 @@ for my $op ( qw(not is is_not), 'is not' ) {
   }
 }
 
-for my $t (@tests) {
-  local $"=', ';
+# check single-element inequality ops for no warnings
+for my $op ( qw(!= <>) ) {
+  for my $val (undef, 42) {
+    push @tests, {
+      func => 'where',
+      args => [ { x => { "$_$op" => [ $val ] } } ],
+      stmt => "WHERE x " . ($val ? "$op ?" : 'IS NOT NULL'),
+      stmt_q => "WHERE `x` " . ($val ? "$op ?" : 'IS NOT NULL'),
+      bind => [ $val || () ],
+    } for ('', '-');  # with and without -
+  }
+}
 
+# check single-element not-like ops for no warnings, and NULL exception
+# (the last two "is not X" are a weird syntax, but mebbe a dialect...)
+for my $op (qw(not_like not_rlike), 'not like', 'not rlike', 'is not like','is not rlike') {
+  (my $sop = uc $op) =~ s/_/ /gi;
+
+  for my $val (undef, 42) {
+    push @tests, {
+      func => 'where',
+      args => [ { x => { "$_$op" => [ $val ] } } ],
+      $val ? (
+        stmt => "WHERE x $sop ?",
+        stmt_q => "WHERE `x` $sop ?",
+        bind => [ $val ],
+      ) : (
+        stmt => "WHERE x IS NOT NULL",
+        stmt_q => "WHERE `x` IS NOT NULL",
+        bind => [],
+        warns => qr/\QSupplying an undefined argument to '$sop' is deprecated/,
+      ),
+    } for ('', '-');  # with and without -
+  }
+}
+
+# check all multi-element inequality/not-like ops for warnings
+for my $op ( qw(!= <> not_like not_rlike), 'not like', 'not rlike', 'is not like','is not rlike') {
+  (my $sop = uc $op) =~ s/_/ /gi;
+
+  push @tests, {
+    func => 'where',
+    args => [ { x => { "$_$op" => [ 42, 69 ] } } ],
+    stmt => "WHERE x $sop ? OR x $sop ?",
+    stmt_q => "WHERE `x` $sop ? OR `x` $sop ?",
+    bind => [ 42, 69 ],
+    warns  => qr/\QA multi-element arrayref as an argument to the inequality op '$sop' is technically equivalent to an always-true 1=1/,
+  } for ('', '-');  # with and without -
+}
+
+# check all like/not-like ops for empty-arrayref warnings
+for my $op ( qw(like rlike not_like not_rlike), 'not like', 'not rlike', 'is like', 'is not like', 'is rlike', 'is not rlike') {
+  (my $sop = uc $op) =~ s/_/ /gi;
+
+  push @tests, {
+    func => 'where',
+    args => [ { x => { "$_$op" => [] } } ],
+    stmt => ( $sop =~ /NOT/ ? "WHERE 1=1" : "WHERE 0=1" ),
+    stmt_q => ( $sop =~ /NOT/ ? "WHERE 1=1" : "WHERE 0=1" ),
+    bind => [],
+    warns  => qr/\QSupplying an empty arrayref to '$sop' is deprecated/,
+  } for ('', '-');  # with and without -
+}
+
+for my $t (@tests) {
   my $new = $t->{new} || {};
-  $new->{debug} = $ENV{DEBUG} || 0;
 
   for my $quoted (0, 1) {
 
@@ -647,26 +660,17 @@ for my $t (@tests) {
       ($stmt, @bind) = $maker->$op (@ { $t->{args} } );
     };
 
-    if ($t->{exception_like}) {
+    if (my $e = $t->{throws}) {
       throws_ok(
         sub { $cref->() },
-        $t->{exception_like},
-        "throws the expected exception ($t->{exception_like})"
-      );
-    } else {
-      if ($t->{warning_like}) {
-        warning_like(
-          sub { $cref->() },
-          $t->{warning_like},
-          "issues the expected warning ($t->{warning_like})"
-        );
-      }
-      else {
-        unless (eval { $cref->(); 1 }) {
-          die "Unexpected exception thrown for structure:\n"
-              .Dumper($t)."Exception was: $@";
-        }
-      }
+        $e,
+      ) || diag dumper ({ args => $t->{args}, result => $stmt });
+    }
+    else {
+      warnings_like(
+        sub { $cref->() },
+        $t->{warns} || [],
+      ) || diag dumper ({ args => $t->{args}, result => $stmt });
 
       is_same_sql_bind(
         $stmt,

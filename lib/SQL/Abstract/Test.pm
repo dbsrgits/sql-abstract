@@ -2,15 +2,17 @@ package SQL::Abstract::Test; # see doc at end of file
 
 use strict;
 use warnings;
-use base qw/Test::Builder::Module Exporter/;
+use base qw(Test::Builder::Module Exporter);
 use Data::Dumper;
 use Test::Builder;
 use Test::Deep ();
 use SQL::Abstract::Tree;
 
-our @EXPORT_OK = qw/&is_same_sql_bind &is_same_sql &is_same_bind
-                    &eq_sql_bind &eq_sql &eq_bind
-                    $case_sensitive $sql_differ/;
+our @EXPORT_OK = qw(
+  is_same_sql_bind is_same_sql is_same_bind
+  eq_sql_bind eq_sql eq_bind dumper diag_where
+  $case_sensitive $sql_differ
+);
 
 my $sqlat = SQL::Abstract::Tree->new;
 
@@ -79,6 +81,14 @@ sub is_same_bind {
   return $ret;
 }
 
+sub dumper {
+  Data::Dumper->new([])->Terse(1)->Indent(1)->Useqq(1)->Deparse(1)->Quotekeys(0)->Sortkeys(1)->Maxdepth(0)->Values([@_])->Dump;
+}
+
+sub diag_where{
+  $tb->diag( "Search term:\n" . &dumper );
+}
+
 sub _sql_differ_diag {
   my ($sql1, $sql2) = @_;
 
@@ -93,12 +103,10 @@ sub _sql_differ_diag {
 sub _bind_differ_diag {
   my ($bind_ref1, $bind_ref2) = @_;
 
-  local $Data::Dumper::Maxdepth;
-
   $tb->${\( $tb->in_todo ? 'note' : 'diag')} (
        "BIND values differ\n"
-      ."     got: " . Dumper($bind_ref1)
-      ."expected: " . Dumper($bind_ref2)
+      ."     got: " . dumper($bind_ref1)
+      ."expected: " . dumper($bind_ref2)
       );
 }
 

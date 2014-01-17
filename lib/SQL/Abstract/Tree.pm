@@ -68,6 +68,7 @@ my @expression_start_keywords = (
   'HAVING',
   'ORDER \s+ BY',
   'SKIP',
+  'FETCH',
   'FIRST',
   'LIMIT',
   'OFFSET',
@@ -658,7 +659,7 @@ sub _parenthesis_unroll {
       }
 
       # unroll nested parenthesis
-      while ( @{$child->[1]} == 1 and $child->[1][0][0] eq '-PAREN') {
+      while ( $ast->[0] ne 'IN' and @{$child->[1]} == 1 and $child->[1][0][0] eq '-PAREN') {
         $child = $child->[1][0];
         $changes++;
       }
