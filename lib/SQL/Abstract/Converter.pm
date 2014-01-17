@@ -4,6 +4,7 @@ use Carp ();
 use List::Util ();
 use Scalar::Util ();
 use Data::Query::ExprHelpers;
+use Sub::Quote 'quote_sub';
 use Moo;
 use namespace::clean;
 
@@ -16,39 +17,39 @@ has lower_case => (
 );
 
 has default_logic => (
-  is => 'ro', coerce => sub { uc($_[0]) }, default => sub { 'OR' }
+  is => 'ro', coerce => quote_sub( 'uc($_[0])' ), default => 'OR'
 );
 
 has bind_meta => (
-  is => 'ro', default => sub { 1 }
+  is => 'ro', default => 1
 );
 
-has cmp => (is => 'ro', default => sub { '=' });
+has cmp => (is => 'ro', default => '=' );
 
-has sqltrue => (is => 'ro', default => sub { '1=1' });
-has sqlfalse => (is => 'ro', default => sub { '0=1' });
+has sqltrue => (is => 'ro', default => '1=1' );
+has sqlfalse => (is => 'ro', default => '0=1' );
 
-has special_ops => (is => 'ro', default => sub { [] });
+has special_ops => (is => 'ro', default => quote_sub( '[]' ) );
 
 # XXX documented but I don't current fail any tests not using it
-has unary_ops => (is => 'ro', default => sub { [] });
+has unary_ops => (is => 'ro', default => quote_sub( '[]' ) );
 
 has injection_guard => (
   is => 'ro',
-  default => sub {
+  default => quote_sub( q{
     qr/
       \;
         |
       ^ \s* go \s
     /xmi;
-  }
+  } ),
 );
 
 has identifier_sep => (
-  is => 'ro', default => sub { '.' },
+  is => 'ro', default => '.',
 );
 
-has always_quote => (is => 'ro', default => sub { 1 });
+has always_quote => (is => 'ro', default => 1);
 
 has convert => (is => 'ro');
 
@@ -56,22 +57,22 @@ has array_datatypes => (is => 'ro');
 
 has equality_op => (
   is => 'ro',
-  default => sub { qr/^ (?: = ) $/ix },
+  default => quote_sub( q{ qr/^ (?: = ) $/ix } ),
 );
 
 has inequality_op => (
   is => 'ro',
-  default => sub { qr/^ (?: != | <> ) $/ix },
+  default => quote_sub( q{ qr/^ (?: != | <> ) $/ix } ),
 );
 
 has like_op => (
   is => 'ro',
-  default => sub { qr/^ (?: is \s+ )? r?like $/xi },
+  default => quote_sub( q{ qr/^ (?: is \s+ )? r?like $/xi } ),
 );
 
 has not_like_op => (
   is => 'ro',
-  default => sub { qr/^ (?: is \s+ )? not \s+ r?like $/xi },
+  default => quote_sub( q{ qr/^ (?: is \s+ )? not \s+ r?like $/xi } ),
 );
 
 

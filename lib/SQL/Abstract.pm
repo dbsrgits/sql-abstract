@@ -6,6 +6,7 @@ use Carp ();
 use List::Util ();
 use Scalar::Util ();
 use Module::Runtime qw(use_module);
+use Sub::Quote 'quote_sub';
 use Moo;
 use namespace::clean;
 
@@ -29,24 +30,24 @@ sub puke (@) {
 has converter => (is => 'lazy', clearer => 'clear_converter');
 
 has case => (
-  is => 'ro', coerce => sub { $_[0] eq 'lower' ? 'lower' : undef }
+  is => 'ro', coerce => quote_sub( q{ $_[0] eq 'lower' ? 'lower' : undef } ),
 );
 
 has logic => (
-  is => 'ro', coerce => sub { uc($_[0]) }, default => sub { 'OR' }
+  is => 'ro', coerce => quote_sub( q{ uc($_[0]) } ), default => 'OR',
 );
 
 has bindtype => (
-  is => 'ro', default => sub { 'normal' }
+  is => 'ro', default => 'normal'
 );
 
-has cmp => (is => 'ro', default => sub { '=' });
+has cmp => (is => 'ro', default => '=');
 
-has sqltrue => (is => 'ro', default => sub { '1=1' });
-has sqlfalse => (is => 'ro', default => sub { '0=1' });
+has sqltrue => (is => 'ro', default => '1=1' );
+has sqlfalse => (is => 'ro', default => '0=1' );
 
-has special_ops => (is => 'ro', default => sub { [] });
-has unary_ops => (is => 'ro', default => sub { [] });
+has special_ops => (is => 'ro', default => quote_sub( q{ [] } ));
+has unary_ops => (is => 'ro', default => quote_sub( q{ [] } ));
 
 # FIXME
 # need to guard against ()'s in column names too, but this will break tons of
@@ -54,44 +55,44 @@ has unary_ops => (is => 'ro', default => sub { [] });
 
 has injection_guard => (
   is => 'ro',
-  default => sub {
+  default => quote_sub( q{
     qr/
       \;
         |
       ^ \s* go \s
     /xmi;
-  }
+  })
 );
 
 has renderer => (is => 'lazy', clearer => 'clear_renderer');
 
 has name_sep => (
-  is => 'rw', default => sub { '.' },
-  trigger => sub {
+  is => 'rw', default => '.',
+  trigger => quote_sub( q{
     $_[0]->clear_renderer;
     $_[0]->clear_converter;
-  },
+  }),
 );
 
 has quote_char => (
   is => 'rw',
-  trigger => sub {
+  trigger => quote_sub( q{
     $_[0]->clear_renderer;
     $_[0]->clear_converter;
-  },
+  }),
 );
 
 has collapse_aliases => (
   is => 'ro',
-  default => sub { 0 }
+  default => 0,
 );
 
 has always_quote => (
-  is => 'rw', default => sub { 1 },
-  trigger => sub {
+  is => 'rw', default => 1,
+  trigger => quote_sub( q{
     $_[0]->clear_renderer;
     $_[0]->clear_converter;
-  },
+  }),
 );
 
 has convert => (is => 'ro');
@@ -100,7 +101,7 @@ has array_datatypes => (is => 'ro');
 
 has converter_class => (
   is => 'rw', lazy => 1, builder => '_build_converter_class',
-  trigger => sub { shift->clear_converter },
+  trigger => quote_sub( q{ $_[0]->clear_converter } ),
 );
 
 sub _build_converter_class {
@@ -109,10 +110,10 @@ sub _build_converter_class {
 
 has renderer_class => (
   is => 'rw', lazy => 1, clearer => 1, builder => 1,
-  trigger => sub { shift->clear_renderer },
+  trigger => quote_sub( q{ $_[0]->clear_renderer } ),
 );
 
-after clear_renderer_class => sub { shift->clear_renderer };
+after clear_renderer_class => sub { $_[0]->clear_renderer };
 
 sub _build_renderer_class {
   my ($self) = @_;
