@@ -1,5 +1,9 @@
 Revision history for SQL::Abstract
 
+TRIAL revision 1.99_01  2014-01-17
+----------------------------
+    - First cut of Data::Query-based SQLA for wider testing
+
 revision 1.77  2014-01-17
 ----------------------------
     - Reintroduce { -not => undef } column operator (regression from 1.75)

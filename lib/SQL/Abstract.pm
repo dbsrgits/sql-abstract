@@ -9,7 +9,9 @@ use Module::Runtime qw(use_module);
 use Moo;
 use namespace::clean;
 
-our $VERSION  = '1.77';
+# DO NOT INCREMENT TO 2.0 WITHOUT COORDINATING WITH mst OR ribasushi
+      our $VERSION  = '1.99_01';
+# DO NOT INCREMENT TO 2.0 WITHOUT COORDINATING WITH mst OR ribasushi
 
 # This would confuse some packagers
 $VERSION = eval $VERSION if $VERSION =~ /_/; # numify for warning-free dev releases
