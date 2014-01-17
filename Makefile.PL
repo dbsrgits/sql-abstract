@@ -17,7 +17,6 @@ dynamic_config 0;
 
 requires 'List::Util'   => 0;
 requires 'Scalar::Util' => 0;
-requires 'Class::Accessor::Grouped' => 0.10005;
 requires 'Getopt::Long::Descriptive' => 0.091;
 requires 'Hash::Merge' => 0.12;
 requires 'Moo' => '0.009014';

@@ -1,18 +1,23 @@
 package SQL::Abstract::Tree;
 
-use strict;
-use warnings;
-no warnings 'qw';
 use Carp;
+use Hash::Merge ();
 
-use Hash::Merge qw//;
+use Sub::Quote 'quote_sub';
+use Moo;
+no warnings 'qw';
 
-use base 'Class::Accessor::Grouped';
+has [qw(
+  newline indent_string indent_amount fill_in_placeholders
+)] => ( is => 'rw' );
 
-__PACKAGE__->mk_group_accessors( simple => qw(
-   newline indent_string indent_amount colormap indentmap fill_in_placeholders
-   placeholder_surround
-));
+has [qw(
+  colormap indentmap
+)] => ( is => 'rw', default => quote_sub('{}') );
+
+has [qw(
+  placeholder_surround
+)] => ( is => 'rw', default => quote_sub('[]') );
 
 my $merger = Hash::Merge->new;
 
@@ -308,17 +313,14 @@ my %profiles = (
    },
 );
 
-sub new {
-   my $class = shift;
-   my $args  = shift || {};
+sub BUILDARGS {
+  my $class = shift;
+  my $args = { (ref $_[0] eq 'HASH') ? %{$_[0]} : @_ };
+  my $profile = delete $args->{profile} || 'none';
 
-   my $profile = delete $args->{profile} || 'none';
+  die "No such profile '$profile'!" unless exists $profiles{$profile};
 
-   die "No such profile '$profile'!" unless exists $profiles{$profile};
-
-   my $data = $merger->merge( $profiles{$profile}, $args );
-
-   bless $data, $class
+  return $merger->merge( $profiles{$profile}, $args );
 }
 
 sub parse {
