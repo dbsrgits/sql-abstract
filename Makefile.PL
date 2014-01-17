@@ -21,6 +21,7 @@ requires 'Class::Accessor::Grouped' => 0.10005;
 requires 'Getopt::Long::Descriptive' => 0.091;
 requires 'Hash::Merge' => 0.12;
 requires 'Moo' => '0.009014';
+requires 'namespace::clean' => '0.24';
 
 test_requires "Test::More"      => 0.92;
 test_requires "Test::Exception" => 0;
