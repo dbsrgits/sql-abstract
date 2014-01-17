@@ -564,7 +564,11 @@ sub _where_hashpair_to_dq {
           if $op =~ $self->like_op or $op =~ $self->not_like_op;
         if ($op =~ $self->equality_op or $op =~ $self->like_op or $op eq 'IS') {
           'IS NULL'
-        } elsif ($op =~ $self->inequality_op or $op =~ $self->not_like_op or $op eq 'IS NOT') {
+        } elsif (
+          $op =~ $self->inequality_op or $op =~ $self->not_like_op
+            or
+          $op eq 'IS NOT' or $op eq 'NOT'
+        ) {
           'IS NOT NULL'
         } else {
           die "Can't do undef -> NULL transform for operator ${op}";
