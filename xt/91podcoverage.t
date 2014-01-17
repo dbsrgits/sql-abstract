@@ -4,6 +4,7 @@ use strict;
 use Test::More;
 
 # TEMPORARY
+($ENV{PATH}) = $ENV{PATH} =~ /(.*)/;  # screw you here as well -T
 if (my $head = `git rev-parse HEAD`) {
   plan skip_all => "Test disabled until after merge"
     if $head ne `git rev-parse master`;
