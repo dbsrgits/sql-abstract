@@ -23,7 +23,7 @@ plan skip_all => 'Test::NoTabs 0.9 required' if $@;
   *Test::NoTabs::_is_perl_module = $is_pm;
 }
 
-my @pl_targets = qw/t lib script examples/;
+my @pl_targets = qw/t xt lib script examples/;
 Test::EOL::all_perl_files_ok({ trailing_whitespace => 1 }, @pl_targets);
 Test::NoTabs::all_perl_files_ok(@pl_targets);
 
