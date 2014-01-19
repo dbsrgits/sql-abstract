@@ -27,7 +27,7 @@ sub puke (@) {
   Carp::croak "[$func] Fatal: ", @_;
 }
 
-has converter => (is => 'lazy', clearer => 'clear_converter');
+has converter => (is => 'lazy', clearer => 1);
 
 has case => (
   is => 'ro', coerce => quote_sub( q{ $_[0] eq 'lower' ? 'lower' : undef } ),
@@ -64,7 +64,7 @@ has injection_guard => (
   })
 );
 
-has renderer => (is => 'lazy', clearer => 'clear_renderer');
+has renderer => (is => 'lazy', clearer => 1);
 
 has name_sep => (
   is => 'rw', default => '.',
@@ -100,7 +100,7 @@ has convert => (is => 'ro');
 has array_datatypes => (is => 'ro');
 
 has converter_class => (
-  is => 'rw', lazy => 1, builder => '_build_converter_class',
+  is => 'rw', lazy => 1, builder => 1,
   trigger => quote_sub( q{ $_[0]->clear_converter } ),
 );
 
