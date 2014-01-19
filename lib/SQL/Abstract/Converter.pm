@@ -19,7 +19,7 @@ has legacy_convert_handler => (
   is => 'ro'
 );
 has sqla_instance => (
-  is => 'ro', weak => 1
+  is => 'ro', weak_ref => 1
 );
 
 has default_logic => (
