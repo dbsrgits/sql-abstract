@@ -27,6 +27,7 @@ my @sql = (
   "SELECT * FROM foo WHERE foo.a @@ to_tsquery('word')",
   "SELECT * FROM foo ORDER BY name + ?, [me].[id]",
   "SELECT foo AS bar FROM baz ORDER BY x + ? DESC, baz.g",
+  "SELECT [me].[id], ROW_NUMBER() OVER (ORDER BY (SELECT 1)) AS [rno__row__index] FROM ( SELECT [me].[id] FROM [LogParents] [me]) [me]",
   # deliberate batshit insanity
   "SELECT foo FROM bar WHERE > 12",
 );

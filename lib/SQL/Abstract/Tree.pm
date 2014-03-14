@@ -669,8 +669,9 @@ sub _parenthesis_unroll {
         $changes++;
       }
 
-      # if the parent operator explicitly allows it nuke the parenthesis
-      if ( $ast->[0] =~ $unrollable_ops_re ) {
+      # if the parent operator explicitly allows it AND the child isn't a subselect
+      # nuke the parenthesis
+      if ($ast->[0] =~ $unrollable_ops_re and $child->[1][0][0] ne 'SELECT') {
         push @children, @{$child->[1]};
         $changes++;
       }
@@ -758,7 +759,10 @@ sub _parenthesis_unroll {
 
       # a construct of ... ( somefunc ( ... ) ) ... can safely lose the outer parens
       # except for the case of ( NOT ( ... ) ) which has already been handled earlier
+      # and except for the case of RNO, where the double are explicit syntax
       elsif (
+        $ast->[0] ne 'ROW_NUMBER() OVER'
+          and
         @{$child->[1]} == 1
           and
         @{$child->[1][0][1]} == 1

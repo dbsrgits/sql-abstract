@@ -2,6 +2,7 @@ Revision history for SQL::Abstract
 
     - Fix parsing of binary ops to correctly take up only a single LHS
       element, instead of gobbling up the entire parse-to-date
+    - Explicitly handle ROW_NUMBER() OVER as the snowflake-operator it is
 
 revision 1.77  2014-01-17
 ----------------------------
