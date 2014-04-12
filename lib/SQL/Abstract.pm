@@ -497,9 +497,15 @@ sub _recurse_where {
 
   my ($sql, @bind) =  $self->$method($where, $logic);
 
-  # DBIx::Class directly calls _recurse_where in scalar context, so
-  # we must implement it, even if not in the official API
-  return wantarray ? ($sql, @bind) : $sql;
+  # DBIx::Class used to call _recurse_where in scalar context
+  # something else might too...
+  if (wantarray) {
+    return ($sql, @bind);
+  }
+  else {
+    belch "Calling _recurse_where in scalar context is deprecated and will go away before 2.0";
+    return $sql;
+  }
 }
 
 
