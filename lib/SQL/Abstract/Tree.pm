@@ -1,38 +1,22 @@
 package SQL::Abstract::Tree;
 
+# DO NOT edit away without talking to riba first, he will just put it back
+# BEGIN pre-Moo2 import block
+BEGIN {
+  require warnings;
+  my $initial_fatal_bits = (${^WARNING_BITS}||'') & $warnings::DeadBits{all};
+  local $ENV{PERL_STRICTURES_EXTRA} = 0;
+  require Moo; Moo->import;
+  require Sub::Quote; Sub::Quote->import('quote_sub');
+  ${^WARNING_BITS} &= ( $initial_fatal_bits | ~ $warnings::DeadBits{all} );
+}
+# END pre-Moo2 import block
+
 use strict;
 use warnings;
 no warnings 'qw';
+
 use Carp;
-
-use Hash::Merge qw//;
-
-use base 'Class::Accessor::Grouped';
-
-__PACKAGE__->mk_group_accessors( simple => qw(
-   newline indent_string indent_amount colormap indentmap fill_in_placeholders
-   placeholder_surround
-));
-
-my $merger = Hash::Merge->new;
-
-$merger->specify_behavior({
-   SCALAR => {
-      SCALAR => sub { $_[1] },
-      ARRAY  => sub { [ $_[0], @{$_[1]} ] },
-      HASH   => sub { $_[1] },
-   },
-   ARRAY => {
-      SCALAR => sub { $_[1] },
-      ARRAY  => sub { $_[1] },
-      HASH   => sub { $_[1] },
-   },
-   HASH => {
-      SCALAR => sub { $_[1] },
-      ARRAY  => sub { [ values %{$_[0]}, @{$_[1]} ] },
-      HASH   => sub { Hash::Merge::_merge_hashes( $_[0], $_[1] ) },
-   },
-}, 'SQLA::Tree Behavior' );
 
 my $op_look_ahead = '(?: (?= [\s\)\(\;] ) | \z)';
 my $op_look_behind = '(?: (?<= [\,\s\)\(] ) | \A )';
@@ -196,18 +180,33 @@ my %indents = (
    first         => 1,
 );
 
-my %profiles = (
-   console => {
-      fill_in_placeholders => 1,
-      placeholder_surround => ['?/', ''],
-      indent_string => ' ',
-      indent_amount => 2,
-      newline       => "\n",
-      colormap      => {},
-      indentmap     => \%indents,
 
-      eval { require Term::ANSIColor }
-        ? do {
+has [qw(
+  newline indent_string indent_amount fill_in_placeholders placeholder_surround
+)] => (is => 'ro');
+
+has [qw( indentmap colormap )] => ( is => 'ro', default => quote_sub('{}') );
+
+# class global is in fact desired
+my $merger;
+
+sub BUILDARGS {
+  my $class = shift;
+  my $args = ref $_[0] eq 'HASH' ? $_[0] : {@_};
+
+  if (my $p = delete $args->{profile}) {
+    my %extra_args;
+    if ($p eq 'console') {
+      %extra_args = (
+        fill_in_placeholders => 1,
+        placeholder_surround => ['?/', ''],
+        indent_string => ' ',
+        indent_amount => 2,
+        newline       => "\n",
+        colormap      => {},
+        indentmap     => \%indents,
+
+        ! ( eval { require Term::ANSIColor } ) ? () : do {
           my $c = \&Term::ANSIColor::color;
 
           my $red     = [$c->('red')    , $c->('reset')];
@@ -252,74 +251,79 @@ my %profiles = (
               offset                  => $green,
             }
           );
-        } : (),
-   },
-   console_monochrome => {
-      fill_in_placeholders => 1,
-      placeholder_surround => ['?/', ''],
-      indent_string => ' ',
-      indent_amount => 2,
-      newline       => "\n",
-      colormap      => {},
-      indentmap     => \%indents,
-   },
-   html => {
-      fill_in_placeholders => 1,
-      placeholder_surround => ['<span class="placeholder">', '</span>'],
-      indent_string => '&nbsp;',
-      indent_amount => 2,
-      newline       => "<br />\n",
-      colormap      => {
-         select        => ['<span class="select">'  , '</span>'],
-         'insert into' => ['<span class="insert-into">'  , '</span>'],
-         update        => ['<span class="select">'  , '</span>'],
-         'delete from' => ['<span class="delete-from">'  , '</span>'],
+        },
+      );
+    }
+    elsif ($p eq 'console_monochrome') {
+      %extra_args = (
+        fill_in_placeholders => 1,
+        placeholder_surround => ['?/', ''],
+        indent_string => ' ',
+        indent_amount => 2,
+        newline       => "\n",
+        indentmap     => \%indents,
+      );
+    }
+    elsif ($p eq 'html') {
+      %extra_args = (
+        fill_in_placeholders => 1,
+        placeholder_surround => ['<span class="placeholder">', '</span>'],
+        indent_string => '&nbsp;',
+        indent_amount => 2,
+        newline       => "<br />\n",
+        colormap      => { map {
+          (my $class = $_) =~ s/\s+/-/g;
+          ( $_ => [ qq|<span class="$class">|, '</span>' ] )
+        } (
+          keys %indents,
+          qw(commit rollback savepoint),
+          'begin work', 'rollback to savepoint', 'release savepoint',
+        ) },
+        indentmap     => \%indents,
+      );
+    }
+    elsif ($p eq 'none') {
+      # nada
+    }
+    else {
+      croak "No such profile '$p'";
+    }
 
-         set           => ['<span class="set">', '</span>'],
-         from          => ['<span class="from">'    , '</span>'],
+    # see if we got any duplicates and merge if needed
+    if (scalar grep { exists $args->{$_} } keys %extra_args) {
+      # heavy-duty merge
+      $args = ($merger ||= do {
+        require Hash::Merge;
+        my $m = Hash::Merge->new;
 
-         where         => ['<span class="where">'   , '</span>'],
-         values        => ['<span class="values">', '</span>'],
+        $m->specify_behavior({
+          SCALAR => {
+            SCALAR => sub { $_[1] },
+            ARRAY  => sub { [ $_[0], @{$_[1]} ] },
+            HASH   => sub { $_[1] },
+          },
+          ARRAY => {
+            SCALAR => sub { $_[1] },
+            ARRAY  => sub { $_[1] },
+            HASH   => sub { $_[1] },
+          },
+          HASH => {
+            SCALAR => sub { $_[1] },
+            ARRAY  => sub { [ values %{$_[0]}, @{$_[1]} ] },
+            HASH   => sub { Hash::Merge::_merge_hashes( $_[0], $_[1] ) },
+          },
+        }, 'SQLA::Tree Behavior' );
 
-         join          => ['<span class="join">'    , '</span>'],
-         'left join'   => ['<span class="left-join">','</span>'],
-         on            => ['<span class="on">'      , '</span>'],
+        $m;
+      })->merge(\%extra_args, $args );
 
-         'group by'    => ['<span class="group-by">', '</span>'],
-         having        => ['<span class="having">',   '</span>'],
-         'order by'    => ['<span class="order-by">', '</span>'],
+    }
+    else {
+      $args = { %extra_args, %$args };
+    }
+  }
 
-         skip          => ['<span class="skip">',   '</span>'],
-         first         => ['<span class="first">',  '</span>'],
-         limit         => ['<span class="limit">',  '</span>'],
-         offset        => ['<span class="offset">', '</span>'],
-
-         'begin work'  => ['<span class="begin-work">', '</span>'],
-         commit        => ['<span class="commit">', '</span>'],
-         rollback      => ['<span class="rollback">', '</span>'],
-         savepoint     => ['<span class="savepoint">', '</span>'],
-         'rollback to savepoint' => ['<span class="rollback-to-savepoint">', '</span>'],
-         'release savepoint'     => ['<span class="release-savepoint">', '</span>'],
-      },
-      indentmap     => \%indents,
-   },
-   none => {
-      colormap      => {},
-      indentmap     => {},
-   },
-);
-
-sub new {
-   my $class = shift;
-   my $args  = shift || {};
-
-   my $profile = delete $args->{profile} || 'none';
-
-   die "No such profile '$profile'!" unless exists $profiles{$profile};
-
-   my $data = $merger->merge( $profiles{$profile}, $args );
-
-   bless $data, $class
+  $args;
 }
 
 sub parse {
