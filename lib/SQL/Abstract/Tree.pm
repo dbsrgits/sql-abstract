@@ -83,7 +83,6 @@ my @expression_start_keywords = (
   'SAVEPOINT',
   'RELEASE \s+ SAVEPOINT',
   'RETURNING',
-  'ROW_NUMBER \s* \( \s* \) \s+ OVER',
 );
 
 my $expr_start_re = join ("\n\t|\n", @expression_start_keywords );
@@ -115,7 +114,9 @@ $binary_op_re = join "\n\t|\n",
 ;
 $binary_op_re = qr/$binary_op_re/x;
 
-my $unary_op_re = '(?: NOT \s+ EXISTS | NOT )';
+my $rno_re = qr/ROW_NUMBER \s* \( \s* \) \s+ OVER/ix;
+
+my $unary_op_re = 'NOT \s+ EXISTS | NOT | ' . $rno_re;
 $unary_op_re = join "\n\t|\n",
   "$op_look_behind (?i: $unary_op_re ) $op_look_ahead",
 ;
@@ -425,6 +426,10 @@ sub _recurse_parse {
     # unary op keywords
     elsif ( $token =~ $unary_op_re ) {
       my $op = uc $token;
+
+      # normalize RNO explicitly
+      $op = 'ROW_NUMBER() OVER' if $op =~ /^$rno_re$/;
+
       my @right = $self->_recurse_parse ($tokens, PARSE_RHS);
 
       push @left, [ $op => \@right ];
