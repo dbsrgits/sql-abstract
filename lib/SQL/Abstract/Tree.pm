@@ -663,26 +663,38 @@ sub _parenthesis_unroll {
         next;
       }
 
+      my $parent_op = $ast->[0];
+
       # unroll nested parenthesis
-      while ( $ast->[0] ne 'IN' and @{$child->[1]} == 1 and $child->[1][0][0] eq '-PAREN') {
+      while ( $parent_op ne 'IN' and @{$child->[1]} == 1 and $child->[1][0][0] eq '-PAREN') {
         $child = $child->[1][0];
         $changes++;
       }
 
+      # set to CHILD in the case of PARENT ( CHILD )
+      # but NOT in the case of PARENT( CHILD1, CHILD2 )
+      my $single_child_op = (@{$child->[1]} == 1) ? $child->[1][0][0] : '';
+
+      my $child_op_argc = $single_child_op ? scalar @{$child->[1][0][1]} : undef;
+
+      my $single_grandchild_op
+        = ( $child_op_argc||0 == 1 and ref $child->[1][0][1][0] eq 'ARRAY' )
+            ? $child->[1][0][1][0][0]
+            : ''
+      ;
+
       # if the parent operator explicitly allows it AND the child isn't a subselect
       # nuke the parenthesis
-      if ($ast->[0] =~ $unrollable_ops_re and $child->[1][0][0] ne 'SELECT') {
+      if ($parent_op =~ $unrollable_ops_re and $single_child_op ne 'SELECT') {
         push @children, @{$child->[1]};
         $changes++;
       }
 
       # if the parenthesis are wrapped around an AND/OR matching the parent AND/OR - open the parenthesis up and merge the list
       elsif (
-        @{$child->[1]} == 1
-            and
-        ( $ast->[0] eq 'AND' or $ast->[0] eq 'OR')
-            and
-        $child->[1][0][0] eq $ast->[0]
+        $single_child_op eq $parent_op
+          and
+        ( $parent_op eq 'AND' or $parent_op eq 'OR')
       ) {
         push @children, @{$child->[1][0][1]};
         $changes++;
@@ -691,13 +703,9 @@ sub _parenthesis_unroll {
       # only *ONE* LITERAL or placeholder element
       # as an AND/OR/NOT argument
       elsif (
-        @{$child->[1]} == 1 && (
-          $child->[1][0][0] eq '-LITERAL'
-            or
-          $child->[1][0][0] eq '-PLACEHOLDER'
-        ) && (
-          $ast->[0] eq 'AND' or $ast->[0] eq 'OR' or $ast->[0] eq 'NOT'
-        )
+        ( $single_child_op eq '-LITERAL' or $single_child_op eq '-PLACEHOLDER' )
+          and
+        ( $parent_op eq 'AND' or $parent_op eq 'OR' or $parent_op eq 'NOT' )
       ) {
         push @children, @{$child->[1]};
         $changes++;
@@ -710,20 +718,18 @@ sub _parenthesis_unroll {
       # break precedence) or when the child is BETWEEN (special
       # case)
       elsif (
-        @{$child->[1]} == 1
+        ($parent_op eq 'AND' or $parent_op eq 'OR')
           and
-        ($ast->[0] eq 'AND' or $ast->[0] eq 'OR')
+        $single_child_op =~ $binary_op_re
           and
-        $child->[1][0][0] =~ $binary_op_re
+        $single_child_op ne 'BETWEEN'
           and
-        $child->[1][0][0] ne 'BETWEEN'
-          and
-        @{$child->[1][0][1]} == 2
+        $child_op_argc == 2
           and
         ! (
-          $child->[1][0][0] =~ $alphanum_cmp_op_re
+          $single_child_op =~ $alphanum_cmp_op_re
             and
-          $ast->[0] =~ $alphanum_cmp_op_re
+          $parent_op =~ $alphanum_cmp_op_re
         )
       ) {
         push @children, @{$child->[1]};
@@ -737,20 +743,20 @@ sub _parenthesis_unroll {
       # or a single non-mathop with a single LITERAL ( nonmathop foo )
       # or a single non-mathop with a single PLACEHOLDER ( nonmathop ? )
       elsif (
-        @{$child->[1]} == 1
+        $single_child_op
           and
-        @{$child->[1][0][1]} == 1
+        $parent_op =~ $alphanum_cmp_op_re
           and
-        $ast->[0] =~ $alphanum_cmp_op_re
+        $single_child_op !~ $alphanum_cmp_op_re
           and
-        $child->[1][0][0] !~ $alphanum_cmp_op_re
+        $child_op_argc == 1
           and
         (
-          $child->[1][0][1][0][0] eq '-PAREN'
+          $single_grandchild_op eq '-PAREN'
             or
-          $child->[1][0][1][0][0] eq '-LITERAL'
+          $single_grandchild_op eq '-LITERAL'
             or
-          $child->[1][0][1][0][0] eq '-PLACEHOLDER'
+          $single_grandchild_op eq '-PLACEHOLDER'
         )
       ) {
         push @children, @{$child->[1]};
@@ -761,17 +767,15 @@ sub _parenthesis_unroll {
       # except for the case of ( NOT ( ... ) ) which has already been handled earlier
       # and except for the case of RNO, where the double are explicit syntax
       elsif (
-        $ast->[0] ne 'ROW_NUMBER() OVER'
+        $parent_op ne 'ROW_NUMBER() OVER'
           and
-        @{$child->[1]} == 1
+        $single_child_op
           and
-        @{$child->[1][0][1]} == 1
+        $single_child_op ne 'NOT'
           and
-        $child->[1][0][0] ne 'NOT'
+        $child_op_argc == 1
           and
-        ref $child->[1][0][1][0] eq 'ARRAY'
-          and
-        $child->[1][0][1][0][0] eq '-PAREN'
+        $single_grandchild_op eq '-PAREN'
       ) {
         push @children, @{$child->[1]};
         $changes++;
