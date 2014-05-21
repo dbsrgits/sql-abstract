@@ -533,6 +533,50 @@ is_deeply($sqlat->parse( "SELECT [screen].[id], [screen].[name], [screen].[secti
   ]
 ], 'real life statement 1 parsed correctly');
 
+is_deeply($sqlat->parse("CASE WHEN FOO() > BAR()"), [
+  [
+    "-MISC",
+    [
+      [
+        "-LITERAL",
+        [
+          "CASE"
+        ]
+      ],
+      [
+        "-LITERAL",
+        [
+          "WHEN"
+        ]
+      ]
+    ]
+  ],
+  [
+    ">",
+    [
+      [
+        "FOO",
+        [
+          [
+            "-PAREN",
+            []
+          ]
+        ]
+      ],
+      [
+        "BAR",
+        [
+          [
+            "-PAREN",
+            []
+          ]
+        ]
+      ]
+    ]
+  ]
+]);
+
+
 is_deeply($sqlat->parse("SELECT x, y FROM foo WHERE x IN (?, ?, ?, ?)"), [
   [
     "SELECT",

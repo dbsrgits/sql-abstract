@@ -26,6 +26,8 @@ my @sql = (
   "SELECT * FROM foo WHERE foo.a @@ to_tsquery('word')",
   "SELECT * FROM foo ORDER BY name + ?, [me].[id]",
   "SELECT foo AS bar FROM baz ORDER BY x + ? DESC, baz.g",
+  # deliberate batshit insanity
+  "SELECT foo FROM bar WHERE > 12",
 );
 
 # FIXME FIXME FIXME

@@ -419,7 +419,7 @@ sub _recurse_parse {
         @right = $self->_recurse_parse($tokens, PARSE_IN_EXPR);
       }
 
-      @left = [$op => [ @left, @right ]];
+      push @left, [$op => [ (@left ? pop @left : ''), @right ]];
     }
 
     # unary op keywords

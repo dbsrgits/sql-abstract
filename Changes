@@ -1,5 +1,8 @@
 Revision history for SQL::Abstract
 
+    - Fix parsing of binary ops to correctly take up only a single LHS
+      element, instead of gobbling up the entire parse-to-date
+
 revision 1.77  2014-01-17
 ----------------------------
     - Reintroduce { -not => undef } column operator (regression from 1.75)
