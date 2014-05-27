@@ -3,7 +3,6 @@ package SQL::Abstract::Test; # see doc at end of file
 use strict;
 use warnings;
 use base qw(Test::Builder::Module Exporter);
-use Data::Dumper;
 use Test::Builder;
 use Test::Deep ();
 use SQL::Abstract::Tree;
@@ -23,8 +22,30 @@ our $order_by_asc_significant = 0;
 our $sql_differ; # keeps track of differing portion between SQLs
 our $tb = __PACKAGE__->builder;
 
+sub _unpack_arrayrefref {
+
+  my @args;
+  for (1,2) {
+    my $chunk = shift @_;
+
+    if ( ref $chunk eq 'REF' and ref $$chunk eq 'ARRAY' ) {
+      my ($sql, @bind) = @$$chunk;
+      push @args, ($sql, \@bind);
+    }
+    else {
+      push @args, $chunk, shift @_;
+    }
+
+  }
+
+  # maybe $msg and ... stuff
+  push @args, @_;
+
+  @args;
+}
+
 sub is_same_sql_bind {
-  my ($sql1, $bind_ref1, $sql2, $bind_ref2, $msg) = @_;
+  my ($sql1, $bind_ref1, $sql2, $bind_ref2, $msg) = &_unpack_arrayrefref;
 
   # compare
   my $same_sql  = eq_sql($sql1, $sql2);
@@ -49,7 +70,7 @@ sub is_same_sql {
   my ($sql1, $sql2, $msg) = @_;
 
   # compare
-  my $same_sql  = eq_sql($sql1, $sql2);
+  my $same_sql = eq_sql($sql1, $sql2);
 
   # call Test::Builder::ok
   my $ret = $tb->ok($same_sql, $msg);
@@ -82,7 +103,12 @@ sub is_same_bind {
 }
 
 sub dumper {
-  Data::Dumper->new([])->Terse(1)->Indent(1)->Useqq(1)->Deparse(1)->Quotekeys(0)->Sortkeys(1)->Maxdepth(0)->Values([@_])->Dump;
+  # FIXME
+  # if we save the instance, we will end up with $VARx references
+  # no time to figure out how to avoid this (Deepcopy is *not* an option)
+  require Data::Dumper;
+  Data::Dumper->new([])->Terse(1)->Indent(1)->Useqq(1)->Deparse(1)->Quotekeys(0)->Sortkeys(1)->Maxdepth(0)
+    ->Values([@_])->Dump;
 }
 
 sub diag_where{
@@ -90,13 +116,14 @@ sub diag_where{
 }
 
 sub _sql_differ_diag {
-  my ($sql1, $sql2) = @_;
+  my $sql1 = shift || '';
+  my $sql2 = shift || '';
 
   $tb->${\( $tb->in_todo ? 'note' : 'diag')} (
        "SQL expressions differ\n"
-      ."     got: $sql1\n"
-      ."expected: $sql2\n"
-      ."differing in :\n$sql_differ\n"
+      ." got: $sql1\n"
+      ."want: $sql2\n"
+      ."\nmismatch around\n$sql_differ\n"
   );
 }
 
@@ -104,14 +131,12 @@ sub _bind_differ_diag {
   my ($bind_ref1, $bind_ref2) = @_;
 
   $tb->${\( $tb->in_todo ? 'note' : 'diag')} (
-       "BIND values differ\n"
-      ."     got: " . dumper($bind_ref1)
-      ."expected: " . dumper($bind_ref2)
-      );
+    "BIND values differ " . dumper({ got => $bind_ref1, want => $bind_ref2 })
+  );
 }
 
 sub eq_sql_bind {
-  my ($sql1, $bind_ref1, $sql2, $bind_ref2) = @_;
+  my ($sql1, $bind_ref1, $sql2, $bind_ref2) = &_unpack_arrayrefref;
 
   return eq_sql($sql1, $sql2) && eq_bind($bind_ref1, $bind_ref2);
 }
@@ -267,52 +292,83 @@ B<Disclaimer> : the semantic equivalence handling is pretty limited.
 A lot of effort goes into distinguishing significant from
 non-significant parenthesis, including AND/OR operator associativity.
 Currently this module does not support commutativity and more
-intelligent transformations like Morgan laws, etc.
+intelligent transformations like L<De Morgan's laws
+|http://en.wikipedia.org/wiki/De_Morgan's_laws>, etc.
 
-For a good overview of what this test framework is capable of refer
+For a good overview of what this test framework is currently capable of refer
 to C<t/10test.t>
 
 =head1 FUNCTIONS
 
 =head2 is_same_sql_bind
 
-  is_same_sql_bind($given_sql,    \@given_bind,
-                   $expected_sql, \@expected_bind, $test_msg);
+  is_same_sql_bind(
+    $given_sql, \@given_bind,
+    $expected_sql, \@expected_bind,
+    $test_msg
+  );
 
-Compares given and expected pairs of C<($sql, \@bind)>, and calls
-L<Test::Builder/ok> on the result, with C<$test_msg> as message. If the test
-fails, a detailed diagnostic is printed. For clients which use L<Test::More>,
-this is the one of the three functions (L</is_same_sql_bind>, L</is_same_sql>,
-L</is_same_bind>) that needs to be imported.
+  is_same_sql_bind(
+    \[$given_sql, @given_bind],
+    \[$expected_sql, @expected_bind],
+    $test_msg
+  );
+
+  is_same_sql_bind(
+    $dbic_rs->as_query
+    $expected_sql, \@expected_bind,
+    $test_msg
+  );
+
+Compares given and expected pairs of C<($sql, \@bind)> by unpacking C<@_>
+as shown in the examples above and passing the arguments to L</eq_sql> and
+L</eq_bind>. Calls L<Test::Builder/ok> with the combined result, with
+C<$test_msg> as message.
+If the test fails, a detailed diagnostic is printed.
 
 =head2 is_same_sql
 
-  is_same_sql($given_sql, $expected_sql, $test_msg);
+  is_same_sql(
+    $given_sql,
+    $expected_sql,
+    $test_msg
+  );
 
-Compares given and expected SQL statements, and calls L<Test::Builder/ok> on
-the result, with C<$test_msg> as message. If the test fails, a detailed
-diagnostic is printed. For clients which use L<Test::More>, this is the one of
-the three functions (L</is_same_sql_bind>, L</is_same_sql>, L</is_same_bind>)
-that needs to be imported.
+Compares given and expected SQL statements via L</eq_sql>, and calls
+L<Test::Builder/ok> on the result, with C<$test_msg> as message.
+If the test fails, a detailed diagnostic is printed.
 
 =head2 is_same_bind
 
-  is_same_bind(\@given_bind, \@expected_bind, $test_msg);
+  is_same_bind(
+    \@given_bind,
+    \@expected_bind,
+    $test_msg
+  );
 
-Compares given and expected bind values, and calls L<Test::Builder/ok> on the
-result, with C<$test_msg> as message. If the test fails, a detailed diagnostic
-is printed. For clients which use L<Test::More>, this is the one of the three
-functions (L</is_same_sql_bind>, L</is_same_sql>, L</is_same_bind>) that needs
-to be imported.
+Compares given and expected bind values via L</eq_bind>, and calls
+L<Test::Builder/ok> on the result, with C<$test_msg> as message.
+If the test fails, a detailed diagnostic is printed.
 
 =head2 eq_sql_bind
 
-  my $is_same = eq_sql_bind($given_sql,    \@given_bind,
-                            $expected_sql, \@expected_bind);
+  my $is_same = eq_sql_bind(
+    $given_sql, \@given_bind,
+    $expected_sql, \@expected_bind,
+  );
 
-Compares given and expected pairs of C<($sql, \@bind)>. Similar to
-L</is_same_sql_bind>, but it just returns a boolean value and does not print
-diagnostics or talk to L<Test::Builder>.
+  my $is_same = eq_sql_bind(
+    \[$given_sql, @given_bind],
+    \[$expected_sql, @expected_bind],
+  );
+
+  my $is_same = eq_sql_bind(
+    $dbic_rs->as_query
+    $expected_sql, \@expected_bind,
+  );
+
+Unpacks C<@_> depending on the given arguments and calls L</eq_sql> and
+L</eq_bind>, returning their combined result.
 
 =head2 eq_sql
 
@@ -356,14 +412,13 @@ When L</eq_sql> returns false, the global variable
 C<$sql_differ> contains the SQL portion
 where a difference was encountered.
 
-
 =head1 SEE ALSO
 
 L<SQL::Abstract>, L<Test::More>, L<Test::Builder>.
 
 =head1 AUTHORS
 
-Laurent Dami, E<lt>laurent.dami AT etat  geneve  chE<gt>
+Laurent Dami <laurent.dami AT etat  geneve  ch>
 
 Norbert Buchmuller <norbi@nix.hu>
 

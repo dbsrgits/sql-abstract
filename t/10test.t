@@ -1093,4 +1093,17 @@ like(
   'expected debug of missing branch',
 );
 
+
+ok (eq_sql_bind (
+  \[ 'SELECT foo FROM bar WHERE baz = ? or buzz = ?', [ {} => 1 ], 2 ],
+  'SELECT foo FROM bar WHERE (baz = ?) OR buzz = ?',
+  [ [ {} => 1 ], 2 ],
+), 'arrayrefref unpacks correctly' );
+
+is_same_sql_bind(
+  \[ 'SELECT foo FROM bar WHERE baz = ? or buzz = ?', [ {} => 1 ], 2 ],
+  \[ 'SELECT foo FROM bar WHERE (( baz = ? OR (buzz = ?) ))', [ {} => 1 ], 2 ],
+  'double arrayrefref unpacks correctly'
+);
+
 done_testing;

@@ -325,6 +325,8 @@ sub new {
 sub parse {
   my ($self, $s) = @_;
 
+  return [] unless defined $s;
+
   # tokenize string, and remove all optional whitespace
   my $tokens = [];
   foreach my $token (split $tokenizer_re, $s) {
