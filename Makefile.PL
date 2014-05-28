@@ -2,9 +2,9 @@ use inc::Module::Install 1.06;
 use strict;
 use warnings;
 
-use 5.006002;
+use 5.006;
 
-perl_version '5.006002';
+perl_version '5.006';
 name 'SQL-Abstract';
 author 'Nathan Wiger <nate@wiger.org>';
 resources 'license'     => 'http://dev.perl.org/licenses/';
