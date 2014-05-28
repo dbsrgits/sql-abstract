@@ -1,0 +1,61 @@
+#!/usr/bin/env perl
+
+use warnings;
+use strict;
+
+use Getopt::Long;
+my $p = Getopt::Long::Parser->new(config => [qw( gnu_getopt no_ignore_case )]);
+my $opts = { profile => 'console', help => \&showhelp };
+$p->getoptions( $opts, qw(
+  profile|p=s
+  help|h
+)) or showhelp();
+
+sub showhelp {
+  require Pod::Usage;
+  Pod::Usage::pod2usage( -verbose => 0, -exitval => 2 );
+}
+
+require SQL::Abstract::Tree;
+my $sqlat = SQL::Abstract::Tree->new({ profile => $opts->{profile}, fill_in_placeholders => 0 });
+
+my $chunk = '';
+my $leftover = '';
+do {
+  $chunk = $leftover . $chunk if length $leftover;
+
+  if ($chunk =~ / \A (.+?) (?:
+    (?<=\S)\:\s+\'[^\n]+  # pasting DBIC_TRACE output directly
+      |
+    \;(?: \s | \z)
+      |
+    \z
+      |
+    ^ \s* (?=SELECT|INSERT|UPDATE|DELETE)
+  ) (.*) /smix) {
+
+    $leftover = $2;
+    print $sqlat->format($1);
+    print "\n";
+  }
+  else {
+    $leftover = $chunk;
+  }
+} while ( (read *STDIN, $chunk, 4096) or length $leftover );
+
+=head1 NAME
+
+sqla-format - An intelligent SQL formatter
+
+=head1 SYNOPSIS
+
+ ~$ sqla-format << log.sql
+
+ ~$ myprogram -v | sqla-format -p html > sqltrace.html
+
+=head1 COPYRIGHT AND LICENSE
+
+This software is copyright (c) 2014 by Arthur Axel "fREW" Schmidt.
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.

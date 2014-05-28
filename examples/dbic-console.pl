@@ -1,5 +1,8 @@
 #!/sur/bin/env perl
 
+use warnings;
+use strict;
+
 use DBIx::Class::Storage::Debug::PrettyPrint;
 
 my $pp = DBIx::Class::Storage::Debug::PrettyPrint->new({

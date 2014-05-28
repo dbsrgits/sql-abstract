@@ -4,6 +4,8 @@ Revision history for SQL::Abstract
       element, instead of gobbling up the entire parse-to-date
     - Explicitly handle ROW_NUMBER() OVER as the snowflake-operator it is
     - Improve signatures/documentation of is_same_sql_bind / eq_sql_bind
+    - Retire script/format-sql - the utility needs more work to be truly
+      end-user convenient
 
 revision 1.77  2014-01-17
 ----------------------------

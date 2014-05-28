@@ -1,5 +1,8 @@
 #!/sur/bin/env perl
 
+use warnings;
+use strict;
+
 use SQL::Abstract::Tree;
 
 my $sqlat = SQL::Abstract::Tree->new({ profile => 'console' });
