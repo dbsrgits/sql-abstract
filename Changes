@@ -1,5 +1,8 @@
 Revision history for SQL::Abstract
 
+    - New attribute 'escape_char' allowing for proper escape of quote_chars
+      present in an identifier
+
 revision 1.78  2014-05-28
 ----------------------------
     - Fix parsing of binary ops to correctly take up only a single LHS

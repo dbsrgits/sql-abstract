@@ -559,6 +559,21 @@ my @tests = (
               bind => [],
               warns => qr/\QSupplying an undefined argument to 'NOT LIKE' is deprecated/,
       },
+      {
+              func => 'select',
+              args => ['`test``table`', ['`test``column`']],
+              stmt => 'SELECT `test``column` FROM `test``table`',
+              stmt_q => 'SELECT ```test````column``` FROM ```test````table```',
+              bind => [],
+      },
+      {
+              func => 'select',
+              args => ['`test\\`table`', ['`test`\\column`']],
+              stmt => 'SELECT `test`\column` FROM `test\`table`',
+              stmt_q => 'SELECT `\`test\`\\\\column\`` FROM `\`test\\\\\`table\``',
+              esc  => '\\',
+              bind => [],
+      },
 );
 
 # check is( not) => undef
@@ -649,9 +664,15 @@ for my $t (@tests) {
 
   for my $quoted (0, 1) {
 
-    my $maker = SQL::Abstract->new(%$new, $quoted
-      ? (quote_char => '`', name_sep => '.')
-      : ()
+    my $maker = SQL::Abstract->new(
+      %$new,
+      ($quoted ? (
+        quote_char => '`',
+        name_sep => '.',
+        ( $t->{esc} ? (
+          escape_char => $t->{esc},
+        ) : ())
+      ) : ())
     );
 
     my($stmt, @bind);

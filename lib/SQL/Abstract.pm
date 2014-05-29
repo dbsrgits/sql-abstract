@@ -1262,10 +1262,11 @@ sub _quote {
   else {
     puke "Unsupported quote_char format: $_[0]->{quote_char}";
   }
+  my $esc = $_[0]->{escape_char} || $r;
 
   # parts containing * are naturally unquoted
   return join( $_[0]->{name_sep}||'', map
-    { $_ eq '*' ? $_ : $l . $_ . $r }
+    { $_ eq '*' ? $_ : do { (my $n = $_) =~ s/(\Q$esc\E|\Q$r\E)/$esc$1/g; $l . $n . $r } }
     ( $_[0]->{name_sep} ? split (/\Q$_[0]->{name_sep}\E/, $_[1] ) : $_[1] )
   );
 }
@@ -1849,6 +1850,21 @@ that generates SQL like this:
 
 Quoting is useful if you have tables or columns names that are reserved
 words in your database's SQL dialect.
+
+=item escape_char
+
+This is the character that will be used to escape L</quote_char>s appearing
+in an identifier before it has been quoted.
+
+The paramter default in case of a single L</quote_char> character is the quote
+character itself.
+
+When opening-closing-style quoting is used (L</quote_char> is an arrayref)
+this parameter defaults to the B<closing (right)> L</quote_char>. Occurences
+of the B<opening (left)> L</quote_char> within the identifier are currently left
+untouched. The default for opening-closing-style quotes may change in future
+versions, thus you are B<strongly encouraged> to specify the escape character
+explicitly.
 
 =item name_sep
 
