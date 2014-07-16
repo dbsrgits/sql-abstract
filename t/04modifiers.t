@@ -21,10 +21,10 @@ Test -and -or and -nest modifiers, assuming the following:
 
   * Modifiers are respected in both hashrefs and arrayrefs (with the obvious
     limitation of one modifier type per hahsref)
-  * When in condition context i.e. where => { -or { a = 1 } }, each modifier
+  * When in condition context i.e. where => { -or => { a = 1 } }, each modifier
     affects only the immediate element following it.
   * When in column multi-condition context i.e.
-    where => { x => { '!=', [-and, [qw/1 2 3/]] } }, a modifier affects the
+    where => { x => { '!=', [-and => [qw/1 2 3/]] } }, a modifier affects the
     OUTER ARRAYREF if and only if it is the first element of said ARRAYREF
 
 =cut
