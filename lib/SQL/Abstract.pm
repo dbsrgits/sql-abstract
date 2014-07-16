@@ -689,6 +689,14 @@ sub _where_op_VALUE {
   # in case we are called as a top level special op (no '=')
   my $lhs = shift;
 
+  # special-case NULL
+  if (! defined $rhs) {
+    return $lhs
+      ? $self->_convert($self->_quote($lhs)) . ' IS NULL'
+      : undef
+    ;
+  }
+
   my @bind =
     $self->_bindtype (
       ($lhs || $self->{_nested_func_lhs}),
@@ -764,6 +772,11 @@ sub _where_hashpair_HASHREF {
 
     # so that -not_foo works correctly
     $op =~ s/^not_/NOT /i;
+
+    # another retarded special case: foo => { $op => { -value => undef } }
+    if (ref $val eq 'HASH' and keys %$val == 1 and exists $val->{-value} and ! defined $val->{-value} ) {
+      $val = undef;
+    }
 
     my ($sql, @bind);
 
