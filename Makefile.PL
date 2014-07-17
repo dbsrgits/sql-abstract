@@ -17,6 +17,7 @@ dynamic_config 0;
 
 requires 'List::Util'   => 0;
 requires 'Scalar::Util' => 0;
+requires 'Exporter'     => 5.57;
 requires 'Moo'          => 1.004002;
 requires 'Hash::Merge'  => 0.12;
 

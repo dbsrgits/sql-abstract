@@ -6,6 +6,18 @@ use Carp ();
 use List::Util ();
 use Scalar::Util ();
 
+use Exporter 'import';
+our @EXPORT_OK = qw(is_plain_value is_literal_value);
+
+BEGIN {
+  if ($] < 5.009_005) {
+    require MRO::Compat;
+  }
+  else {
+    require mro;
+  }
+}
+
 #======================================================================
 # GLOBALS
 #======================================================================
@@ -57,6 +69,60 @@ sub puke (@) {
   my($func) = (caller(1))[3];
   Carp::croak "[$func] Fatal: ", @_;
 }
+
+sub is_literal_value ($) {
+    ref $_[0] eq 'SCALAR'                                     ? [ ${$_[0]} ]
+  : ( ref $_[0] eq 'REF' and ref ${$_[0]} eq 'ARRAY' )        ? [ @${ $_[0] } ]
+  : (
+    ref $_[0] eq 'HASH' and keys %{$_[0]} == 1
+      and
+    defined $_[0]->{-ident} and ! length ref $_[0]->{-ident}
+  )                                                           ? [ $_[0]->{-ident} ]
+  : undef;
+}
+
+# FIXME XSify - this can be done so much more efficiently
+sub is_plain_value ($) {
+  no strict 'refs';
+    ! length ref $_[0]                                        ? [ $_[0] ]
+  : (
+    ref $_[0] eq 'HASH' and keys %{$_[0]} == 1
+      and
+    exists $_[0]->{-value}
+  )                                                           ? [ $_[0]->{-value} ]
+  : (
+      Scalar::Util::blessed $_[0]
+        and
+      # deliberately not using Devel::OverloadInfo - the checks we are
+      # intersted in are much more limited than the fullblown thing, and
+      # this is a very hot piece of code
+      (
+        # FIXME - DBI needs fixing to stringify regardless of DBD
+        #
+        # either has stringification which DBI SHOULD prefer out of the box
+        $_[0]->can( '(""' )
+          or
+        # has nummification and fallback is *not* disabled
+        # reuse @_ for even moar speedz
+        (
+          $_[0]->can('(0+')
+            and
+          (
+            # no fallback specified at all
+            ! ( ($_[1]) = grep { *{"${_}::()"}{CODE} } @{ mro::get_linear_isa( ref $_[0] ) } )
+              or
+            # fallback explicitly undef
+            ! defined ${"$_[1]::()"}
+              or
+            # explicitly true
+            ${"$_[1]::()"}
+          )
+        )
+      )
+    )                                                          ? [ "$_[0]" ]
+  : undef;
+}
+
 
 
 #======================================================================
@@ -1690,15 +1756,12 @@ Which you could then use in DBI code like so:
 
 Easy, eh?
 
-=head1 FUNCTIONS
+=head1 METHODS
 
-The functions are simple. There's one for each major SQL operation,
+The methods are simple. There's one for each major SQL operation,
 and a constructor you use first. The arguments are specified in a
-similar order to each function (table, then fields, then a where
+similar order to each method (table, then fields, then a where
 clause) to try and simplify things.
-
-
-
 
 =head2 new(option => 'value')
 
@@ -2060,6 +2123,47 @@ Might give you:
 
 You get the idea. Strings get their case twiddled, but everything
 else remains verbatim.
+
+=head1 EXPORTABLE FUNCTIONS
+
+=head2 is_plain_value
+
+Determines if the supplied argument is a plain value as understood by this
+module:
+
+=over
+
+=item * The value is C<undef>
+
+=item * The value is a non-reference
+
+=item * The value is an object with stringification overloading
+
+=item * The value is of the form C<< { -value => $anything } >>
+
+=back
+
+On failure returns C<undef>, on sucess returns a reference to a single
+element array containing the string-version of the supplied argument or
+C<[ undef ]> in case of an undefined initial argument.
+
+=head2 is_literal_value
+
+Determines if the supplied argument is a literal value as understood by this
+module:
+
+=over
+
+=item * C<\$sql_string>
+
+=item * C<\[ $sql_string, @bind_values ]>
+
+=item * C<< { -ident => $plain_defined_string } >>
+
+=back
+
+On failure returns C<undef>, on sucess returns a reference to an array
+cotaining the unpacked version of the supplied literal SQL and bind values.
 
 =head1 WHERE CLAUSES
 
