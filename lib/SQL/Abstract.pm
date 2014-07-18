@@ -99,8 +99,10 @@ sub is_plain_value ($) {
       (
         # FIXME - DBI needs fixing to stringify regardless of DBD
         #
-        # FIXME - simply using ->can('(""') trips up Path::Class in
-        # inexplicable ways under -T (likely other modules too)
+        # simply using ->can('(""') can leave behind stub methods that
+        # break actually using the overload later (see L<perldiag/Stub
+        # found while resolving method "%s" overloading "%s" in package
+        # "%s"> and the source of overload::mycan())
         #
         # either has stringification which DBI SHOULD prefer out of the box
         grep { *{ (qq[${_}::(""]) }{CODE} } @{ mro::get_linear_isa( ref $_[0] ) }
@@ -108,8 +110,6 @@ sub is_plain_value ($) {
         # has nummification and fallback is *not* disabled
         # reuse @_ for even moar speedz
         (
-          # FIXME - simply using ->can('(0+') trips up Path::Class in
-          # inexplicable ways under -T (likely other modules too)
           grep { *{"${_}::(0+"}{CODE} } @{ mro::get_linear_isa( ref $_[0] ) }
             and
           (
