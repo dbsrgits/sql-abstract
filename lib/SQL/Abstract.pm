@@ -2683,7 +2683,7 @@ not so common, but perfectly legal Perl). For example, to find a date
 in Postgres you can use something like this:
 
     my %where = (
-       date_column => \[q/= date '2008-09-30' - ?::integer/, 10/]
+       date_column => \[q/= date '2008-09-30' - ?::integer/, 10]
     )
 
 This would create:
@@ -2700,7 +2700,7 @@ L<SQL::Abstract> will simply pass it through intact. So if C<bindtype> is set
 to C<columns> the above example will look like:
 
     my %where = (
-       date_column => \[q/= date '2008-09-30' - ?::integer/, [ dummy => 10 ]/]
+       date_column => \[q/= date '2008-09-30' - ?::integer/, [ dummy => 10 ]]
     )
 
 Literal SQL is especially useful for nesting parenthesized clauses in the
