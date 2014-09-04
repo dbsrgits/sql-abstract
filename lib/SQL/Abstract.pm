@@ -738,8 +738,8 @@ sub _where_op_BOOL {
 sub _where_op_IDENT {
   my $self = shift;
   my ($op, $rhs) = splice @_, -2;
-  if (ref $rhs) {
-    puke "-$op takes a single scalar argument (a quotable identifier)";
+  if (! defined $rhs or length ref $rhs) {
+    puke "-$op requires a single plain scalar argument (a quotable identifier)";
   }
 
   # in case we are called as a top level special op (no '=')

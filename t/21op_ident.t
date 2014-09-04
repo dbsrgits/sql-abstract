@@ -2,6 +2,7 @@ use strict;
 use warnings;
 
 use Test::More;
+use Test::Exception;
 use SQL::Abstract;
 use SQL::Abstract::Test import => [qw/is_same_sql_bind/];
 
@@ -11,6 +12,10 @@ for my $q ('', '"') {
     quote_char => $q,
     name_sep => $q ? '.' : '',
   );
+
+  throws_ok {
+    $sql_maker->where({ foo => { -ident => undef } })
+  } qr/-ident requires a single plain scalar argument/;
 
   my ($sql, @bind) = $sql_maker->select ('artist', '*', { 'artist.name' => { -ident => 'artist.pseudonym' } } );
   is_same_sql_bind (

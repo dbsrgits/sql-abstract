@@ -4,6 +4,7 @@ Revision history for SQL::Abstract
     - New attribute 'escape_char' allowing for proper escape of quote_chars
       present in an identifier
     - Treat { -value => undef } as plain undef in all cases
+    - Explicitly throw on { -ident => undef }
 
 revision 1.78  2014-05-28
 ----------------------------
