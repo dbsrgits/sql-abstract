@@ -91,7 +91,8 @@ sub is_plain_value ($) {
     exists $_[0]->{-value}
   )                                                           ? [ $_[0]->{-value} ]
   : (
-      Scalar::Util::blessed $_[0]
+      # reuse @_ for even moar speedz
+      defined ( $_[1] = Scalar::Util::blessed $_[0] )
         and
       # deliberately not using Devel::OverloadInfo - the checks we are
       # intersted in are much more limited than the fullblown thing, and
@@ -105,22 +106,21 @@ sub is_plain_value ($) {
         # "%s"> and the source of overload::mycan())
         #
         # either has stringification which DBI SHOULD prefer out of the box
-        grep { *{ (qq[${_}::(""]) }{CODE} } @{ mro::get_linear_isa( ref $_[0] ) }
+        grep { *{ (qq[${_}::(""]) }{CODE} } @{ $_[2] = mro::get_linear_isa( $_[1] ) }
           or
         # has nummification and fallback is *not* disabled
-        # reuse @_ for even moar speedz
         (
-          grep { *{"${_}::(0+"}{CODE} } @{ mro::get_linear_isa( ref $_[0] ) }
+          grep { *{"${_}::(0+"}{CODE} } @{ mro::get_linear_isa( $_[1] ) }
             and
           (
             # no fallback specified at all
-            ! ( ($_[1]) = grep { *{"${_}::()"}{CODE} } @{ mro::get_linear_isa( ref $_[0] ) } )
+            ! ( ($_[3]) = grep { *{"${_}::()"}{CODE} } @{$_[2]} )
               or
             # fallback explicitly undef
-            ! defined ${"$_[1]::()"}
+            ! defined ${"$_[3]::()"}
               or
             # explicitly true
-            ${"$_[1]::()"}
+            !! ${"$_[3]::()"}
           )
         )
       )
