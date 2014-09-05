@@ -3,6 +3,8 @@ use strict;
 
 use Test::More;
 use Test::Exception;
+use Scalar::Util 'refaddr';
+use Storable 'nfreeze';
 
 use SQL::Abstract qw(is_plain_value is_literal_value);
 
@@ -54,15 +56,26 @@ lives_ok {
     ok( ( $nummifiable_maybefallback_num + 1) == 43 )
   };
 
-  my $can_str = !! eval { "$nummifiable_maybefallback_num" };
+  my $is_pv_res = is_plain_value $nummifiable_maybefallback_num;
 
-  lives_ok {
-    is_deeply(
-      is_plain_value $nummifiable_maybefallback_num,
-      ( $can_str ? [ 42 ] : undef ),
-      'parent-disabled-fallback stringification detected same as perl',
+  # this perl can recognize inherited fallback
+  if ( !! eval { "$nummifiable_maybefallback_num" } ) {
+    # we may *not* be able to compare, due to ""-derived-eq fallbacks missing,
+    # but we can always compare the ice
+    ok (
+      ( nfreeze( $is_pv_res ) eq nfreeze( [ $nummifiable_maybefallback_num ] ) ),
+      'parent-disabled-fallback stringification matches that of perl'
     );
-  };
+
+    is (
+      refaddr($is_pv_res->[0]),
+      refaddr $nummifiable_maybefallback_num,
+      "Same reference (blessed object) returned",
+    );
+  }
+  else {
+    is $is_pv_res, undef, 'parent-disabled-fallback stringification matches that of perl';
+  }
 }
 
 is_deeply
