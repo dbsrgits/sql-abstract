@@ -8,6 +8,10 @@ use Storable 'nfreeze';
 
 use SQL::Abstract qw(is_plain_value is_literal_value);
 
+# fallback setting is inheriting starting p5 50853fa9 (run up to 5.17.0)
+use constant OVERLOAD_FALLBACK_INHERITS => ( ($] < 5.017) ? 0 : 1 );
+use constant STRINGIFIER_CAN_RETURN_IVS => ( ($] < 5.008) ? 0 : 1 );
+
 {
   package # hideee
     SQLATest::SillyInt;
@@ -44,6 +48,25 @@ use SQL::Abstract qw(is_plain_value is_literal_value);
 }
 
 {
+  package # hideee
+    SQLATest::AnalInt;
+
+  use overload
+    fallback => 0,
+    '0+' => sub { ${$_[0]} },
+  ;
+
+  package # hideee
+    SQLATest::AnalInt::Subclass;
+
+  use overload
+    '0+' => sub { ${$_[0]} },
+  ;
+
+  our @ISA = 'SQLATest::AnalInt';
+}
+
+{
   package # hidee
     SQLATest::ReasonableInt;
 
@@ -54,18 +77,42 @@ use SQL::Abstract qw(is_plain_value is_literal_value);
     '--' => sub { $_[0] = ${$_[0]} - 1 },
     fallback => 1,
   ;
+
+  package # hideee
+    SQLATest::ReasonableInt::Subclass;
+
+  our @ISA = 'SQLATest::ReasonableInt';
+}
+
+{
+  package # hidee
+    SQLATest::ReasonableString;
+
+  # somewhat like DateTime
+  use overload
+    'fallback' => 1,
+    '""'       => sub { "${$_[0]}" },
+    '-'        => sub { ${$_[0]} - $_[1] },
+    '+'        => sub { ${$_[0]} + $_[1] },
+  ;
+
+  package # hideee
+    SQLATest::ReasonableString::Subclass;
+
+  our @ISA = 'SQLATest::ReasonableString';
 }
 
 for my $case (
   { class => 'SQLATest::SillyInt',            can_math => 0, should_str => 1 },
   { class => 'SQLATest::SillyInt::Subclass',  can_math => 0, should_str => 1 },
   { class => 'SQLATest::SillierInt',          can_math => 0, should_str => 0 },
-  { class => 'SQLATest::SillierInt::Subclass',
-    ($] < 5.017)  # fallback is inheriting starting p5 50853fa9 (run up to 5.17.0)
-    ? ( can_math => 1, should_str => 1 )
-    : ( can_math => 1, should_str => 0 )
-  },
-  { class => 'SQLATest::ReasonableInt',       can_math => 1, should_str => 1 },
+  { class => 'SQLATest::SillierInt::Subclass',can_math => 1, should_str => (OVERLOAD_FALLBACK_INHERITS ? 0 : 1) },
+  { class => 'SQLATest::AnalInt',             can_math => 0, should_str => 0 },
+  { class => 'SQLATest::AnalInt::Subclass',   can_math => 0, should_str => (OVERLOAD_FALLBACK_INHERITS ? 0 : 1) },
+  { class => 'SQLATest::ReasonableInt',             can_math => 1, should_str => 1 },
+  { class => 'SQLATest::ReasonableInt::Subclass',   can_math => 1, should_str => 1 },
+  { class => 'SQLATest::ReasonableString',          can_math => 1, should_str => 1 },
+  { class => 'SQLATest::ReasonableString::Subclass',can_math => 1, should_str => 1 },
 ) {
 
   my $num = bless( \do { my $foo = 42 }, $case->{class} );
@@ -84,7 +131,7 @@ for my $case (
     "can_math setting for $case->{class} matches perl behavior",
   ) || diag explain { %$case, actual_can_math => $can_math };
 
-  my $can_cmp = eval { my $dum = $num eq "nope"; 1 } || 0;
+  my $can_cmp = eval { my $dum = ($num eq "nope"); 1 } || 0;
 
   for (1,2) {
 
@@ -92,7 +139,7 @@ for my $case (
 
       ok $num, 'bool ctx works';
 
-      if ($can_cmp) {
+      if (STRINGIFIER_CAN_RETURN_IVS and $can_cmp) {
         is_deeply(
           is_plain_value $num,
           [ $num ],
@@ -109,7 +156,7 @@ for my $case (
       }
 
       is (
-        refaddr(is_plain_value($num)->[0]),
+        refaddr( ( is_plain_value($num)||[] )->[0] ),
         refaddr $num,
         "Same reference (blessed object) returned",
       );
