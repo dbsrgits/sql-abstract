@@ -84,12 +84,12 @@ sub is_literal_value ($) {
 # FIXME XSify - this can be done so much more efficiently
 sub is_plain_value ($) {
   no strict 'refs';
-    ! length ref $_[0]                                        ? [ $_[0] ]
+    ! length ref $_[0]                                        ? \($_[0])
   : (
     ref $_[0] eq 'HASH' and keys %{$_[0]} == 1
       and
     exists $_[0]->{-value}
-  )                                                           ? [ $_[0]->{-value} ]
+  )                                                           ? \($_[0]->{-value})
   : (
       # reuse @_ for even moar speedz
       defined ( $_[1] = Scalar::Util::blessed $_[0] )
@@ -124,7 +124,7 @@ sub is_plain_value ($) {
           )
         )
       )
-    )                                                          ? [ $_[0] ]
+    )                                                          ? \($_[0])
   : undef;
 }
 
@@ -2148,9 +2148,8 @@ module:
 
 =back
 
-On failure returns C<undef>, on sucess returns a reference to a single
-element array containing the string-version of the supplied argument or
-C<[ undef ]> in case of an undefined initial argument.
+On failure returns C<undef>, on sucess returns a B<scalar> reference
+to the original supplied argument.
 
 =head2 is_literal_value
 
@@ -2167,8 +2166,8 @@ module:
 
 =back
 
-On failure returns C<undef>, on sucess returns a reference to an array
-cotaining the unpacked version of the supplied literal SQL and bind values.
+On failure returns C<undef>, on sucess returns an B<array> reference
+containing the unpacked version of the supplied literal SQL and bind values.
 
 =head1 WHERE CLAUSES
 

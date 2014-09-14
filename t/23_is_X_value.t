@@ -142,7 +142,7 @@ for my $case (
       if (STRINGIFIER_CAN_RETURN_IVS and $can_cmp) {
         is_deeply(
           is_plain_value $num,
-          [ $num ],
+          \$num,
           "stringification detected on $case->{class}",
         ) || diag explain $case;
       }
@@ -150,13 +150,13 @@ for my $case (
         # is_deeply does not do nummify/stringify cmps properly
         # but we can always compare the ice
         ok(
-          ( nfreeze( is_plain_value $num ) eq nfreeze( [ $num ] ) ),
+          ( nfreeze( is_plain_value $num ) eq nfreeze( \$num ) ),
           "stringification without cmp capability detected on $case->{class}"
         ) || diag explain $case;
       }
 
       is (
-        refaddr( ( is_plain_value($num)||[] )->[0] ),
+        refaddr( ${is_plain_value($num)} ),
         refaddr $num,
         "Same reference (blessed object) returned",
       );
@@ -178,7 +178,7 @@ lives_ok {
   cmp_ok(--$num, 'eq', 23, 'test overloaded object compares correctly');
   is_deeply(
     is_plain_value $num,
-    [ 23 ],
+    \23,
     'fallback stringification detected'
   );
   cmp_ok(--$num, 'eq', 22, 'test overloaded object compares correctly');
@@ -188,7 +188,7 @@ lives_ok {
 
 is_deeply
   is_plain_value {  -value => [] },
-  [ [] ],
+  \[],
   '-value recognized'
 ;
 
@@ -203,7 +203,7 @@ for ([], {}, \'') {
 for (undef, { -value => undef }) {
   is_deeply
     is_plain_value $_,
-    [ undef ],
+    \undef,
     'NULL -value recognized'
   ;
 }
