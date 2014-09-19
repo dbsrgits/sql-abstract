@@ -14,6 +14,22 @@ use constant STRINGIFIER_CAN_RETURN_IVS => ( ($] < 5.008) ? 0 : 1 );
 
 {
   package # hideee
+    SQLATest::SillyBool;
+
+  use overload
+    # *DELIBERATELY* unspecified
+    #fallback => 1,
+    bool => sub { ${$_[0]} },
+  ;
+
+  package # hideee
+    SQLATest::SillyBool::Subclass;
+
+  our @ISA = 'SQLATest::SillyBool';
+}
+
+{
+  package # hideee
     SQLATest::SillyInt;
 
   use overload
@@ -103,6 +119,8 @@ use constant STRINGIFIER_CAN_RETURN_IVS => ( ($] < 5.008) ? 0 : 1 );
 }
 
 for my $case (
+  { class => 'SQLATest::SillyBool',           can_math => 0, should_str => 1 },
+  { class => 'SQLATest::SillyBool::Subclass', can_math => 0, should_str => 1 },
   { class => 'SQLATest::SillyInt',            can_math => 0, should_str => 1 },
   { class => 'SQLATest::SillyInt::Subclass',  can_math => 0, should_str => 1 },
   { class => 'SQLATest::SillierInt',          can_math => 0, should_str => 0 },

@@ -98,8 +98,6 @@ sub is_plain_value ($) {
       # intersted in are much more limited than the fullblown thing, and
       # this is a very hot piece of code
       (
-        # FIXME - DBI needs fixing to stringify regardless of DBD
-        #
         # simply using ->can('(""') can leave behind stub methods that
         # break actually using the overload later (see L<perldiag/Stub
         # found while resolving method "%s" overloading "%s" in package
@@ -108,9 +106,13 @@ sub is_plain_value ($) {
         # either has stringification which DBI SHOULD prefer out of the box
         grep { *{ (qq[${_}::(""]) }{CODE} } @{ $_[2] = mro::get_linear_isa( $_[1] ) }
           or
-        # has nummification and fallback is *not* disabled
+        # has nummification or boolification, AND fallback is *not* disabled
         (
-          grep { *{"${_}::(0+"}{CODE} } @{ mro::get_linear_isa( $_[1] ) }
+          (
+            grep { *{"${_}::(0+"}{CODE} } @{$_[2]}
+              or
+            grep { *{"${_}::(bool"}{CODE} } @{$_[2]}
+          )
             and
           (
             # no fallback specified at all
