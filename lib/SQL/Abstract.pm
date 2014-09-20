@@ -1718,7 +1718,7 @@ say something like this:
 
     my %data = (
         name => 'Bill',
-        date_entered => \["to_date(?,'MM/DD/YYYY')", "03/02/2003"],
+        date_entered => \[ "to_date(?,'MM/DD/YYYY')", "03/02/2003" ],
     );
 
 The first value in the array is the actual SQL. Any other values are
@@ -1919,7 +1919,7 @@ are or are not included. You could wrap that above C<for> loop in a simple
 sub called C<bind_fields()> or something and reuse it repeatedly. You still
 get a layer of abstraction over manual SQL specification.
 
-Note that if you set L</bindtype> to C<columns>, the C<\[$sql, @bind]>
+Note that if you set L</bindtype> to C<columns>, the C<\[ $sql, @bind ]>
 construct (see L</Literal SQL with placeholders and bind values (subqueries)>)
 will expect the bind values in this format.
 
@@ -2683,7 +2683,7 @@ not so common, but perfectly legal Perl). For example, to find a date
 in Postgres you can use something like this:
 
     my %where = (
-       date_column => \[q/= date '2008-09-30' - ?::integer/, 10]
+       date_column => \[ "= date '2008-09-30' - ?::integer", 10 ]
     )
 
 This would create:
@@ -2700,7 +2700,7 @@ L<SQL::Abstract> will simply pass it through intact. So if C<bindtype> is set
 to C<columns> the above example will look like:
 
     my %where = (
-       date_column => \[q/= date '2008-09-30' - ?::integer/, [ dummy => 10 ]]
+       date_column => \[ "= date '2008-09-30' - ?::integer", [ {} => 10 ] ]
     )
 
 Literal SQL is especially useful for nesting parenthesized clauses in the
@@ -3091,7 +3091,7 @@ The main changes are :
 
 =item *
 
-support for literal SQL through the C<< \ [$sql, bind] >> syntax.
+support for literal SQL through the C<< \ [ $sql, @bind ] >> syntax.
 
 =item *
 
