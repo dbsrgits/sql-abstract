@@ -1778,9 +1778,9 @@ Easy, eh?
 
 =head1 METHODS
 
-The methods are simple. There's one for each major SQL operation,
+The methods are simple. There's one for every major SQL operation,
 and a constructor you use first. The arguments are specified in a
-similar order to each method (table, then fields, then a where
+similar order for each method (table, then fields, then a where
 clause) to try and simplify things.
 
 =head2 new(option => 'value')
@@ -2350,7 +2350,7 @@ Which would generate:
     @bind = ('2', '5', 'nwiger');
 
 If you want to include literal SQL (with or without bind values), just use a
-scalar reference or array reference as the value:
+scalar reference or reference to an arrayref as the value:
 
     my %where  = (
         date_entered => { '>' => \["to_date(?, 'MM/DD/YYYY')", "11/26/2008"] },
@@ -2359,7 +2359,7 @@ scalar reference or array reference as the value:
 
 Which would generate:
 
-    $stmt = "WHERE date_entered > "to_date(?, 'MM/DD/YYYY') AND date_expires < now()";
+    $stmt = "WHERE date_entered > to_date(?, 'MM/DD/YYYY') AND date_expires < now()";
     @bind = ('11/26/2008');
 
 
@@ -2373,7 +2373,7 @@ this (notice the C<AND>):
 
 Because, in Perl you I<can't> do this:
 
-    priority => { '!=', 2, '!=', 1 }
+    priority => { '!=' => 2, '!=' => 1 }
 
 As the second C<!=> key will obliterate the first. The solution
 is to use the special C<-modifier> form inside an arrayref:
@@ -2565,10 +2565,10 @@ to change the logic inside :
 
 That would yield:
 
-    WHERE ( user = ? AND (
-               ( workhrs > ? AND geo = ? )
-            OR ( workhrs < ? OR geo = ? )
-          ) )
+    $stmt = "WHERE ( user = ?
+               AND ( ( workhrs > ? AND geo = ? )
+                  OR ( workhrs < ? OR geo = ? ) ) )";
+    @bind = ('nwiger', '20', 'ASIA', '50', 'EURO');
 
 =head3 Algebraic inconsistency, for historical reasons
 
@@ -2914,14 +2914,14 @@ Either a coderef or a plain scalar method name. In both cases
 the expected return is C<< ($sql, @bind) >>.
 
 When supplied with a method name, it is simply called on the
-L<SQL::Abstract/> object as:
+L<SQL::Abstract> object as:
 
  $self->$method_name ($field, $op, $arg)
 
  Where:
 
-  $op is the part that matched the handler regex
   $field is the LHS of the operator
+  $op is the part that matched the handler regex
   $arg is the RHS
 
 When supplied with a coderef, it is called as:
@@ -2990,7 +2990,7 @@ Either a coderef or a plain scalar method name. In both cases
 the expected return is C<< $sql >>.
 
 When supplied with a method name, it is simply called on the
-L<SQL::Abstract/> object as:
+L<SQL::Abstract> object as:
 
  $self->$method_name ($op, $arg)
 
