@@ -3071,13 +3071,27 @@ a fast interface to returning and formatting data. I frequently
 use these three modules together to write complex database query
 apps in under 50 lines.
 
-=head1 REPO
+=head1 HOW TO CONTRIBUTE
+
+Contributions are always welcome, in all usable forms (we especially
+welcome documentation improvements). The delivery methods include git-
+or unified-diff formatted patches, GitHub pull requests, or plain bug
+reports either via RT or the Mailing list. Contributors are generally
+granted full access to the official repository after their first several
+patches pass successful review.
+
+This project is maintained in a git repository. The code and related tools are
+accessible at the following locations:
 
 =over
 
-=item * gitweb: L<http://git.shadowcat.co.uk/gitweb/gitweb.cgi?p=dbsrgits/SQL-Abstract.git>
+=item * Official repo: L<git://git.shadowcat.co.uk/dbsrgits/SQL-Abstract.git>
 
-=item * git: L<git://git.shadowcat.co.uk/dbsrgits/SQL-Abstract.git>
+=item * Official gitweb: L<http://git.shadowcat.co.uk/gitweb/gitweb.cgi?p=dbsrgits/SQL-Abstract.git>
+
+=item * GitHub mirror: L<https://github.com/dbsrgits/sql-abstract>
+
+=item * Authorized committers: L<ssh://dbsrgits@git.shadowcat.co.uk/SQL-Abstract.git>
 
 =back
 
