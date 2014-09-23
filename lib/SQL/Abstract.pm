@@ -3073,11 +3073,15 @@ apps in under 50 lines.
 
 =head1 REPO
 
+This project is maintained in a git repository. The code and related tools are accessible at the following locations:
+
 =over
 
-=item * gitweb: L<http://git.shadowcat.co.uk/gitweb/gitweb.cgi?p=dbsrgits/SQL-Abstract.git>
+=item * Official repo: L<git://git.shadowcat.co.uk/dbsrgits/SQL-Abstract.git>
 
-=item * git: L<git://git.shadowcat.co.uk/dbsrgits/SQL-Abstract.git>
+=item * Official gitweb: L<http://git.shadowcat.co.uk/gitweb/gitweb.cgi?p=dbsrgits/SQL-Abstract.git>
+
+=item * GitHub mirror: L<https://github.com/dbsrgits/sql-abstract>
 
 =back
 
