@@ -659,6 +659,125 @@ for my $op ( qw(like rlike not_like not_rlike), 'not like', 'not rlike', 'is lik
   } for ('', '-');  # with and without -
 }
 
+# check emtpty-lhs in a hashpair and arraypair
+for my $lhs (undef, '') {
+  no warnings 'uninitialized';
+
+##
+## hard exceptions - never worked
+  for my $where_arg (
+    ( map { $_, { @$_ } }
+      [ $lhs => "foo" ],
+      [ $lhs => { "=" => "bozz" } ],
+      [ $lhs => { "=" => \"bozz" } ],
+      [ $lhs => { -max => \"bizz" } ],
+    ),
+    [ -and => { $lhs => "baz" }, bizz => "buzz" ],
+    [ foo => "bar", { $lhs => "baz" }, bizz => "buzz" ],
+    { foo => "bar", -or => { $lhs => "baz" } },
+
+    # the hashref forms of these work sadly - check for warnings below
+    { foo => "bar", -and => [ $lhs => \"baz" ], bizz => "buzz" },
+    { foo => "bar", -or => [ $lhs => \"baz" ], bizz => "buzz" },
+    [ foo => "bar", [ $lhs => \"baz" ], bizz => "buzz" ],
+    [ foo => "bar", $lhs => \"baz", bizz => "buzz" ],
+    [ foo => "bar", $lhs => \["baz"], bizz => "buzz" ],
+    [ $lhs => \"baz" ],
+    [ $lhs => \["baz"] ],
+
+    # except for this one, that is automagically arrayified
+    { foo => "bar", -or => { $lhs => \"baz" }, bizz => "buzz" },
+  ) {
+    push @tests, {
+      func => 'where',
+      args => [ $where_arg ],
+      throws  => qr/\QSupplying an empty left hand side argument is not supported/,
+    };
+  }
+
+##
+## deprecations - sorta worked, likely abused by folks
+  for my $where_arg (
+    # the arrayref forms of this never worked and throw above
+    { foo => "bar", -and => { $lhs => \"baz" }, bizz => "buzz" },
+    { foo => "bar", $lhs => \"baz", bizz => "buzz" },
+    { foo => "bar", $lhs => \["baz"], bizz => "buzz" },
+  ) {
+    push @tests, {
+      func    => 'where',
+      args    => [ $where_arg ],
+      stmt    => 'WHERE baz AND bizz = ? AND foo = ?',
+      stmt_q  => 'WHERE baz AND `bizz` = ? AND `foo` = ?',
+      bind    => [qw( buzz bar )],
+      warns   => qr/\QHash-pairs consisting of an empty string with a literal are deprecated/,
+    };
+  }
+
+  for my $where_arg (
+    { $lhs => \"baz" },
+    { $lhs => \["baz"] },
+  ) {
+    push @tests, {
+      func    => 'where',
+      args    => [ $where_arg ],
+      stmt    => 'WHERE baz',
+      stmt_q  => 'WHERE baz',
+      bind    => [],
+      warns   => qr/\QHash-pairs consisting of an empty string with a literal are deprecated/,
+    }
+  }
+}
+
+# check false lhs, silly but possible
+{
+  for my $where_arg (
+    [ { 0 => "baz" }, bizz => "buzz", foo => "bar" ],
+    [ -or => { foo => "bar", -or => { 0 => "baz" }, bizz => "buzz" } ],
+  ) {
+    push @tests, {
+      func    => 'where',
+      args    => [ $where_arg ],
+      stmt    => 'WHERE 0 = ? OR bizz = ? OR foo = ?',
+      stmt_q  => 'WHERE `0` = ? OR `bizz` = ? OR `foo` = ?',
+      bind    => [qw( baz buzz bar )],
+    };
+  }
+
+  for my $where_arg (
+    { foo => "bar", -and => [ 0 => \"= baz" ], bizz => "buzz" },
+    { foo => "bar", -or => [ 0 => \"= baz" ], bizz => "buzz" },
+
+    { foo => "bar", -and => { 0 => \"= baz" }, bizz => "buzz" },
+    { foo => "bar", -or => { 0 => \"= baz" }, bizz => "buzz" },
+
+    { foo => "bar", 0 => \"= baz", bizz => "buzz" },
+    { foo => "bar", 0 => \["= baz"], bizz => "buzz" },
+  ) {
+    push @tests, {
+      func    => 'where',
+      args    => [ $where_arg ],
+      stmt    => 'WHERE 0 = baz AND bizz = ? AND foo = ?',
+      stmt_q  => 'WHERE `0` = baz AND `bizz` = ? AND `foo` = ?',
+      bind    => [qw( buzz bar )],
+    };
+  }
+
+  for my $where_arg (
+    [ -and => [ 0 => \"= baz" ], bizz => "buzz", foo => "bar" ],
+    [ -or => [ 0 => \"= baz" ], bizz => "buzz", foo => "bar" ],
+    [ 0 => \"= baz", bizz => "buzz", foo => "bar" ],
+    [ 0 => \["= baz"], bizz => "buzz", foo => "bar" ],
+  ) {
+    push @tests, {
+      func    => 'where',
+      args    => [ $where_arg ],
+      stmt    => 'WHERE 0 = baz OR bizz = ? OR foo = ?',
+      stmt_q  => 'WHERE `0` = baz OR `bizz` = ? OR `foo` = ?',
+      bind    => [qw( buzz bar )],
+    };
+  }
+}
+
 for my $t (@tests) {
   my $new = $t->{new} || {};
 

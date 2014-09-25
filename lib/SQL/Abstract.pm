@@ -525,7 +525,10 @@ sub _where_ARRAYREF {
 
   my (@sql_clauses, @all_bind);
   # need to use while() so can shift() for pairs
-  while (my $el = shift @clauses) {
+  while (@clauses) {
+    my $el = shift @clauses;
+
+    $el = undef if (defined $el and ! length $el);
 
     # switch according to kind of $el and get corresponding ($sql, @bind)
     my ($sql, @bind) = $self->_SWITCH_refkind($el, {
@@ -543,10 +546,12 @@ sub _where_ARRAYREF {
 
       SCALARREF => sub { ($$el);                                 },
 
-      SCALAR    => sub {# top-level arrayref with scalars, recurse in pairs
-                        $self->_recurse_where({$el => shift(@clauses)})},
+      SCALAR    => sub {
+        # top-level arrayref with scalars, recurse in pairs
+        $self->_recurse_where({$el => shift(@clauses)})
+      },
 
-      UNDEF     => sub {puke "not supported : UNDEF in arrayref" },
+      UNDEF     => sub {puke "Supplying an empty left hand side argument is not supported in array-pairs" },
     });
 
     if ($sql) {
@@ -605,6 +610,15 @@ sub _where_HASHREF {
         ($s, @b);
       }
       else {
+        if (! length $k) {
+          if (is_literal_value ($v) ) {
+            belch 'Hash-pairs consisting of an empty string with a literal are deprecated, and will be removed in 2.0: use -and => [ $literal ] instead';
+          }
+          else {
+            puke "Supplying an empty left hand side argument is not supported in hash-pairs";
+          }
+        }
+
         my $method = $self->_METHOD_FOR_refkind("_where_hashpair", $v);
         $self->$method($k, $v);
       }
