@@ -1,5 +1,7 @@
 Revision history for SQL::Abstract
 
+revision 1.79  2014-09-25
+----------------------------
     - New exportable functions: is_literal_value($) and is_plain_value($)
     - New attribute 'escape_char' allowing for proper escape of quote_chars
       present in an identifier
