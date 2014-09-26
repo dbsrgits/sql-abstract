@@ -1961,7 +1961,7 @@ words in your database's SQL dialect.
 This is the character that will be used to escape L</quote_char>s appearing
 in an identifier before it has been quoted.
 
-The paramter default in case of a single L</quote_char> character is the quote
+The parameter default in case of a single L</quote_char> character is the quote
 character itself.
 
 When opening-closing-style quoting is used (L</quote_char> is an arrayref)
