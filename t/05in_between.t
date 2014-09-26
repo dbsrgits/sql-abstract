@@ -266,6 +266,17 @@ my @in_between_tests = (
     throws => qr/Argument passed to the 'IN' operator can not be undefined/,
     test => '-in with undef argument',
   },
+
+  {
+    where => { -in => [42] },
+    throws => qr/Illegal use of top-level '-in'/,
+    test => 'Top level -in',
+  },
+  {
+    where => { -between => [42, 69] },
+    throws => qr/Illegal use of top-level '-between'/,
+    test => 'Top level -between',
+  },
 );
 
 for my $case (@in_between_tests) {

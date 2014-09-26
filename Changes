@@ -1,6 +1,7 @@
 Revision history for SQL::Abstract
 
     - Fix erroneous behavior of is_literal_value($) wrt { -ident => ... }
+    - Explicitly croak on top-level special ops (they didn't work anyway)
 
 revision 1.79  2014-09-25
 ----------------------------

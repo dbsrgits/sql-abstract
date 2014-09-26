@@ -629,6 +629,11 @@ sub _where_HASHREF {
 sub _where_unary_op {
   my ($self, $op, $rhs) = @_;
 
+  # top level special ops are illegal in general
+  # this includes the -ident/-value ops (dual purpose unary and special)
+  puke "Illegal use of top-level '-$op'"
+    if ! defined $self->{_nested_func_lhs} and List::Util::first {$op =~ $_->{regex}} @{$self->{special_ops}};
+
   if (my $op_entry = List::Util::first {$op =~ $_->{regex}} @{$self->{unary_ops}}) {
     my $handler = $op_entry->{handler};
 
@@ -653,7 +658,7 @@ sub _where_unary_op {
 
   my ($sql, @bind) = $self->_SWITCH_refkind ($rhs, {
     SCALAR =>   sub {
-      puke "Illegal use of top-level '$op'"
+      puke "Illegal use of top-level '-$op'"
         unless defined $self->{_nested_func_lhs};
 
       return (
