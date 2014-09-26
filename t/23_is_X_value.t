@@ -229,15 +229,15 @@ for (undef, { -value => undef }) {
 }
 
 is_deeply
-  is_literal_value { -ident => 'foo' },
-  [ 'foo' ],
-  '-ident recognized as literal'
+  is_literal_value \'sql',
+  [ 'sql' ],
+  'literal correctly recognized and unpacked'
 ;
 
 is_deeply
   is_literal_value \[ 'sql', 'bind1', [ {} => 'bind2' ] ],
   [ 'sql', 'bind1', [ {} => 'bind2' ] ],
-  'literal correctly unpacked'
+  'literal with binds correctly recognized and unpacked'
 ;
 
 

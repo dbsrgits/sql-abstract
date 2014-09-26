@@ -1,5 +1,7 @@
 Revision history for SQL::Abstract
 
+    - Fix erroneous behavior of is_literal_value($) wrt { -ident => ... }
+
 revision 1.79  2014-09-25
 ----------------------------
     - New exportable functions: is_literal_value($) and is_plain_value($)

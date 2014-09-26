@@ -78,11 +78,6 @@ sub puke (@) {
 sub is_literal_value ($) {
     ref $_[0] eq 'SCALAR'                                     ? [ ${$_[0]} ]
   : ( ref $_[0] eq 'REF' and ref ${$_[0]} eq 'ARRAY' )        ? [ @${ $_[0] } ]
-  : (
-    ref $_[0] eq 'HASH' and keys %{$_[0]} == 1
-      and
-    defined $_[0]->{-ident} and ! length ref $_[0]->{-ident}
-  )                                                           ? [ $_[0]->{-ident} ]
   : undef;
 }
 
@@ -2232,8 +2227,6 @@ module:
 =item * C<\$sql_string>
 
 =item * C<\[ $sql_string, @bind_values ]>
-
-=item * C<< { -ident => $plain_defined_string } >>
 
 =back
 
