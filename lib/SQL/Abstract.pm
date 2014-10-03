@@ -600,7 +600,7 @@ sub _where_HASHREF {
         $s = "($s)" unless (
           List::Util::first {$op =~ $_->{regex}} @{$self->{unary_ops}}
             or
-          defined($self->{_nested_func_lhs}) && ($self->{_nested_func_lhs} eq $k)
+          ( defined $self->{_nested_func_lhs} and $self->{_nested_func_lhs} eq $k )
         );
         ($s, @b);
       }
@@ -654,7 +654,7 @@ sub _where_unary_op {
   my ($sql, @bind) = $self->_SWITCH_refkind ($rhs, {
     SCALAR =>   sub {
       puke "Illegal use of top-level '$op'"
-        unless $self->{_nested_func_lhs};
+        unless defined $self->{_nested_func_lhs};
 
       return (
         $self->_convert('?'),
@@ -786,7 +786,7 @@ sub _where_op_VALUE {
 
   # special-case NULL
   if (! defined $rhs) {
-    return $lhs
+    return defined $lhs
       ? $self->_convert($self->_quote($lhs)) . ' IS NULL'
       : undef
     ;
@@ -794,7 +794,7 @@ sub _where_op_VALUE {
 
   my @bind =
     $self->_bindtype (
-      ($lhs || $self->{_nested_func_lhs}),
+      ( defined $lhs ? $lhs : $self->{_nested_func_lhs} ),
       $rhs,
     )
   ;
@@ -845,7 +845,10 @@ sub _where_hashpair_HASHREF {
   my ($self, $k, $v, $logic) = @_;
   $logic ||= 'and';
 
-  local $self->{_nested_func_lhs} = $self->{_nested_func_lhs};
+  local $self->{_nested_func_lhs} = defined $self->{_nested_func_lhs}
+    ? $self->{_nested_func_lhs}
+    : $k
+  ;
 
   my ($all_sql, @all_bind);
 
@@ -924,10 +927,6 @@ sub _where_hashpair_HASHREF {
         },
 
         FALLBACK => sub {       # CASE: col => {op/func => $stuff}
-
-          # retain for proper column type bind
-          $self->{_nested_func_lhs} ||= $k;
-
           ($sql, @bind) = $self->_where_unary_op ($op, $val);
 
           $sql = join (' ',
@@ -1123,7 +1122,6 @@ sub _where_field_BETWEEN {
              my ($func, $arg, @rest) = %$val;
              puke ("Only simple { -func => arg } functions accepted as sub-arguments to BETWEEN")
                if (@rest or $func !~ /^ \- (.+)/x);
-             local $self->{_nested_func_lhs} = $k;
              $self->_where_unary_op ($1 => $arg);
            },
            FALLBACK => sub {
@@ -1181,7 +1179,6 @@ sub _where_field_IN {
               my ($func, $arg, @rest) = %$val;
               puke ("Only simple { -func => arg } functions accepted as sub-arguments to IN")
                 if (@rest or $func !~ /^ \- (.+)/x);
-              local $self->{_nested_func_lhs} = $k;
               $self->_where_unary_op ($1 => $arg);
             },
             UNDEF => sub {
