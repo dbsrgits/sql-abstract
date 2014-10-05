@@ -4,9 +4,12 @@ use warnings;
 use Test::More;
 
 BEGIN {
-  # ask for a recent DBIC version to skip the 5.6.2 tests as well
+  # ask for a recent DBIC version to skip the 5.6 tests as well
   plan skip_all => 'Test temporarily requires DBIx::Class'
     unless eval { require DBIx::Class::Storage::Statistics; DBIx::Class->VERSION('0.08124') };
+
+  plan skip_all => 'Test does not properly work with the pre-0.082800 DBIC trials'
+    if DBIx::Class->VERSION =~ /^0.082700\d\d/;
 }
 
 use DBIx::Class::Storage::Debug::PrettyPrint;
