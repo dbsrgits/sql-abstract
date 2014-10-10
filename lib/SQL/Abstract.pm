@@ -2646,10 +2646,16 @@ This difference in syntax is unfortunate but must be preserved for
 historical reasons. So be careful : the two examples below would
 seem algebraically equivalent, but they are not
 
-  {col => [-and => {-like => 'foo%'}, {-like => '%bar'}]}
+  { col => [ -and =>
+    { -like => 'foo%' },
+    { -like => '%bar' },
+  ] }
   # yields : WHERE ( ( col LIKE ? AND col LIKE ? ) )
 
-  [-and => {col => {-like => 'foo%'}, {col => {-like => '%bar'}}]]
+  [ -and =>
+    { col => { -like => 'foo%' } },
+    { col => { -like => '%bar' } },
+  ]
   # yields : WHERE ( ( col LIKE ? OR col LIKE ? ) )
 
 
