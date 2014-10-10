@@ -2605,7 +2605,7 @@ seem algebraically equivalent, but they are not
   {col => [-and => {-like => 'foo%'}, {-like => '%bar'}]}
   # yields : WHERE ( ( col LIKE ? AND col LIKE ? ) )
 
-  [-and => [{col => {-like => 'foo%'}, {col => {-like => '%bar'}}]]
+  [-and => [{col => {-like => 'foo%'}}, {col => {-like => '%bar'}}]]
   # yields : WHERE ( ( col LIKE ? OR col LIKE ? ) )
 
 
