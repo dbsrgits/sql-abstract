@@ -1,5 +1,7 @@
 Revision history for SQL::Abstract
 
+revision 1.81  2014-10-25
+----------------------------
     - Fix overly-enthusiastic parenthesis unroller (RT#99503)
 
 revision 1.80  2014-10-05
