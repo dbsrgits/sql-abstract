@@ -16,18 +16,18 @@ all_from 'lib/SQL/Abstract.pm';
 
 dynamic_config 0;
 
-requires 'List::Util'   => 0;
-requires 'Scalar::Util' => 0;
-requires 'Exporter'     => 5.57;
-requires 'MRO::Compat'  => 0.12;
-requires 'Moo'          => 1.004002;
-requires 'Hash::Merge'  => 0.12;
+requires 'List::Util'     => '0';
+requires 'Scalar::Util'   => '0';
+requires 'Exporter'       => '5.57';
+requires 'MRO::Compat'    => '0.12';
+requires 'Moo'            => '1.004002';
+requires 'Hash::Merge'    => '0.12';
 
-test_requires "Test::More"      => 0.88;
-test_requires "Test::Exception" => 0.31;
-test_requires "Test::Warn"      => 0;
-test_requires "Test::Deep"      => 0.101;
-test_requires "Storable"        => 0;   # for cloning in tests
+test_requires "Test::More"      => '0.88';
+test_requires "Test::Exception" => '0.31';
+test_requires "Test::Warn"      => '0';
+test_requires "Test::Deep"      => '0.101';
+test_requires "Storable"        => '0';   # for cloning in tests
 
 no_index package => 'DBIx::Class::Storage::Debug::PrettyPrint';
 no_index directory => 'examples';
