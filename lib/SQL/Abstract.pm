@@ -1242,8 +1242,29 @@ sub _where_field_IN {
 # adding them back in the corresponding method
 sub _open_outer_paren {
   my ($self, $sql) = @_;
-  $sql = $1 while $sql =~ /^ \s* \( (.*) \) \s* $/xs;
-  return $sql;
+
+  while ( my ($inner) = $sql =~ /^ \s* \( (.*) \) \s* $/xs ) {
+
+    # there are closing parens inside, need the heavy duty machinery
+    # to reevaluate the extraction starting from $sql (full reevaluation)
+    if ( $inner =~ /\)/ ) {
+      require Text::Balanced;
+
+      my (undef, $remainder) = do {
+        # idiotic design - writes to $@ but *DOES NOT* throw exceptions
+        local $@;
+        Text::Balanced::extract_bracketed( $sql, '()', qr/\s*/ );
+      };
+
+      # the entire expression needs to be a balanced bracketed thing
+      # (after an extract no remainder sans trailing space)
+      last if defined $remainder and $remainder =~ /\S/;
+    }
+
+    $sql = $inner;
+  }
+
+  $sql;
 }
 
 

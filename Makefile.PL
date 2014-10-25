@@ -22,6 +22,7 @@ requires 'Exporter'       => '5.57';
 requires 'MRO::Compat'    => '0.12';
 requires 'Moo'            => '1.004002';
 requires 'Hash::Merge'    => '0.12';
+requires 'Text::Balanced' => '2.00';
 
 test_requires "Test::More"      => '0.88';
 test_requires "Test::Exception" => '0.31';

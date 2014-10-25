@@ -174,6 +174,17 @@ my @in_between_tests = (
     bind => [],
     test => '-in multi-line subquery test',
   },
+
+  # check that the outer paren opener is not too agressive
+  # note: this syntax *is not legal* on SQLite (maybe others)
+  #       see end of https://rt.cpan.org/Ticket/Display.html?id=99503
+  {
+    where => { foo => { -in => \ '(SELECT 1) UNION (SELECT 2)' } },
+    stmt => 'WHERE foo IN ( (SELECT 1) UNION (SELECT 2) )',
+    bind => [],
+    test => '-in paren-opening works on balanced pairs only',
+  },
+
   {
     where => {
       customer => { -in => \[

@@ -1,5 +1,7 @@
 Revision history for SQL::Abstract
 
+    - Fix overly-enthusiastic parenthesis unroller (RT#99503)
+
 revision 1.80  2014-10-05
 ----------------------------
     - Fix erroneous behavior of is_literal_value($) wrt { -ident => ... }
