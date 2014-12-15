@@ -219,7 +219,7 @@ sub insert {
   $sql = join " ", $self->_sqlcase('insert into'), $table, $sql;
 
   if ($options->{returning}) {
-    my ($s, @b) = $self->_insert_returning ($options);
+    my ($s, @b) = $self->_returning ($options);
     $sql .= $s;
     push @bind, @b;
   }
@@ -227,7 +227,7 @@ sub insert {
   return wantarray ? ($sql, @bind) : $sql;
 }
 
-sub _insert_returning {
+sub _returning {
   my ($self, $options) = @_;
 
   my $f = $options->{returning};
@@ -348,10 +348,11 @@ sub _insert_values {
 
 
 sub update {
-  my $self  = shift;
-  my $table = $self->_table(shift);
-  my $data  = shift || return;
-  my $where = shift;
+  my $self    = shift;
+  my $table   = $self->_table(shift);
+  my $data    = shift || return;
+  my $where   = shift;
+  my $options = shift;
 
   # first build the 'SET' part of the sql statement
   my (@set, @all_bind);
@@ -412,6 +413,12 @@ sub update {
     my($where_sql, @where_bind) = $self->where($where);
     $sql .= $where_sql;
     push @all_bind, @where_bind;
+  }
+
+  if ($options->{returning}) {
+    my ($returning_sql, @returning_bind) = $self->_returning ($options);
+    $sql .= $returning_sql;
+    push @all_bind, @returning_bind;
   }
 
   return wantarray ? ($sql, @all_bind) : $sql;
@@ -2070,7 +2077,7 @@ be supported by all database engines.
 
 =back
 
-=head2 update($table, \%fieldvals, \%where)
+=head2 update($table, \%fieldvals, \%where, \%options)
 
 This takes a table, hashref of field/value pairs, and an optional
 hashref L<WHERE clause|/WHERE CLAUSES>. It returns an SQL UPDATE function and a list
@@ -2078,6 +2085,19 @@ of bind values.
 See the sections on L</"Inserting and Updating Arrays"> and
 L</"Inserting and Updating SQL"> for information on how to insert
 with those data types.
+
+The optional C<\%options> hash reference may contain additional
+options to generate the update SQL. Currently supported options
+are:
+
+=over 4
+
+=item returning
+
+See the C<returning> option to
+L<insert|/insert($table, \@values || \%fieldvals, \%options)>.
+
+=back
 
 =head2 select($source, $fields, $where, $order)
 

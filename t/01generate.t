@@ -574,6 +574,27 @@ my @tests = (
               esc  => '\\',
               bind => [],
       },
+      {
+              func => 'update',
+              args => ['mytable', { foo => 42 }, { baz => 32 }, { returning => 'id' }],
+              stmt => 'UPDATE mytable SET foo = ? WHERE baz = ? RETURNING id',
+              stmt_q => 'UPDATE `mytable` SET `foo` = ? WHERE `baz` = ? RETURNING `id`',
+              bind => [42, 32],
+      },
+      {
+              func => 'update',
+              args => ['mytable', { foo => 42 }, { baz => 32 }, { returning => \'*' }],
+              stmt => 'UPDATE mytable SET foo = ? WHERE baz = ? RETURNING *',
+              stmt_q => 'UPDATE `mytable` SET `foo` = ? WHERE `baz` = ? RETURNING *',
+              bind => [42, 32],
+      },
+      {
+              func => 'update',
+              args => ['mytable', { foo => 42 }, { baz => 32 }, { returning => ['id','created_at'] }],
+              stmt => 'UPDATE mytable SET foo = ? WHERE baz = ? RETURNING id, created_at',
+              stmt_q => 'UPDATE `mytable` SET `foo` = ? WHERE `baz` = ? RETURNING `id`, `created_at`',
+              bind => [42, 32],
+      },
 );
 
 # check is( not) => undef
