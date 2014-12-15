@@ -227,6 +227,9 @@ sub insert {
   return wantarray ? ($sql, @bind) : $sql;
 }
 
+# Used by DBIx::Class::SQLMaker->insert
+sub _insert_returning { shift->_returning(@_) }
+
 sub _returning {
   my ($self, $options) = @_;
 
