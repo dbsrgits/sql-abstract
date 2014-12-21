@@ -419,7 +419,7 @@ sub update {
   }
 
   if ($options->{returning}) {
-    my ($returning_sql, @returning_bind) = $self->_returning ($options);
+    my ($returning_sql, @returning_bind) = $self->_update_returning ($options);
     $sql .= $returning_sql;
     push @all_bind, @returning_bind;
   }
@@ -427,6 +427,7 @@ sub update {
   return wantarray ? ($sql, @all_bind) : $sql;
 }
 
+sub _update_returning { shift->_returning(@_) }
 
 
 
