@@ -219,7 +219,7 @@ sub insert {
   $sql = join " ", $self->_sqlcase('insert into'), $table, $sql;
 
   if ($options->{returning}) {
-    my ($s, @b) = $self->_returning ($options);
+    my ($s, @b) = $self->_insert_returning ($options);
     $sql .= $s;
     push @bind, @b;
   }
