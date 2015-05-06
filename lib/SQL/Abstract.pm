@@ -455,6 +455,17 @@ sub select {
 }
 
 #======================================================================
+# SELECT FOR UPDATE
+#======================================================================
+
+sub select_for_update {
+  my $self = shift;
+  my($sql, @bind) = $self->select(@_);
+  $sql .= $self->_sqlcase(' for update');
+  return wantarray ? ($sql, @bind) : $sql;
+}
+
+#======================================================================
 # DELETE
 #======================================================================
 
@@ -2145,6 +2156,12 @@ for details.
 
 =back
 
+=head2 select_for_update($source, $fields, $where, $order)
+
+This is a wrapper around L<select> which will append the
+"FOR UPDATE" statement to the end of a select statement.
+
+=back
 
 =head2 delete($table, \%where)
 
