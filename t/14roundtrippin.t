@@ -28,6 +28,7 @@ my @sql = (
   "SELECT * FROM foo ORDER BY name + ?, [me].[id]",
   "SELECT foo AS bar FROM baz ORDER BY x + ? DESC, baz.g",
   "SELECT [me].[id], ROW_NUMBER() OVER (ORDER BY (SELECT 1)) AS [rno__row__index] FROM ( SELECT [me].[id] FROM [LogParents] [me]) [me]",
+  q<SELECT "me"."id", "me"."balance" FROM ( select o.id, trunc(l.line_total - ( coalesce(finance_amount,0) + coalesce(px.px_total,0)),2) as balance from sale_order o inner join ( select order_id, sum(price_unit * product_uom_qty) as line_total from sale_order_line group by order_id) as l on o.id = l.order_id left outer join ( select d.id, sum(amount_total) as px_total from sales_order_details d inner join sales_order_p p on p.sales_order_id = d.id inner join account_invoice i on i.id = p.invoice_id group by d.id) as px on px.id = o.x_dbic_link_id) "me" WHERE ( "id" = ? )>,
   # deliberate batshit insanity
   "SELECT foo FROM bar WHERE > 12",
 );
