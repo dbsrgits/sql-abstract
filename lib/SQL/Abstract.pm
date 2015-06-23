@@ -1675,7 +1675,7 @@ SQL::Abstract - Generate SQL from Perl data structures
 
     my $sql = SQL::Abstract->new;
 
-    my($stmt, @bind) = $sql->select($source, \@fields, \%where, \@order);
+    my($stmt, @bind) = $sql->select($source, \@fields, \%where, $order);
 
     my($stmt, @bind) = $sql->insert($table, \%fieldvals || \@values);
 
@@ -1688,7 +1688,7 @@ SQL::Abstract - Generate SQL from Perl data structures
     $sth->execute(@bind);
 
     # Just generate the WHERE clause
-    my($stmt, @bind) = $sql->where(\%where, \@order);
+    my($stmt, @bind) = $sql->where(\%where, $order);
 
     # Return values in the same order, for hashed queries
     # See PERFORMANCE section for more details
@@ -2153,7 +2153,7 @@ for details.
 This takes a table name and optional hashref L<WHERE clause|/WHERE CLAUSES>.
 It returns an SQL DELETE statement and list of bind values.
 
-=head2 where(\%where, \@order)
+=head2 where(\%where, $order)
 
 This is used to generate just the WHERE clause. For example,
 if you have an arbitrary data structure and know what the
@@ -2760,7 +2760,7 @@ This would create:
     @bind = ('10');
 
 Note that you must pass the bind values in the same format as they are returned
-by L<where|/where(\%where, \@order)>. This means that if you set L</bindtype>
+by L<where|/where(\%where, $order)>. This means that if you set L</bindtype>
 to C<columns>, you must provide the bind values in the
 C<< [ column_meta => value ] >> format, where C<column_meta> is an opaque
 scalar value; most commonly the column name, but you can use any scalar value
