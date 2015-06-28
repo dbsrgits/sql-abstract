@@ -110,7 +110,7 @@ my $sqlq = SQL::Abstract->new({quote_char => '`'});
 for my $case( @cases) {
   my ($stat, @bind);
 
-  ($stat, @bind) = $sql->_order_by($case->{given});
+  ($stat, @bind) = $sql->where(undef, $case->{given});
   is_same_sql_bind (
     $stat,
     \@bind,
@@ -118,7 +118,7 @@ for my $case( @cases) {
     $case->{bind} || [],
   );
 
-  ($stat, @bind) = $sqlq->_order_by($case->{given});
+  ($stat, @bind) = $sqlq->where(undef, $case->{given});
   is_same_sql_bind (
     $stat,
     \@bind,

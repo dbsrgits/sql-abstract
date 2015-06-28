@@ -488,7 +488,9 @@ sub where {
 
   # order by?
   if ($order) {
-    $sql .= $self->_order_by($order);
+    my ($order_sql, @order_bind) = $self->_order_by($order);
+    $sql .= $order_sql;
+    push @bind, @order_bind;
   }
 
   return wantarray ? ($sql, @bind) : $sql;
