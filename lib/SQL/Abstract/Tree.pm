@@ -1,32 +1,10 @@
 package SQL::Abstract::Tree;
 
-# DO NOT edit away without talking to riba first, he will just put it back
-# BEGIN pre-Moo2 import block
-BEGIN {
-  require warnings;
-  my $initial_fatal_bits = (${^WARNING_BITS}||'') & $warnings::DeadBits{all};
-
-  local $ENV{PERL_STRICTURES_EXTRA} = 0;
-  # load all of these now, so that lazy-loading does not escape
-  # the current PERL_STRICTURES_EXTRA setting
-  require Sub::Quote;
-  require Sub::Defer;
-  require Moo;
-  require Moo::Object;
-  require Method::Generate::Accessor;
-  require Method::Generate::Constructor;
-
-  Moo->import;
-  Sub::Quote->import('quote_sub');
-  ${^WARNING_BITS} &= ( $initial_fatal_bits | ~ $warnings::DeadBits{all} );
-}
-# END pre-Moo2 import block
-
-use strict;
-use warnings;
+use Moo;
 no warnings 'qw';
 
 use Carp;
+use Sub::Quote 'quote_sub';
 
 my $op_look_ahead = '(?: (?= [\s\)\(\;] ) | \z)';
 my $op_look_behind = '(?: (?<= [\,\s\)\(] ) | \A )';
