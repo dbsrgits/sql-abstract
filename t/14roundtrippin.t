@@ -30,6 +30,8 @@ my @sql = (
   "SELECT [me].[id], ROW_NUMBER() OVER (ORDER BY (SELECT 1)) AS [rno__row__index] FROM ( SELECT [me].[id] FROM [LogParents] [me]) [me]",
   # deliberate batshit insanity
   "SELECT foo FROM bar WHERE > 12",
+  'SELECT ilike_any_or FROM bar WHERE ( baz ILIKE ANY(?) OR bat ILIKE ANY(?) )',
+  'SELECT regexp_or FROM bar WHERE ( baz REGEXP ? OR bat REGEXP ? )',
 );
 
 # FIXME FIXME FIXME

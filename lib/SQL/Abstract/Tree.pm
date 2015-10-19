@@ -78,7 +78,7 @@ my $alphanum_cmp_op_re = join ("\n\t|\n", map
 );
 $alphanum_cmp_op_re = qr/$alphanum_cmp_op_re/x;
 
-my $binary_op_re = '(?: NOT \s+)? (?:' . join ('|', qw/IN BETWEEN R?LIKE/) . ')';
+my $binary_op_re = '(?: NOT \s+)? (?:' . join ('|', qw/IN BETWEEN [RI]?LIKE REGEXP/) . ')';
 $binary_op_re = join "\n\t|\n",
   "$op_look_behind (?i: $binary_op_re | AS ) $op_look_ahead",
   $alphanum_cmp_op_re,

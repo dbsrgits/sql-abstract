@@ -1,6 +1,7 @@
 Revision history for SQL::Abstract
 
     - Fix order clauses with bind parameters in ->where
+    - Teach ::Tree that ILIKE (PostgreSQL) and REGEXP (MySQL) are binary ops
 
 revision 1.81  2014-10-25
 ----------------------------
