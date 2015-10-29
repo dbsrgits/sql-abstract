@@ -39,6 +39,8 @@ my @sql = (
   'SELECT me.id, me.lsegcol FROM geomtest WHERE lsegcol \?-| ?',
   'SELECT me.id, me.lsegcol FROM geomtest WHERE lsegcol \?|| ?',
   'SELECT me.id, me.lsegcol FROM geomtest WHERE lsegcol \?# ?',
+  'SELECT textsearch FROM textsearchtest WHERE foo = ? AND textsearch @@ plainto_tsquery(?)',
+  'SELECT textsearch FROM textsearchtest WHERE foo = ? OR textsearch @@ plainto_tsquery(?)',
   # deliberate batshit insanity
   "SELECT foo FROM bar WHERE > 12",
 );
