@@ -1390,27 +1390,20 @@ sub _quote {
   return '' unless defined $_[1];
   return ${$_[1]} if ref($_[1]) eq 'SCALAR';
 
-  unless ($_[0]->{quote_char}) {
-    $_[0]->_assert_pass_injection_guard($_[1]);
-    return $_[1];
-  }
+  $_[0]->{quote_char} or
+    ($_[0]->_assert_pass_injection_guard($_[1]), return $_[1]);
 
   my $qref = ref $_[0]->{quote_char};
-  my ($l, $r);
-  if (!$qref) {
-    ($l, $r) = ( $_[0]->{quote_char}, $_[0]->{quote_char} );
-  }
-  elsif ($qref eq 'ARRAY') {
-    ($l, $r) = @{$_[0]->{quote_char}};
-  }
-  else {
-    puke "Unsupported quote_char format: $_[0]->{quote_char}";
-  }
+  my ($l, $r) =
+      !$qref             ? ($_[0]->{quote_char}, $_[0]->{quote_char})
+    : ($qref eq 'ARRAY') ? @{$_[0]->{quote_char}}
+    : puke "Unsupported quote_char format: $_[0]->{quote_char}";
+
   my $esc = $_[0]->{escape_char} || $r;
 
   # parts containing * are naturally unquoted
   return join( $_[0]->{name_sep}||'', map
-    { $_ eq '*' ? $_ : do { (my $n = $_) =~ s/(\Q$esc\E|\Q$r\E)/$esc$1/g; $l . $n . $r } }
+    +( $_ eq '*' ? $_ : do { (my $n = $_) =~ s/(\Q$esc\E|\Q$r\E)/$esc$1/g; $l . $n . $r } ),
     ( $_[0]->{name_sep} ? split (/\Q$_[0]->{name_sep}\E/, $_[1] ) : $_[1] )
   );
 }
