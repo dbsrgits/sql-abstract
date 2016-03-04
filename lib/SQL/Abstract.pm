@@ -1419,7 +1419,7 @@ sub _quote {
 
 
 # Conversion, if applicable
-sub _convert ($) {
+sub _convert {
   #my ($self, $arg) = @_;
   if ($_[0]->{convert}) {
     return $_[0]->_sqlcase($_[0]->{convert}) .'(' . $_[1] . ')';
@@ -1428,7 +1428,7 @@ sub _convert ($) {
 }
 
 # And bindtype
-sub _bindtype (@) {
+sub _bindtype {
   #my ($self, $col, @vals) = @_;
   # called often - tighten code
   return $_[0]->{bindtype} eq 'columns'
