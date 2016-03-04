@@ -128,10 +128,10 @@ my @tests = (
       },
       {
               func   => 'insert',
-              args   => ['test', [qw/1 2 3 4 5/]],
-              stmt   => 'INSERT INTO test VALUES (?, ?, ?, ?, ?)',
-              stmt_q => 'INSERT INTO `test` VALUES (?, ?, ?, ?, ?)',
-              bind   => [qw/1 2 3 4 5/],
+              args   => ['test', [1..30]],
+              stmt   => 'INSERT INTO test VALUES ('.join(', ', ('?')x30).')',
+              stmt_q => 'INSERT INTO `test` VALUES ('.join(', ', ('?')x30).')',
+              bind   => [1..30],
       },
       {
               func   => 'insert',

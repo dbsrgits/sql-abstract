@@ -264,13 +264,14 @@ sub _insert_ARRAYREF { # just generate values(?,?) part (no list of fields)
   $self->{bindtype} ne 'columns'
     or belch "can't do 'columns' bindtype when called with arrayref";
 
-  # fold the list of values into a hash of column name - value pairs
-  # (where the column names are artificially generated, and their
-  # lexicographical ordering keep the ordering of the original list)
-  my $i = "a";  # incremented values will be in lexicographical order
-  my $data_in_hash = { map { ($i++ => $_) } @$data };
-
-  return $self->_insert_values($data_in_hash);
+  my (@values, @all_bind);
+  foreach my $value (@$data) {
+    my ($values, @bind) = $self->_insert_value(undef, $value);
+    push @values, $values;
+    push @all_bind, @bind;
+  }
+  my $sql = $self->_sqlcase('values')." ( ".join(", ", @values)." )";
+  return ($sql, @all_bind);
 }
 
 sub _insert_ARRAYREFREF { # literal SQL with bind
@@ -294,52 +295,60 @@ sub _insert_values {
 
   my (@values, @all_bind);
   foreach my $column (sort keys %$data) {
-    my $v = $data->{$column};
+    my ($values, @bind) = $self->_insert_value($column, $data->{$column});
+    push @values, $values;
+    push @all_bind, @bind;
+  }
+  my $sql = $self->_sqlcase('values')." ( ".join(", ", @values)." )";
+  return ($sql, @all_bind);
+}
 
-    $self->_SWITCH_refkind($v, {
+sub _insert_value {
+  my ($self, $column, $v) = @_;
 
-      ARRAYREF => sub {
-        if ($self->{array_datatypes}) { # if array datatype are activated
-          push @values, '?';
-          push @all_bind, $self->_bindtype($column, $v);
-        }
-        else {                          # else literal SQL with bind
-          my ($sql, @bind) = @$v;
-          $self->_assert_bindval_matches_bindtype(@bind);
-          push @values, $sql;
-          push @all_bind, @bind;
-        }
-      },
+  my (@values, @all_bind);
+  $self->_SWITCH_refkind($v, {
 
-      ARRAYREFREF => sub { # literal SQL with bind
-        my ($sql, @bind) = @${$v};
+    ARRAYREF => sub {
+      if ($self->{array_datatypes}) { # if array datatype are activated
+        push @values, '?';
+        push @all_bind, $self->_bindtype($column, $v);
+      }
+      else {                  # else literal SQL with bind
+        my ($sql, @bind) = @$v;
         $self->_assert_bindval_matches_bindtype(@bind);
         push @values, $sql;
         push @all_bind, @bind;
-      },
+      }
+    },
 
-      # THINK : anything useful to do with a HASHREF ?
-      HASHREF => sub {  # (nothing, but old SQLA passed it through)
-        #TODO in SQLA >= 2.0 it will die instead
-        belch "HASH ref as bind value in insert is not supported";
-        push @values, '?';
-        push @all_bind, $self->_bindtype($column, $v);
-      },
+    ARRAYREFREF => sub {        # literal SQL with bind
+      my ($sql, @bind) = @${$v};
+      $self->_assert_bindval_matches_bindtype(@bind);
+      push @values, $sql;
+      push @all_bind, @bind;
+    },
 
-      SCALARREF => sub {  # literal SQL without bind
-        push @values, $$v;
-      },
+    # THINK : anything useful to do with a HASHREF ?
+    HASHREF => sub {       # (nothing, but old SQLA passed it through)
+      #TODO in SQLA >= 2.0 it will die instead
+      belch "HASH ref as bind value in insert is not supported";
+      push @values, '?';
+      push @all_bind, $self->_bindtype($column, $v);
+    },
 
-      SCALAR_or_UNDEF => sub {
-        push @values, '?';
-        push @all_bind, $self->_bindtype($column, $v);
-      },
+    SCALARREF => sub {          # literal SQL without bind
+      push @values, $$v;
+    },
 
-     });
+    SCALAR_or_UNDEF => sub {
+      push @values, '?';
+      push @all_bind, $self->_bindtype($column, $v);
+    },
 
-  }
+  });
 
-  my $sql = $self->_sqlcase('values')." ( ".join(", ", @values)." )";
+  my $sql = join(", ", @values);
   return ($sql, @all_bind);
 }
 
