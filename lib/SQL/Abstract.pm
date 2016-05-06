@@ -2904,13 +2904,12 @@ script.
 =head1 ORDER BY CLAUSES
 
 Some functions take an order by clause. This can either be a scalar (just a
-column name,) a hash of C<< { -desc => 'col' } >> or C<< { -asc => 'col' } >>,
-or an array of either of the two previous forms. Examples:
+column name), a hashref of C<< { -desc => 'col' } >> or C<< { -asc => 'col' }
+>>, a scalarref, an arrayref-ref, or an arrayref of any of the previous
+forms. Examples:
 
                Given            |         Will Generate
-    ----------------------------------------------------------
-                                |
-    \'colA DESC'                | ORDER BY colA DESC
+    ---------------------------------------------------------------
                                 |
     'colA'                      | ORDER BY colA
                                 |
@@ -2924,12 +2923,19 @@ or an array of either of the two previous forms. Examples:
                                 |
     { -asc => [qw/colA colB/] } | ORDER BY colA ASC, colB ASC
                                 |
+    \'colA DESC'                | ORDER BY colA DESC
+                                |
+    \[ 'FUNC(colA, ?)', $x ]    | ORDER BY FUNC(colA, ?)
+                                |   /* ...with $x bound to ? */
+                                |
     [                           |
       { -asc => 'colA' },       | ORDER BY colA ASC, colB DESC,
-      { -desc => [qw/colB/],    |          colC ASC, colD ASC
-      { -asc => [qw/colC colD/],|
+      { -desc => [qw/colB/],    |          colC ASC, colD ASC,
+      { -asc => [qw/colC colD/],|          colE DESC, FUNC(colF, ?)
+      \'colE DESC',             |   /* ...with $x bound to ? */
+      \[ 'FUNC(colF, ?)', $x ], |
     ]                           |
-    ===========================================================
+    ===============================================================
 
 
 
