@@ -2912,6 +2912,9 @@ or an array of either of the two previous forms. Examples:
                                 |
     \'colA DESC'                | ORDER BY colA DESC
                                 |
+    \[ 'FUNC(colA, ?)', $x ]    | ORDER BY FUNC(colA, ?)
+                                |   /* ...with $x bound to ? */
+                                |
     'colA'                      | ORDER BY colA
                                 |
     [qw/colA colB/]             | ORDER BY colA, colB
