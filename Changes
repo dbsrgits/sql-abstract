@@ -1,5 +1,7 @@
 Revision history for SQL::Abstract
 
+revision 1.81_01  2017-02-28
+----------------------------
     - Fix order clauses with bind parameters in ->where
     - Fix ->insert($table, \@values) with >26 values (RT#112684)
     - Teach ::Tree that ILIKE (PostgreSQL) and REGEXP (MySQL) are binary ops
