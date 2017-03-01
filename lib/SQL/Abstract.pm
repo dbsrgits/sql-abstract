@@ -2928,13 +2928,13 @@ forms. Examples:
     \[ 'FUNC(colA, ?)', $x ]      | ORDER BY FUNC(colA, ?)
                                   |   /* ...with $x bound to ? */
                                   |
-    [                             |
-      { -asc => 'colA' },         | ORDER BY colA ASC, colB DESC,
-      { -desc => [qw/colB/] },    |          colC ASC, colD ASC,
-      { -asc => [qw/colC colD/] },|          colE DESC, FUNC(colF, ?)
-      \'colE DESC',               |   /* ...with $x bound to ? */
-      \[ 'FUNC(colF, ?)', $x ],   |
-    ]                             |
+    [                             | ORDER BY
+      { -asc => 'colA' },         |     colA ASC,
+      { -desc => [qw/colB/] },    |     colB DESC,
+      { -asc => [qw/colC colD/] },|     colC ASC, colD ASC,
+      \'colE DESC',               |     colE DESC,
+      \[ 'FUNC(colF, ?)', $x ],   |     FUNC(colF, ?)
+    ]                             |   /* ...with $x bound to ? */
     ===============================================================
 
 
