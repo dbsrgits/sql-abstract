@@ -23,6 +23,8 @@ requires 'MRO::Compat'    => '0.12';
 requires 'Moo'            => '2.000001';
 requires 'Hash::Merge'    => '0.12';
 requires 'Text::Balanced' => '2.00';
+requires 'Sub::Quote'     => '0';
+requires 'DBIx::Class::Storage::Statistics' => '0';
 
 test_requires "Test::More"      => '0.88';
 test_requires "Test::Exception" => '0.31';
