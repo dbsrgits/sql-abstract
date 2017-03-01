@@ -2911,6 +2911,9 @@ forms. Examples:
                Given            |         Will Generate
     ---------------------------------------------------------------
                                 |
+    \[ 'FUNC(colA, ?)', $x ]    | ORDER BY FUNC(colA, ?)
+                                |   /* ...with $x bound to ? */
+                                |
     'colA'                      | ORDER BY colA
                                 |
     [qw/colA colB/]             | ORDER BY colA, colB
