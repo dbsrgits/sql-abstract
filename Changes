@@ -1,5 +1,7 @@
 Revision history for SQL::Abstract
 
+    - Add explicit dependency on Sub::Quote (GH#8)
+
 revision 1.81_01  2017-02-28
 ----------------------------
     - Fix order clauses with bind parameters in ->where

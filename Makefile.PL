@@ -21,6 +21,7 @@ requires 'Scalar::Util'   => '0';
 requires 'Exporter'       => '5.57';
 requires 'MRO::Compat'    => '0.12';
 requires 'Moo'            => '2.000001';
+requires 'Sub::Quote'     => '2.000001';
 requires 'Hash::Merge'    => '0.12';
 requires 'Text::Balanced' => '2.00';
 
