@@ -2908,33 +2908,33 @@ column name), a hashref of C<< { -desc => 'col' } >> or C<< { -asc => 'col' }
 >>, a scalarref, an arrayref-ref, or an arrayref of any of the previous
 forms. Examples:
 
-               Given            |         Will Generate
+               Given              |         Will Generate
     ---------------------------------------------------------------
-                                |
-    'colA'                      | ORDER BY colA
-                                |
-    [qw/colA colB/]             | ORDER BY colA, colB
-                                |
-    {-asc  => 'colA'}           | ORDER BY colA ASC
-                                |
-    {-desc => 'colB'}           | ORDER BY colB DESC
-                                |
-    ['colA', {-asc => 'colB'}]  | ORDER BY colA, colB ASC
-                                |
-    { -asc => [qw/colA colB/] } | ORDER BY colA ASC, colB ASC
-                                |
-    \'colA DESC'                | ORDER BY colA DESC
-                                |
-    \[ 'FUNC(colA, ?)', $x ]    | ORDER BY FUNC(colA, ?)
-                                |   /* ...with $x bound to ? */
-                                |
-    [                           |
-      { -asc => 'colA' },       | ORDER BY colA ASC, colB DESC,
-      { -desc => [qw/colB/],    |          colC ASC, colD ASC,
-      { -asc => [qw/colC colD/],|          colE DESC, FUNC(colF, ?)
-      \'colE DESC',             |   /* ...with $x bound to ? */
-      \[ 'FUNC(colF, ?)', $x ], |
-    ]                           |
+                                  |
+    'colA'                        | ORDER BY colA
+                                  |
+    [qw/colA colB/]               | ORDER BY colA, colB
+                                  |
+    {-asc  => 'colA'}             | ORDER BY colA ASC
+                                  |
+    {-desc => 'colB'}             | ORDER BY colB DESC
+                                  |
+    ['colA', {-asc => 'colB'}]    | ORDER BY colA, colB ASC
+                                  |
+    { -asc => [qw/colA colB/] }   | ORDER BY colA ASC, colB ASC
+                                  |
+    \'colA DESC'                  | ORDER BY colA DESC
+                                  |
+    \[ 'FUNC(colA, ?)', $x ]      | ORDER BY FUNC(colA, ?)
+                                  |   /* ...with $x bound to ? */
+                                  |
+    [                             |
+      { -asc => 'colA' },         | ORDER BY colA ASC, colB DESC,
+      { -desc => [qw/colB/] },    |          colC ASC, colD ASC,
+      { -asc => [qw/colC colD/] },|          colE DESC, FUNC(colF, ?)
+      \'colE DESC',               |   /* ...with $x bound to ? */
+      \[ 'FUNC(colF, ?)', $x ],   |
+    ]                             |
     ===============================================================
 
 
