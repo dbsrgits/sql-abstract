@@ -1,5 +1,7 @@
 Revision history for SQL::Abstract
 
+revision 1.82  2017-03-20
+-------------------------
     - Add explicit dependency on Sub::Quote (GH#8)
     - Fix syntax errors in ORDER BY docs (GH#7)
 
