@@ -595,6 +595,27 @@ my @tests = (
               stmt_q => 'UPDATE `mytable` SET `foo` = ? WHERE `baz` = ? RETURNING `id`, `created_at`',
               bind => [42, 32],
       },
+      {
+              func   => 'delete',
+              args   => ['test', {requestor => undef}, {returning => 'id'}],
+              stmt   => 'DELETE FROM test WHERE ( requestor IS NULL ) RETURNING id',
+              stmt_q => 'DELETE FROM `test` WHERE ( `requestor` IS NULL ) RETURNING `id`',
+              bind   => []
+      },
+      {
+              func   => 'delete',
+              args   => ['test', {requestor => undef}, {returning => \'*'}],
+              stmt   => 'DELETE FROM test WHERE ( requestor IS NULL ) RETURNING *',
+              stmt_q => 'DELETE FROM `test` WHERE ( `requestor` IS NULL ) RETURNING *',
+              bind   => []
+      },
+      {
+              func   => 'delete',
+              args   => ['test', {requestor => undef}, {returning => ['id', 'created_at']}],
+              stmt   => 'DELETE FROM test WHERE ( requestor IS NULL ) RETURNING id, created_at',
+              stmt_q => 'DELETE FROM `test` WHERE ( `requestor` IS NULL ) RETURNING `id`, `created_at`',
+              bind   => []
+      },
 );
 
 # check is( not) => undef

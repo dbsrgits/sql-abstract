@@ -472,13 +472,22 @@ sub delete {
   my $self  = shift;
   my $table = $self->_table(shift);
   my $where = shift;
-
+  my $options = shift;
 
   my($where_sql, @bind) = $self->where($where);
   my $sql = $self->_sqlcase('delete from') . " $table" . $where_sql;
 
+  if ($options->{returning}) {
+    my ($returning_sql, @returning_bind) = $self->_delete_returning ($options);
+    $sql .= $returning_sql;
+    push @bind, @returning_bind;
+  }
+
   return wantarray ? ($sql, @bind) : $sql;
 }
+
+sub _delete_returning { shift->_returning(@_) }
+
 
 
 #======================================================================
@@ -2150,10 +2159,23 @@ for details.
 =back
 
 
-=head2 delete($table, \%where)
+=head2 delete($table, \%where, \%options)
 
 This takes a table name and optional hashref L<WHERE clause|/WHERE CLAUSES>.
 It returns an SQL DELETE statement and list of bind values.
+
+The optional C<\%options> hash reference may contain additional
+options to generate the delete SQL. Currently supported options
+are:
+
+=over 4
+
+=item returning
+
+See the C<returning> option to
+L<insert|/insert($table, \@values || \%fieldvals, \%options)>.
+
+=back
 
 =head2 where(\%where, $order)
 
@@ -3269,4 +3291,3 @@ terms as perl itself (either the GNU General Public License or
 the Artistic License)
 
 =cut
-
