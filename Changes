@@ -1,5 +1,6 @@
 Revision history for SQL::Abstract
 
+1.84 - 2017-04-03
     - Restore 'dynamic_config => 0' missed in the Distar port
 
 1.83 - 2017-04-03
