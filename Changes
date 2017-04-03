@@ -1,6 +1,7 @@
 Revision history for SQL::Abstract
 
     - Support for DELETE ... RETURNING (GH#9)
+    - Port to Distar
 
 revision 1.82  2017-03-20
 -------------------------

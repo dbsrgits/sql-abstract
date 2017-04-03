@@ -1,41 +1,106 @@
-use inc::Module::Install 1.06;
 use strict;
-use warnings;
-
+use warnings FATAL => 'all';
 use 5.006;
 
-perl_version '5.006';
-name 'SQL-Abstract';
-author 'Nathan Wiger <nate@wiger.org>';
-resources 'license'     => 'http://dev.perl.org/licenses/';
-resources 'repository'  => 'https://github.com/dbsrgits/sql-abstract/';
-resources 'bugtracker'  => 'http://rt.cpan.org/NoAuth/Bugs.html?Dist=SQL-Abstract';
-resources 'IRC'         => 'irc://irc.perl.org/#dbix-class';
+my %META = (
+  name => 'SQL-Abstract',
+  license => 'perl_5',
+  prereqs => {
+    configure => {
+      requires => {
+        'ExtUtils::MakeMaker'   => 0,
+      }
+    },
+    build => {
+      requires => {}
+    },
+    test => {
+      requires => {
+        "Test::More"      => '0.88',
+        "Test::Exception" => '0.31',
+        "Test::Warn"      => '0',
+        "Test::Deep"      => '0.101',
+        "Storable"        => '0', # for cloning in tests
+      },
+    },
+    runtime => {
+      requires => {
+        'List::Util'     => '0',
+        'Scalar::Util'   => '0',
+        'Exporter'       => '5.57',
+        'MRO::Compat'    => '0.12',
+        'Moo'            => '2.000001',
+        'Sub::Quote'     => '2.000001',
+        'Hash::Merge'    => '0.12',
+        'Text::Balanced' => '2.00',
+      },
+    },
+    develop   => {
+      requires => {},
+    },
+  },
+  resources => {
+    repository => {
+      url => 'https://github.com/dbsrgits/sql-abstract.git',
+      web => 'https://github.com/dbsrgits/sql-abstract',
+      type => 'git',
+    },
+    x_IRC => 'irc://irc.perl.org/#dbix-class',
+    bugtracker => {
+      web => 'https://rt.cpan.org/Public/Dist/Display.html?Name=SQL-Abstract',
+      mailto => 'bug-SQL-Abstract@rt.cpan.org',
+    },
+    license => [ 'http://dev.perl.org/licenses/' ],
+  },
+  no_index => {
+    package => 'DBIx::Class::Storage::Debug::PrettyPrint',
+    directory => [ 't', 'xt', 'examples' ],
+  },
+);
 
-all_from 'lib/SQL/Abstract.pm';
+my %MM_ARGS = (
+  test => { TESTS => 't/*.t t/*/*.t' },
+);
 
-dynamic_config 0;
+## BOILERPLATE ###############################################################
+require ExtUtils::MakeMaker;
+(do './maint/Makefile.PL.include' or die $@) unless -f 'META.yml';
 
-requires 'List::Util'     => '0';
-requires 'Scalar::Util'   => '0';
-requires 'Exporter'       => '5.57';
-requires 'MRO::Compat'    => '0.12';
-requires 'Moo'            => '2.000001';
-requires 'Sub::Quote'     => '2.000001';
-requires 'Hash::Merge'    => '0.12';
-requires 'Text::Balanced' => '2.00';
+# have to do this since old EUMM dev releases miss the eval $VERSION line
+my $eumm_version  = eval $ExtUtils::MakeMaker::VERSION;
+my $mymeta        = $eumm_version >= 6.57_02;
+my $mymeta_broken = $mymeta && $eumm_version < 6.57_07;
 
-test_requires "Test::More"      => '0.88';
-test_requires "Test::Exception" => '0.31';
-test_requires "Test::Warn"      => '0';
-test_requires "Test::Deep"      => '0.101';
-test_requires "Storable"        => '0';   # for cloning in tests
+($MM_ARGS{NAME} = $META{name}) =~ s/-/::/g;
+($MM_ARGS{VERSION_FROM} = "lib/$MM_ARGS{NAME}.pm") =~ s{::}{/}g;
+$META{license} = [ $META{license} ]
+  if $META{license} && !ref $META{license};
+$MM_ARGS{LICENSE} = $META{license}[0]
+  if $META{license} && $eumm_version >= 6.30;
+$MM_ARGS{NO_MYMETA} = 1
+  if $mymeta_broken;
+$MM_ARGS{META_ADD} = { 'meta-spec' => { version => 2 }, %META }
+  unless -f 'META.yml';
 
-no_index package => 'DBIx::Class::Storage::Debug::PrettyPrint';
-no_index directory => 'examples';
+for (qw(configure build test runtime)) {
+  my $key = $_ eq 'runtime' ? 'PREREQ_PM' : uc $_.'_REQUIRES';
+  my $r = $MM_ARGS{$key} = {
+    %{$META{prereqs}{$_}{requires} || {}},
+    %{delete $MM_ARGS{$key} || {}},
+  };
+  defined $r->{$_} or delete $r->{$_} for keys %$r;
+}
 
-tests_recursive 't';
+$MM_ARGS{MIN_PERL_VERSION} = delete $MM_ARGS{PREREQ_PM}{perl} || 0;
 
-auto_install();
+delete $MM_ARGS{MIN_PERL_VERSION}
+  if $eumm_version < 6.47_01;
+$MM_ARGS{BUILD_REQUIRES} = {%{$MM_ARGS{BUILD_REQUIRES}}, %{delete $MM_ARGS{TEST_REQUIRES}}}
+  if $eumm_version < 6.63_03;
+$MM_ARGS{PREREQ_PM} = {%{$MM_ARGS{PREREQ_PM}}, %{delete $MM_ARGS{BUILD_REQUIRES}}}
+  if $eumm_version < 6.55_01;
+delete $MM_ARGS{CONFIGURE_REQUIRES}
+  if $eumm_version < 6.51_03;
 
-WriteAll();
+ExtUtils::MakeMaker::WriteMakefile(%MM_ARGS);
+## END BOILERPLATE ###########################################################

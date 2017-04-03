@@ -1,14 +1,13 @@
-Build
 MANIFEST
 MANIFEST.bak
+MANIFEST.SKIP
 META.*
 MYMETA.*
 Makefile
 Makefile.old
 README
-_build/
 blib/
-inc/
+Distar/
 pm_to_blib
 .#*
 \#*#
