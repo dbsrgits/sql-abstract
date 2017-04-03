@@ -3,12 +3,9 @@ use strict;
 
 use Test::More;
 use File::Glob 'bsd_glob';
-use lib 't/lib';
 
-eval "use Test::EOL 1.0 ()";
-plan skip_all => 'Test::EOL 1.0 required' if $@;
-eval "use Test::NoTabs 0.9 ()";
-plan skip_all => 'Test::NoTabs 0.9 required' if $@;
+use Test::EOL 1.0 ();
+use Test::NoTabs 0.9 ();
 
 # FIXME - temporary workaround for RT#82032, RT#82033
 # also add all scripts (no extension) and some extra extensions

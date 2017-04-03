@@ -38,7 +38,13 @@ my %META = (
       },
     },
     develop   => {
-      requires => {},
+      requires => {
+        'Test::Pod'           => '1.14',
+        'Test::Pod::Coverage' => '1.04',
+        'Pod::Coverage'       => '0.19',
+        'Test::EOL'           => '1.0',
+        'Test::NoTabs'        => '0.9',
+      },
     },
   },
   resources => {
