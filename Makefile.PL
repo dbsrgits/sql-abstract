@@ -34,6 +34,7 @@ my %META = (
         'Sub::Quote'     => '2.000001',
         'Hash::Merge'    => '0.12',
         'Text::Balanced' => '2.00',
+        'perl'           => '5.006',
       },
     },
     develop   => {
