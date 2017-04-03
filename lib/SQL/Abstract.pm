@@ -227,7 +227,8 @@ sub insert {
   return wantarray ? ($sql, @bind) : $sql;
 }
 
-# Used by DBIx::Class::SQLMaker->insert
+# So that subclasses can override INSERT ... RETURNING separately from
+# UPDATE and DELETE (e.g. DBIx::Class::SQLMaker::Oracle does this)
 sub _insert_returning { shift->_returning(@_) }
 
 sub _returning {
@@ -436,6 +437,8 @@ sub update {
   return wantarray ? ($sql, @all_bind) : $sql;
 }
 
+# So that subclasses can override UPDATE ... RETURNING separately from
+# INSERT and DELETE
 sub _update_returning { shift->_returning(@_) }
 
 
@@ -486,6 +489,8 @@ sub delete {
   return wantarray ? ($sql, @bind) : $sql;
 }
 
+# So that subclasses can override DELETE ... RETURNING separately from
+# INSERT and UPDATE
 sub _delete_returning { shift->_returning(@_) }
 
 
