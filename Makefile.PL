@@ -5,6 +5,7 @@ use 5.006;
 my %META = (
   name => 'SQL-Abstract',
   license => 'perl_5',
+  dynamic_config => 0,
   prereqs => {
     configure => {
       requires => {
