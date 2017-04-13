@@ -14,7 +14,7 @@ for my $col_btype (0,1) {
     $col_btype ? (bindtype => 'columns') : (),
   );
 
-  my ($sql, @bind) = $sql_maker->select ('artist', '*', { arr1 => { -value => [1,2] }, arr2 => { '>', { -value => [3,4] } }, field => [5,6] } );
+  my ($sql, @bind) = $sql_maker->select('artist', '*', { arr1 => { -value => [1,2] }, arr2 => { '>', { -value => [3,4] } }, field => [5,6] } );
 
   is_same_sql_bind (
     $sql,
@@ -44,7 +44,7 @@ for my $col_btype (0,1) {
   {
     local $SIG{__WARN__} = sub { warn @_ unless $_[0] =~ /Supplying an undefined argument to '(?:NOT )?LIKE'/ };
 
-    ($sql, @bind) = $sql_maker->where ({
+    ($sql, @bind) = $sql_maker->where({
       c1 => undef,
       c2 => { -value => undef },
       c3 => { '=' => { -value => undef } },

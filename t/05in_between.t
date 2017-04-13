@@ -296,7 +296,7 @@ for my $case (@in_between_tests) {
     local $SQL::Abstract::Test::parenthesis_significant = $case->{parenthesis_significant};
     my $label = $case->{test} || 'in-between test';
 
-    my $sql = SQL::Abstract->new ($case->{args} || {});
+    my $sql = SQL::Abstract->new($case->{args} || {});
 
     if (my $e = $case->{throws}) {
       my $stmt;

@@ -73,7 +73,7 @@ sub print {
 sub query_start {
   my ($self, $string, @bind) = @_;
 
-  if(defined $self->callback) {
+  if (defined $self->callback) {
     $string =~ m/^(\w+)/;
     $self->callback->($1, "$string: ".join(', ', @bind)."\n");
     return;

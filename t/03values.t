@@ -74,7 +74,7 @@ for my $record (@data) {
   is ( $h_stmt, $insert_hash, 'Hash-based insert statement unchanged' );
 
   is_deeply ( \@a_bind, \@h_bind, 'Bind values match after both insert() calls' );
-  is_deeply ( [$h_sql->values ($record)] , \@h_bind, 'values() output matches bind values after insert()' );
+  is_deeply ( [$h_sql->values($record)] , \@h_bind, 'values() output matches bind values after insert()' );
 
   is ( scalar @h_bind, $numfields, 'Number of fields unchanged' );
 }
@@ -99,7 +99,7 @@ for my $record (@data) {
     zzlast => 'zzstuff',
   };
 
-  my ($stmt, @bind) = $sql->insert ('table', $data);
+  my ($stmt, @bind) = $sql->insert('table', $data);
 
   is_same_sql_bind (
     $stmt,
@@ -109,7 +109,7 @@ for my $record (@data) {
   );
 
   is_same_bind (
-    [$sql->values ($data)],
+    [$sql->values($data)],
     [@bind],
     'values() output matches that of initial bind'
   ) || diag "Corresponding SQL statement: $stmt";

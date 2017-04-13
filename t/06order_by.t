@@ -107,7 +107,7 @@ my @cases =
 my $sql  = SQL::Abstract->new;
 my $sqlq = SQL::Abstract->new({quote_char => '`'});
 
-for my $case( @cases) {
+for my $case (@cases) {
   my ($stat, @bind);
 
   ($stat, @bind) = $sql->where(undef, $case->{given});

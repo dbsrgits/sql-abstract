@@ -17,7 +17,7 @@ for my $q ('', '"') {
     $sql_maker->where({ foo => { -ident => undef } })
   } qr/-ident requires a single plain scalar argument/;
 
-  my ($sql, @bind) = $sql_maker->select ('artist', '*', { 'artist.name' => { -ident => 'artist.pseudonym' } } );
+  my ($sql, @bind) = $sql_maker->select('artist', '*', { 'artist.name' => { -ident => 'artist.pseudonym' } } );
   is_same_sql_bind (
     $sql,
     \@bind,
@@ -28,7 +28,7 @@ for my $q ('', '"') {
     [],
   );
 
-  ($sql, @bind) = $sql_maker->update ('artist',
+  ($sql, @bind) = $sql_maker->update('artist',
     { 'artist.name' => { -ident => 'artist.pseudonym' } },
     { 'artist.name' => { '!=' => { -ident => 'artist.pseudonym' } } },
   );

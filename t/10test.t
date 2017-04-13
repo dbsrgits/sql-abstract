@@ -972,7 +972,7 @@ my @bind_tests = (
   },
 );
 
-for my $test ( @sql_tests ) {
+for my $test (@sql_tests) {
 
   # this does not work on 5.8.8 and earlier :(
   #local @{*SQL::Abstract::Test::}{keys %{$test->{opts}}} = map { \$_ } values %{$test->{opts}}

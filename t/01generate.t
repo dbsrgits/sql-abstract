@@ -4,7 +4,7 @@ use Test::More;
 use Test::Warn;
 use Test::Exception;
 
-use SQL::Abstract::Test import => [qw( is_same_sql_bind diag_where dumper )];
+use SQL::Abstract::Test import => [qw(is_same_sql_bind diag_where dumper)];
 
 use SQL::Abstract;
 
@@ -619,7 +619,7 @@ my @tests = (
 );
 
 # check is( not) => undef
-for my $op ( qw(not is is_not), 'is not' ) {
+for my $op (qw(not is is_not), 'is not') {
   (my $sop = uc $op) =~ s/_/ /gi;
 
   $sop = 'IS NOT' if $sop eq 'NOT';
@@ -638,7 +638,7 @@ for my $op ( qw(not is is_not), 'is not' ) {
 }
 
 # check single-element inequality ops for no warnings
-for my $op ( qw(!= <>) ) {
+for my $op (qw(!= <>)) {
   for my $val (undef, 42) {
     push @tests, {
       func => 'where',
@@ -674,7 +674,7 @@ for my $op (qw(not_like not_rlike), 'not like', 'not rlike', 'is not like','is n
 }
 
 # check all multi-element inequality/not-like ops for warnings
-for my $op ( qw(!= <> not_like not_rlike), 'not like', 'not rlike', 'is not like','is not rlike') {
+for my $op (qw(!= <> not_like not_rlike), 'not like', 'not rlike', 'is not like','is not rlike') {
   (my $sop = uc $op) =~ s/_/ /gi;
 
   push @tests, {
@@ -688,7 +688,7 @@ for my $op ( qw(!= <> not_like not_rlike), 'not like', 'not rlike', 'is not like
 }
 
 # check all like/not-like ops for empty-arrayref warnings
-for my $op ( qw(like rlike not_like not_rlike), 'not like', 'not rlike', 'is like', 'is not like', 'is rlike', 'is not rlike') {
+for my $op (qw(like rlike not_like not_rlike), 'not like', 'not rlike', 'is like', 'is not like', 'is rlike', 'is not rlike') {
   (my $sop = uc $op) =~ s/_/ /gi;
 
   push @tests, {
@@ -840,20 +840,20 @@ for my $t (@tests) {
 
     my $cref = sub {
       my $op = $t->{func};
-      ($stmt, @bind) = $maker->$op (@ { $t->{args} } );
+      ($stmt, @bind) = $maker->$op(@{ $t->{args} });
     };
 
     if (my $e = $t->{throws}) {
       throws_ok(
         sub { $cref->() },
         $e,
-      ) || diag dumper ({ args => $t->{args}, result => $stmt });
+      ) || diag dumper({ args => $t->{args}, result => $stmt });
     }
     else {
       warnings_like(
         sub { $cref->() },
         $t->{warns} || [],
-      ) || diag dumper ({ args => $t->{args}, result => $stmt });
+      ) || diag dumper({ args => $t->{args}, result => $stmt });
 
       is_same_sql_bind(
         $stmt,

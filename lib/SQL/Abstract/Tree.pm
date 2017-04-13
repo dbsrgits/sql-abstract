@@ -340,7 +340,7 @@ sub _recurse_parse {
   my @left;
   while (1) { # left-associative parsing
 
-    if ( ! @$tokens
+    if (! @$tokens
           or
         ($state == PARSE_IN_PARENS && $tokens->[0] eq ')')
           or
@@ -418,19 +418,19 @@ sub _recurse_parse {
     }
 
     # unary op keywords
-    elsif ( $token =~ $unary_op_re ) {
+    elsif ($token =~ $unary_op_re) {
       my $op = uc $token;
 
       # normalize RNO explicitly
       $op = 'ROW_NUMBER() OVER' if $op =~ /^$rno_re$/;
 
-      my @right = $self->_recurse_parse ($tokens, PARSE_RHS);
+      my @right = $self->_recurse_parse($tokens, PARSE_RHS);
 
       push @left, [ $op => \@right ];
     }
 
     # expression terminator keywords
-    elsif ( $token =~ $expr_start_re ) {
+    elsif ($token =~ $expr_start_re) {
       my $op = uc $token;
       my @right = $self->_recurse_parse($tokens, PARSE_IN_EXPR);
 
@@ -438,7 +438,7 @@ sub _recurse_parse {
     }
 
     # a '?'
-    elsif ( $token =~ $placeholder_re) {
+    elsif ($token =~ $placeholder_re) {
       push @left, [ -PLACEHOLDER => [ $token ] ];
     }
 
@@ -462,7 +462,7 @@ sub _recurse_parse {
             and
           $tokens->[0] !~ $all_std_keywords_re
             and
-          ! ( @$tokens > 1 and $tokens->[1] eq '(' )
+          ! (@$tokens > 1 and $tokens->[1] eq '(')
         ) {
           push @lits, [ -LITERAL => [ shift @$tokens ] ];
         }

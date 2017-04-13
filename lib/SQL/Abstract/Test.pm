@@ -28,7 +28,7 @@ sub _unpack_arrayrefref {
   for (1,2) {
     my $chunk = shift @_;
 
-    if ( ref $chunk eq 'REF' and ref $$chunk eq 'ARRAY' ) {
+    if (ref $chunk eq 'REF' and ref $$chunk eq 'ARRAY') {
       my ($sql, @bind) = @$$chunk;
       push @args, ($sql, \@bind);
     }
@@ -112,14 +112,14 @@ sub dumper {
 }
 
 sub diag_where{
-  $tb->diag( "Search term:\n" . &dumper );
+  $tb->diag("Search term:\n" . &dumper);
 }
 
 sub _sql_differ_diag {
   my $sql1 = shift || '';
   my $sql2 = shift || '';
 
-  $tb->${\( $tb->in_todo ? 'note' : 'diag')} (
+  $tb->${\($tb->in_todo ? 'note' : 'diag')} (
        "SQL expressions differ\n"
       ." got: $sql1\n"
       ."want: $sql2\n"
@@ -130,7 +130,7 @@ sub _sql_differ_diag {
 sub _bind_differ_diag {
   my ($bind_ref1, $bind_ref2) = @_;
 
-  $tb->${\( $tb->in_todo ? 'note' : 'diag')} (
+  $tb->${\($tb->in_todo ? 'note' : 'diag')} (
     "BIND values differ " . dumper({ got => $bind_ref1, want => $bind_ref2 })
   );
 }
@@ -159,8 +159,8 @@ sub _eq_sql {
   my ($left, $right) = @_;
 
   # one is defined the other not
-  if ( (defined $left) xor (defined $right) ) {
-    $sql_differ = sprintf ("[%s] != [%s]\n", map { defined $_ ? $sqlat->unparse ($_) : 'N/A' } ($left, $right) );
+  if ((defined $left) xor (defined $right)) {
+    $sql_differ = sprintf ("[%s] != [%s]\n", map { defined $_ ? $sqlat->unparse($_) : 'N/A' } ($left, $right) );
     return 0;
   }
 
@@ -176,14 +176,14 @@ sub _eq_sql {
 
   # one is empty
   if (@$left == 0 or @$right == 0) {
-    $sql_differ = sprintf ("left: %s\nright: %s\n", map { @$_ ? $sqlat->unparse ($_) : 'N/A'} ($left, $right) );
+    $sql_differ = sprintf ("left: %s\nright: %s\n", map { @$_ ? $sqlat->unparse($_) : 'N/A'} ($left, $right) );
     return 0;
   }
 
   # one is a list, the other is an op with a list
   elsif (ref $left->[0] xor ref $right->[0]) {
     $sql_differ = sprintf ("[%s] != [%s]\nleft: %s\nright: %s\n", map
-      { ref $_ ? $sqlat->unparse ($_) : $_ }
+      { ref $_ ? $sqlat->unparse($_) : $_ }
       ($left->[0], $right->[0], $left, $right)
     );
     return 0;
@@ -196,7 +196,7 @@ sub _eq_sql {
         if (! $sql_differ or $sql_differ !~ /left\:\s .+ right:\s/xs) {
           $sql_differ ||= '';
           $sql_differ .= "\n" unless $sql_differ =~ /\n\z/;
-          $sql_differ .= sprintf ("left: %s\nright: %s\n", map { $sqlat->unparse ($_) } ($left, $right) );
+          $sql_differ .= sprintf ("left: %s\nright: %s\n", map { $sqlat->unparse($_) } ($left, $right) );
         }
         return 0;
       }
@@ -208,7 +208,7 @@ sub _eq_sql {
   else {
 
     # unroll parenthesis if possible/allowed
-    unless ( $parenthesis_significant ) {
+    unless ($parenthesis_significant) {
       $sqlat->_parenthesis_unroll($_) for $left, $right;
     }
 
@@ -217,7 +217,7 @@ sub _eq_sql {
       $sqlat->_strip_asc_from_order_by($_) for $left, $right;
     }
 
-    if ( $left->[0] ne $right->[0] ) {
+    if ($left->[0] ne $right->[0]) {
       $sql_differ = sprintf "OP [$left->[0]] != [$right->[0]] in\nleft: %s\nright: %s\n",
         $sqlat->unparse($left),
         $sqlat->unparse($right)
@@ -237,7 +237,7 @@ sub _eq_sql {
     # if operators are identical, compare operands
     else {
       my $eq = _eq_sql($left->[1], $right->[1]);
-      $sql_differ ||= sprintf ("left: %s\nright: %s\n", map { $sqlat->unparse ($_) } ($left, $right) ) if not $eq;
+      $sql_differ ||= sprintf ("left: %s\nright: %s\n", map { $sqlat->unparse($_) } ($left, $right) ) if not $eq;
       return $eq;
     }
   }

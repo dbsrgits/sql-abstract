@@ -382,7 +382,7 @@ for my $case (@and_or_tests) {
   TODO: {
     local $TODO = $case->{todo} if $case->{todo};
 
-    my $sql = SQL::Abstract->new ($case->{args} || {});
+    my $sql = SQL::Abstract->new($case->{args} || {});
 
     my $where_copy = dclone($case->{where});
 
@@ -406,7 +406,7 @@ for my $case (@nest_tests) {
 
     local $SQL::Abstract::Test::parenthesis_significant = 1;
 
-    my $sql = SQL::Abstract->new ($case->{args} || {});
+    my $sql = SQL::Abstract->new($case->{args} || {});
     lives_ok (sub {
       my ($stmt, @bind) = $sql->where($case->{where});
       is_same_sql_bind(
@@ -427,7 +427,7 @@ for my $case (@numbered_mods) {
     my @w;
     local $SIG{__WARN__} = sub { push @w, @_ };
 
-    my $sql = SQL::Abstract->new ($case->{args} || {});
+    my $sql = SQL::Abstract->new($case->{args} || {});
     {
       my ($old_s, @old_b) = $sql->where($case->{backcompat});
       my ($new_s, @new_b) = $sql->where($case->{correct});
