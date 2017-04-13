@@ -1161,7 +1161,7 @@ sub _where_field_BETWEEN {
            },
            HASHREF => sub {
              my ($func, $arg, @rest) = %$val;
-             puke ("Only simple { -func => arg } functions accepted as sub-arguments to BETWEEN")
+             puke "Only simple { -func => arg } functions accepted as sub-arguments to BETWEEN"
                if (@rest or $func !~ /^ \- (.+)/x);
              $self->_where_unary_op ($1 => $arg);
            },
@@ -1218,7 +1218,7 @@ sub _where_field_IN {
             },
             HASHREF => sub {
               my ($func, $arg, @rest) = %$val;
-              puke ("Only simple { -func => arg } functions accepted as sub-arguments to IN")
+              puke "Only simple { -func => arg } functions accepted as sub-arguments to IN"
                 if (@rest or $func !~ /^ \- (.+)/x);
               $self->_where_unary_op ($1 => $arg);
             },
