@@ -75,6 +75,13 @@ my @tests = (
               bind   => ['boom']
       },
       {
+              func   => 'select_for_update',
+              args   => ['test', '*'],
+              stmt   => 'SELECT * FROM test FOR UPDATE',
+              stmt_q => 'SELECT * FROM `test` FOR UPDATE',
+              bind   => []
+      },
+      {
               func   => 'update',
               args   => ['test', {a => 'boom'}, {a => undef}],
               stmt   => 'UPDATE test SET a = ? WHERE ( a IS NULL )',
