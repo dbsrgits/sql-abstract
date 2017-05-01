@@ -42,6 +42,8 @@ my @BUILTIN_SPECIAL_OPS = (
   {regex => qr/^ ident                 $/ix, handler => '_where_op_IDENT'},
   {regex => qr/^ value                 $/ix, handler => '_where_op_VALUE'},
   {regex => qr/^ is (?: \s+ not )?     $/ix, handler => '_where_field_IS'},
+  {regex => qr/^ (?: not \s )? any     $/ix, handler => '_where_field_ANY'},
+  {regex   => qr/^ (?: not \s )? inhstore     $/ix,handler => '_where_field_INHSTORE'},
 );
 
 # unaryish operators - key maps to handler
@@ -1271,6 +1273,45 @@ sub _where_field_IN {
   });
 
   return ($sql, @bind);
+}
+
+#-----------------------------------------------------------------------------------------------------------------------#
+# CUSTOM METHOD: _where_field_ANY                                                                                       #
+#                                                                                                                       #
+# USAGE: $model('XYZ')->search({'Group' => { -any => 'Prepay' }})                                                       #
+# Credited to : Adam Witney                                                                                             #
+# Source: http://dbix-class.35028.n2.nabble.com/Does-DBIx-Class-support-postgresql-arrays-and-ANY-syntax-td2340448.html #
+#-----------------------------------------------------------------------------------------------------------------------#
+sub _where_field_ANY
+{
+	my ($self, $field, $op, $arg) = @_;
+	$arg = [$arg] if not ref $arg;
+
+	my $label         = $self->_quote($field);
+	my ($placeholder) = $self->_convert('?');
+	my $sql           = $placeholder . " = " . $self->_sqlcase('any') . "($label) ";
+	my @bind          = $self->_bindtype($field, @$arg);
+
+	return ($sql, @bind);
+}
+
+#--------------------------------------------------------------------------------------
+# CUSTOM METHOD: _where_field_INHSTORE
+#
+# USAGE: $model('XYZ')->search({'Name' => { -inhstore => ['en-us', 'Low Balance'] }})
+#--------------------------------------------------------------------------------------
+sub _where_field_INHSTORE
+{
+	my ($self, $field, $op, $arg) = @_;
+	$arg = [$arg] if not ref $arg;
+
+	my $label         = $self->_quote($field);
+	my ($placeholder) = $self->_convert('?');
+	my $key           = "'" . $arg->[0] . "'";
+	my $sql           = "$label->" . $key . " = " . $placeholder;
+	my @bind          = $self->_bindtype($field, $arg->[1]);
+
+	return ($sql, @bind);
 }
 
 # Some databases (SQLite) treat col IN (1, 2) different from
