@@ -616,6 +616,27 @@ my @tests = (
               stmt_q => 'DELETE FROM `test` WHERE ( `requestor` IS NULL ) RETURNING `id`, `created_at`',
               bind   => []
       },
+      {
+              func   => 'select',
+              args   => [\['my_srf(?)', 42], [qw(foo bar)], {foo => 37}],
+              stmt   => 'select foo, bar from my_srf(?) where foo = ?',
+              stmt_q => 'select `foo`, `bar` from my_srf(?) where `foo` = ?',
+              bind   => [42, 37],
+      },
+      {
+              func   => 'delete',
+              args   => [\['my_srf(?)', 42], {foo => 37}],
+              stmt   => 'delete from my_srf(?) where foo = ?',
+              stmt_q => 'delete from my_srf(?) where `foo` = ?',
+              bind   => [42, 37],
+      },
+      {
+              func   => 'update',
+              args   => [\['my_srf(?)', 42], {foo => 37}, {bar => 53}],
+              stmt   => 'update my_srf(?) set foo = ? where bar = ?',
+              stmt_q => 'update my_srf(?) set `foo` = ? where `bar` = ?',
+              bind   => [42, 37, 53],
+      },
 );
 
 # check is( not) => undef
