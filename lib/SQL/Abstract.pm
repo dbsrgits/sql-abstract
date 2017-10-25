@@ -2017,7 +2017,7 @@ The parameter default in case of a single L</quote_char> character is the quote
 character itself.
 
 When opening-closing-style quoting is used (L</quote_char> is an arrayref)
-this parameter defaults to the B<closing (right)> L</quote_char>. Occurences
+this parameter defaults to the B<closing (right)> L</quote_char>. Occurrences
 of the B<opening (left)> L</quote_char> within the identifier are currently left
 untouched. The default for opening-closing-style quotes may change in future
 versions, thus you are B<strongly encouraged> to specify the escape character
@@ -2250,7 +2250,7 @@ module:
 
 =back
 
-On failure returns C<undef>, on sucess returns a B<scalar> reference
+On failure returns C<undef>, on success returns a B<scalar> reference
 to the original supplied argument.
 
 =over
@@ -2308,7 +2308,7 @@ module:
 
 =back
 
-On failure returns C<undef>, on sucess returns an B<array> reference
+On failure returns C<undef>, on success returns an B<array> reference
 containing the unpacked version of the supplied literal SQL and bind values.
 
 =head1 WHERE CLAUSES
