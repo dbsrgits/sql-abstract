@@ -214,6 +214,10 @@ sub insert {
   my $data    = shift || return;
   my $options = shift;
 
+  if (my $cols = $options->{columns}) {
+    $table_sql .= '('.join(', ', map $self->_quote($_), @$cols).')';
+  }
+
   my $method       = $self->_METHOD_FOR_refkind("_insert", $data);
   my ($sql, @bind) = $self->$method($data);
   $sql = join " ", $self->_sqlcase('insert into'), $table, $sql;
