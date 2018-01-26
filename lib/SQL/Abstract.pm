@@ -368,10 +368,32 @@ sub update {
   my $options = shift;
 
   # first build the 'SET' part of the sql statement
-  my (@set, @all_bind);
   puke "Unsupported data type specified to \$sql->update"
     unless ref $data eq 'HASH';
 
+  my ($sql, @all_bind) = $self->_update_set_values($data);
+  $sql = $self->_sqlcase('update') . " $table " . $self->_sqlcase('set ')
+          . $sql;
+
+  if ($where) {
+    my($where_sql, @where_bind) = $self->where($where);
+    $sql .= $where_sql;
+    push @all_bind, @where_bind;
+  }
+
+  if ($options->{returning}) {
+    my ($returning_sql, @returning_bind) = $self->_update_returning($options);
+    $sql .= $returning_sql;
+    push @all_bind, @returning_bind;
+  }
+
+  return wantarray ? ($sql, @all_bind) : $sql;
+}
+
+sub _update_set_values {
+  my ($self, $data) = @_;
+
+  my (@set, @all_bind);
   for my $k (sort keys %$data) {
     my $v = $data->{$k};
     my $r = ref $v;
@@ -419,22 +441,9 @@ sub update {
   }
 
   # generate sql
-  my $sql = $self->_sqlcase('update') . " $table " . $self->_sqlcase('set ')
-          . join ', ', @set;
+  my $sql = join ', ', @set;
 
-  if ($where) {
-    my($where_sql, @where_bind) = $self->where($where);
-    $sql .= $where_sql;
-    push @all_bind, @where_bind;
-  }
-
-  if ($options->{returning}) {
-    my ($returning_sql, @returning_bind) = $self->_update_returning($options);
-    $sql .= $returning_sql;
-    push @all_bind, @returning_bind;
-  }
-
-  return wantarray ? ($sql, @all_bind) : $sql;
+  return ($sql, @all_bind);
 }
 
 # So that subclasses can override UPDATE ... RETURNING separately from
