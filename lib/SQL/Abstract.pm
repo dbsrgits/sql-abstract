@@ -372,7 +372,7 @@ sub update {
     unless ref $data eq 'HASH';
 
   my ($sql, @all_bind) = $self->_update_set_values($data);
-  $sql = $self->_sqlcase('update') . " $table " . $self->_sqlcase('set ')
+  $sql = $self->_sqlcase('update ') . $table . $self->_sqlcase(' set ')
           . $sql;
 
   if ($where) {
@@ -487,7 +487,7 @@ sub delete {
   my $options = shift;
 
   my($where_sql, @bind) = $self->where($where);
-  my $sql = $self->_sqlcase('delete from') . " $table" . $where_sql;
+  my $sql = $self->_sqlcase('delete from ') . $table . $where_sql;
 
   if ($options->{returning}) {
     my ($returning_sql, @returning_bind) = $self->_delete_returning($options);
