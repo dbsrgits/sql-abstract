@@ -27,7 +27,7 @@ BEGIN {
 # GLOBALS
 #======================================================================
 
-our $VERSION  = '1.84';
+our $VERSION  = '1.85';
 
 # This would confuse some packagers
 $VERSION = eval $VERSION if $VERSION =~ /_/; # numify for warning-free dev releases
