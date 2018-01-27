@@ -13,3 +13,4 @@ pm_to_blib
 \#*#
 *~
 *.sw?
+SQL-Abstract-[0-9]*
