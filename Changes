@@ -1,5 +1,6 @@
 Revision history for SQL::Abstract
 
+1.85 - 2018-01-27
     - Restore perl version requirement missed in the Distar port
     - Factor out the SET ... part of UPDATE for subclassability (GH#12)
 
