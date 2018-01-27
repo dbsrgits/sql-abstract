@@ -1,6 +1,7 @@
 Revision history for SQL::Abstract
 
     - Restore perl version requirement missed in the Distar port
+    - Factor out the SET ... part of UPDATE for subclassability (GH#12)
 
 1.84 - 2017-04-03
     - Restore 'dynamic_config => 0' missed in the Distar port
