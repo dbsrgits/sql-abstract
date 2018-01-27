@@ -2143,8 +2143,7 @@ Specification of the 'FROM' part of the statement.
 The argument can be either a plain scalar (interpreted as a table
 name, will be quoted), or an arrayref (interpreted as a list
 of table names, joined by commas, quoted), or a scalarref
-(literal table name, not quoted), or a ref to an arrayref
-(list of literal table names, joined by commas, not quoted).
+(literal SQL, not quoted).
 
 =item $fields
 

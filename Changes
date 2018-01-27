@@ -1,5 +1,8 @@
 Revision history for SQL::Abstract
 
+    - Remove obsolete documentation about arrayrefref as the $source
+      argument for ->select (removed in version 1.74)
+
 1.85 - 2018-01-27
     - Restore perl version requirement missed in the Distar port
     - Factor out the SET ... part of UPDATE for subclassability (GH#12)
