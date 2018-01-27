@@ -330,7 +330,7 @@ sub _insert_value {
       push @all_bind, @bind;
     },
 
-    # THINK : anything useful to do with a HASHREF ?
+    # THINK: anything useful to do with a HASHREF ?
     HASHREF => sub {       # (nothing, but old SQLA passed it through)
       #TODO in SQLA >= 2.0 it will die instead
       belch "HASH ref as bind value in insert is not supported";
@@ -1200,7 +1200,7 @@ sub _where_field_BETWEEN {
 sub _where_field_IN {
   my ($self, $k, $op, $vals) = @_;
 
-  # backwards compatibility : if scalar, force into an arrayref
+  # backwards compatibility: if scalar, force into an arrayref
   $vals = [$vals] if defined $vals && ! ref $vals;
 
   my ($label)       = $self->_convert($self->_quote($k));
@@ -1253,7 +1253,7 @@ sub _where_field_IN {
           $self->_bindtype($k, @all_bind),
         );
       }
-      else { # empty list : some databases won't understand "IN ()", so DWIM
+      else { # empty list: some databases won't understand "IN ()", so DWIM
         my $sql = ($op =~ /\bnot\b/i) ? $self->{sqltrue} : $self->{sqlfalse};
         return ($sql);
       }
@@ -1922,7 +1922,7 @@ Which will change the above C<WHERE> to:
     WHERE event_date >= '2/13/99' AND event_date <= '4/24/03'
 
 The logic can also be changed locally by inserting
-a modifier in front of an arrayref :
+a modifier in front of an arrayref:
 
     @where = (-and => [event_date => {'>=', '2/13/99'},
                        event_date => {'<=', '4/24/03'} ]);
@@ -2133,7 +2133,7 @@ L<insert|/insert($table, \@values || \%fieldvals, \%options)>.
 =head2 select($source, $fields, $where, $order)
 
 This returns a SQL SELECT statement and associated list of bind values, as
-specified by the arguments  :
+specified by the arguments:
 
 =over
 
@@ -2497,7 +2497,7 @@ Here is a quick list of equivalencies, since there is some overlap:
 
 
 
-=head2 Special operators : IN, BETWEEN, etc.
+=head2 Special operators: IN, BETWEEN, etc.
 
 You can also use the hashref format to compare a list of fields using the
 C<IN> comparison operator, by specifying the list as an arrayref:
@@ -2516,8 +2516,8 @@ The reverse operator C<-not_in> generates SQL C<NOT IN> and is used in
 the same way.
 
 If the argument to C<-in> is an empty array, 'sqlfalse' is generated
-(by default : C<1=0>). Similarly, C<< -not_in => [] >> generates
-'sqltrue' (by default : C<1=1>).
+(by default: C<1=0>). Similarly, C<< -not_in => [] >> generates
+'sqltrue' (by default: C<1=1>).
 
 In addition to the array you can supply a chunk of literal sql or
 literal sql with bind:
@@ -2580,7 +2580,7 @@ Would give you:
 
 
 These are the two builtin "special operators"; but the
-list can be expanded : see section L</"SPECIAL OPERATORS"> below.
+list can be expanded: see section L</"SPECIAL OPERATORS"> below.
 
 =head2 Unary operators: bool
 
@@ -2644,7 +2644,7 @@ This data structure would create the following:
 
 
 Clauses in hashrefs or arrayrefs can be prefixed with an C<-and> or C<-or>
-to change the logic inside :
+to change the logic inside:
 
     my @where = (
          -and => [
@@ -2668,7 +2668,7 @@ That would yield:
 C<Important note>: when connecting several conditions, the C<-and->|C<-or>
 operator goes C<outside> of the nested structure; whereas when connecting
 several constraints on one column, the C<-and> operator goes
-C<inside> the arrayref. Here is an example combining both features :
+C<inside> the arrayref. Here is an example combining both features:
 
    my @where = (
      -and => [a => 1, b => 2],
@@ -2683,20 +2683,20 @@ yielding
             OR ( e LIKE ? AND e LIKE ? ) ) )
 
 This difference in syntax is unfortunate but must be preserved for
-historical reasons. So be careful : the two examples below would
+historical reasons. So be careful: the two examples below would
 seem algebraically equivalent, but they are not
 
   { col => [ -and =>
     { -like => 'foo%' },
     { -like => '%bar' },
   ] }
-  # yields : WHERE ( ( col LIKE ? AND col LIKE ? ) )
+  # yields: WHERE ( ( col LIKE ? AND col LIKE ? ) )
 
   [ -and =>
     { col => { -like => 'foo%' } },
     { col => { -like => '%bar' } },
   ]
-  # yields : WHERE ( ( col LIKE ? OR col LIKE ? ) )
+  # yields: WHERE ( ( col LIKE ? OR col LIKE ? ) )
 
 
 =head2 Literal SQL and value type operators
@@ -2810,7 +2810,7 @@ example will look like:
     )
 
 Literal SQL is especially useful for nesting parenthesized clauses in the
-main SQL query. Here is a first example :
+main SQL query. Here is a first example:
 
   my ($sub_stmt, @sub_bind) = ("SELECT c1 FROM t1 WHERE c2 < ? AND c3 LIKE ?",
                                100, "foo%");
@@ -2819,7 +2819,7 @@ main SQL query. Here is a first example :
     bar => \["IN ($sub_stmt)" => @sub_bind],
   );
 
-This yields :
+This yields:
 
   $stmt = "WHERE (foo = ? AND bar IN (SELECT c1 FROM t1
                                              WHERE c2 < ? AND c3 LIKE ?))";
@@ -2840,7 +2840,7 @@ to C<select()> :
 
 In the examples above, the subquery was used as an operator on a column;
 but the same principle also applies for a clause within the main C<%where>
-hash, like an EXISTS subquery :
+hash, like an EXISTS subquery:
 
   my ($sub_stmt, @sub_bind)
      = $sql->select("t1", "*", {c1 => 1, c2 => \"> t0.c0"});
@@ -2857,7 +2857,7 @@ which yields
 
 
 Observe that the condition on C<c2> in the subquery refers to
-column C<t0.c0> of the main query : this is I<not> a bind
+column C<t0.c0> of the main query: this is I<not> a bind
 value, so we have to express it through a scalar ref.
 Writing C<< c2 => {">" => "t0.c0"} >> would have generated
 C<< c2 > ? >> with bind value C<"t0.c0"> ... not exactly
@@ -2992,7 +2992,7 @@ forms. Examples:
 
 A "special operator" is a SQL syntactic clause that can be
 applied to a field, instead of a usual binary operator.
-For example :
+For example:
 
    WHERE field IN (?, ?, ?)
    WHERE field BETWEEN ? AND ?
@@ -3211,7 +3211,7 @@ to clarify the semantics. Hence, client code that was relying
 on some dark areas of C<SQL::Abstract> v1.*
 B<might behave differently> in v1.50.
 
-The main changes are :
+The main changes are:
 
 =over
 
@@ -3233,7 +3233,7 @@ optional support for L<array datatypes|/"Inserting and Updating Arrays">
 
 =item *
 
-defensive programming : check arguments
+defensive programming: check arguments
 
 =item *
 
