@@ -464,15 +464,22 @@ sub select {
   my $where  = shift;
   my $order  = shift;
 
-  my($where_sql, @bind) = $self->where($where, $order);
+  my ($fields_sql, @bind) = $self->_select_fields($fields);
 
-  my $f = (ref $fields eq 'ARRAY') ? join ', ', map { $self->_quote($_) } @$fields
-                                   : $fields;
-  my $sql = join(' ', $self->_sqlcase('select'), $f,
+  my ($where_sql, @where_bind) = $self->where($where, $order);
+  push @bind, @where_bind;
+
+  my $sql = join(' ', $self->_sqlcase('select'), $fields_sql,
                       $self->_sqlcase('from'),   $table)
           . $where_sql;
 
   return wantarray ? ($sql, @bind) : $sql;
+}
+
+sub _select_fields {
+  my ($self, $fields) = @_;
+  return ref $fields eq 'ARRAY' ? join ', ', map { $self->_quote($_) } @$fields
+                                : $fields;
 }
 
 #======================================================================
