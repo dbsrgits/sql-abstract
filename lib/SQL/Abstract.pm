@@ -478,8 +478,21 @@ sub select {
 
 sub _select_fields {
   my ($self, $fields) = @_;
-  return ref $fields eq 'ARRAY' ? join ', ', map { $self->_quote($_) } @$fields
-                                : $fields;
+
+  $self->_SWITCH_refkind($fields, {
+    ARRAYREF => sub { join ', ', map { $self->_quote($_) } @$fields },
+
+    ARRAYREFREF => sub {
+      my ($s, @b) = @$$fields;
+      $self->_assert_bindval_matches_bindtype(@b);
+      ($s, @b);
+    },
+
+    SCALARREF => sub { $$fields },
+
+    # For back-compat
+    SCALAR => sub { $fields },
+  });
 }
 
 #======================================================================

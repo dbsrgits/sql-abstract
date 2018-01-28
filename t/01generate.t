@@ -616,7 +616,21 @@ my @tests = (
               stmt_q => 'DELETE FROM `test` WHERE ( `requestor` IS NULL ) RETURNING `id`, `created_at`',
               bind   => []
       },
-);
+      {
+              func   => 'select',
+              args   => ['wibble', \['func(?)', 42]],
+              stmt   => 'select func(?) from wibble',
+              stmt_q => 'select func(?) from `wibble`',
+              bind   => [42],
+      },
+      {
+              func   => 'select',
+              args   => ['wibble', \'"wobble"'],
+              stmt   => 'select "wobble" from wibble',
+              stmt_q => 'select "wobble" from `wibble`',
+              bind   => [],
+      },
+    );
 
 # check is( not) => undef
 for my $op (qw(not is is_not), 'is not') {
