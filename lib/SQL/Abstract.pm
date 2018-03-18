@@ -330,12 +330,25 @@ sub _insert_value {
       push @all_bind, @bind;
     },
 
-    # THINK: anything useful to do with a HASHREF ?
-    HASHREF => sub {       # (nothing, but old SQLA passed it through)
-      #TODO in SQLA >= 2.0 it will die instead
-      belch "HASH ref as bind value in insert is not supported";
-      push @values, '?';
-      push @all_bind, $self->_bindtype($column, $v);
+    HASHREF => sub {
+      my ($op, $arg, @rest) = %$v;
+
+      if (@rest or not $op =~ /^\-(.+)/) {
+        #TODO in SQLA >= 2.0 it will die instead
+        belch "Operator calls in insert must be in the form { -op => $arg }, if you wanted a plain HASH ref as a bind value, please use -value";
+        push @values, '?';
+        push @all_bind, $self->_bindtype($column, $v);
+        return;
+      }
+
+      # column may be undef and this currently triggers a croak in
+      # _where_unary_op for the potentially-sane-here -ident and -value
+      # (we should probably improve the test for the croak)
+      local $self->{_nested_func_lhs} = $column || 'INSERT_ANON_COLUMN_NAME';
+      my ($sql, @bind) = $self->_where_unary_op($1, $arg);
+
+      push @values, $sql;
+      push @all_bind, @bind;
     },
 
     SCALARREF => sub {          # literal SQL without bind

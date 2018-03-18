@@ -323,7 +323,7 @@ my @tests = (
               stmt   => 'INSERT INTO test (a, b, c, d, e) VALUES (?, ?, ?, ?, ?)',
               stmt_q => 'INSERT INTO `test` (`a`, `b`, `c`, `d`, `e`) VALUES (?, ?, ?, ?, ?)',
               bind   => [qw/1 2 3 4/, { answer => 42}],
-              warns  => qr/HASH ref as bind value in insert is not supported/i,
+              warns  => qr/use -value/i,
       },
       {
               func   => 'update',
@@ -483,6 +483,13 @@ my @tests = (
               stmt   => 'SELECT * FROM test WHERE ( a = ? OR b = ? ) OR ( a = ? AND b = ? )',
               stmt_q => 'SELECT * FROM `test` WHERE ( `a` = ? OR `b` = ? ) OR ( `a` = ? AND `b` = ? )',
               bind   => [[a => 1], [b => 1], [ a => 2], [ b => 2]],
+      },
+      {
+              func   => 'insert',
+              args   => ['test', [ { -value => { foo => 'bar' } } ] ],
+              stmt   => 'INSERT INTO test VALUES (?)',
+              stmt_q => 'INSERT INTO `test` VALUES (?)',
+              bind   => [ { foo => 'bar' } ],
       },
       {
               func   => 'insert',
