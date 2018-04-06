@@ -523,7 +523,7 @@ sub where {
 
   # where ?
   my ($sql, @bind) = $self->_recurse_where($where);
-  $sql = $sql ? $self->_sqlcase(' where ') . "( $sql )" : '';
+  $sql = (defined $sql and length $sql) ? $self->_sqlcase(' where ') . "( $sql )" : '';
 
   # order by?
   if ($order) {

@@ -386,6 +386,11 @@ my @handle_tests = (
         stmt  => " WHERE ( (NOT ( c AND (NOT ( (NOT a = ?) AND (NOT b) )) )) ) ",
         bind => [ 1 ],
     },
+    {
+        where => \"0",
+        stmt  => " WHERE ( 0 ) ",
+        bind => [ ],
+    },
 );
 
 for my $case (@handle_tests) {
