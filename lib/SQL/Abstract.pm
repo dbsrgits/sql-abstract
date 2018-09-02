@@ -1096,8 +1096,7 @@ sub _where_hashpair_SCALAR {
 sub _where_hashpair_UNDEF {
   my ($self, $k, $v) = @_;
   $self->_debug("UNDEF($k) means IS NULL");
-  my $sql = $self->_quote($k) . $self->_sqlcase(' is null');
-  return ($sql);
+  return $self->_where_hashpair_HASHREF($k, { -is => undef });
 }
 
 #======================================================================
