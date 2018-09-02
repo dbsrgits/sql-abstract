@@ -844,7 +844,7 @@ sub _where_op_VALUE {
   # special-case NULL
   if (! defined $rhs) {
     return defined $lhs
-      ? $self->_convert($self->_quote($lhs)) . ' IS NULL'
+      ? $self->_where_hashpair_HASHREF($lhs, { -is => undef })
       : undef
     ;
   }
