@@ -1089,11 +1089,7 @@ sub _where_hashpair_ARRAYREFREF {
 sub _where_hashpair_SCALAR {
   my ($self, $k, $v) = @_;
   $self->_debug("NOREF($k) means simple key=val: $k $self->{cmp} $v");
-  my $sql = join ' ', $self->_convert($self->_quote($k)),
-                      $self->_sqlcase($self->{cmp}),
-                      $self->_convert('?');
-  my @bind =  $self->_bindtype($k, $v);
-  return ($sql, @bind);
+  return ($self->_where_hashpair_HASHREF($k, { $self->{cmp} => $v }));
 }
 
 
