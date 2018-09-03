@@ -535,14 +535,26 @@ sub where {
   return wantarray ? ($sql, @bind) : $sql;
 }
 
+sub _expand_expr {
+  my ($self, $expr, $logic) = @_;
+  if (ref($expr) eq 'HASH' and keys %$expr > 1) {
+    $logic ||= 'and';
+    return +{ "-${logic}" => [
+      map +{ $_ => $expr->{$_} }, sort keys %$expr
+    ] };
+  }
+  return $expr;
+}
 
 sub _recurse_where {
   my ($self, $where, $logic) = @_;
 
-  # dispatch on appropriate method according to refkind of $where
-  my $method = $self->_METHOD_FOR_refkind("_where", $where);
+  my $where_exp = $self->_expand_expr($where, $logic);
 
-  my ($sql, @bind) =  $self->$method($where, $logic);
+  # dispatch on appropriate method according to refkind of $where
+  my $method = $self->_METHOD_FOR_refkind("_where", $where_exp);
+
+  my ($sql, @bind) =  $self->$method($where_exp, $logic);
 
   # DBIx::Class used to call _recurse_where in scalar context
   # something else might too...
