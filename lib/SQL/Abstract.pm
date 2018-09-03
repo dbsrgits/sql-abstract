@@ -557,6 +557,9 @@ sub _expand_expr_hashpair {
       return +{ $k => { $self->{cmp} => $v } };
     }
   }
+  if ($k eq '-nest') {
+    return $self->_expand_expr($v);
+  }
   return { $k => $v };
 }
 
