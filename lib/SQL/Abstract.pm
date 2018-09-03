@@ -537,13 +537,27 @@ sub where {
 
 sub _expand_expr {
   my ($self, $expr, $logic) = @_;
-  if (ref($expr) eq 'HASH' and keys %$expr > 1) {
-    $logic ||= 'and';
-    return +{ "-${logic}" => [
-      map +{ $_ => $expr->{$_} }, sort keys %$expr
-    ] };
+  if (ref($expr) eq 'HASH') {
+    if (keys %$expr > 1) {
+      $logic ||= 'and';
+      return +{ "-${logic}" => [
+        map $self->_expand_expr_hashpair($_ => $expr->{$_}, $logic),
+          sort keys %$expr
+      ] };
+    }
+    return $self->_expand_expr_hashpair(%$expr, $logic);
   }
   return $expr;
+}
+
+sub _expand_expr_hashpair {
+  my ($self, $k, $v, $logic) = @_;
+  if (!ref($v)) {
+    if ($k !~ /^-/) {
+      return +{ $k => { $self->{cmp} => $v } };
+    }
+  }
+  return { $k => $v };
 }
 
 sub _recurse_where {
