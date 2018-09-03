@@ -560,6 +560,14 @@ sub _expand_expr_hashpair {
   if ($k eq '-nest') {
     return $self->_expand_expr($v);
   }
+  if ($k !~ /^-/ and my $literal = is_literal_value($v)) {
+    unless (length $k) {
+      belch 'Hash-pairs consisting of an empty string with a literal are deprecated, and will be removed in 2.0: use -and => [ $literal ] instead';
+      return \$literal;
+    }
+    my ($sql, @bind) = @$literal;
+    return \[ $self->_quote($k).' '.$sql, @bind ];
+  }
   return { $k => $v };
 }
 
