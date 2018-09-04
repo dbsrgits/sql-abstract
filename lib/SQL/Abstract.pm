@@ -552,21 +552,22 @@ sub _expand_expr {
 
 sub _expand_expr_hashpair {
   my ($self, $k, $v, $logic) = @_;
-  if (!ref($v)) {
-    if ($k !~ /^-/) {
+  if ($k =~ /^-/) {
+    if ($k eq '-nest') {
+      return $self->_expand_expr($v);
+    }
+  } else {
+    if (!ref($v)) {
       return +{ $k => { $self->{cmp} => $v } };
     }
-  }
-  if ($k eq '-nest') {
-    return $self->_expand_expr($v);
-  }
-  if ($k !~ /^-/ and my $literal = is_literal_value($v)) {
-    unless (length $k) {
-      belch 'Hash-pairs consisting of an empty string with a literal are deprecated, and will be removed in 2.0: use -and => [ $literal ] instead';
-      return \$literal;
+    if (my $literal = is_literal_value($v)) {
+      unless (length $k) {
+        belch 'Hash-pairs consisting of an empty string with a literal are deprecated, and will be removed in 2.0: use -and => [ $literal ] instead';
+        return \$literal;
+      }
+      my ($sql, @bind) = @$literal;
+      return \[ $self->_quote($k).' '.$sql, @bind ];
     }
-    my ($sql, @bind) = @$literal;
-    return \[ $self->_quote($k).' '.$sql, @bind ];
   }
   return { $k => $v };
 }
