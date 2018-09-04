@@ -560,6 +560,16 @@ sub _expand_expr_hashpair {
     if (!ref($v)) {
       return +{ $k => { $self->{cmp} => $v } };
     }
+    if (ref($v) eq 'ARRAY') {
+      return $self->{sqlfalse} unless @$v;
+      $self->_debug("ARRAY($k) means distribute over elements");
+      my $this_logic = (
+        $v->[0] =~ /^-((?:and|or))$/i
+          ? ($v = [ @{$v}[1..$#$v] ], $1)
+          : ($self->{logic} || 'or')
+      );
+      return +{ "-${this_logic}" => [ map $self->_expand_expr({ $k => $_ }, $this_logic), @$v ] };
+    }
     if (my $literal = is_literal_value($v)) {
       unless (length $k) {
         belch 'Hash-pairs consisting of an empty string with a literal are deprecated, and will be removed in 2.0: use -and => [ $literal ] instead';
