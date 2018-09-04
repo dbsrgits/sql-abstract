@@ -556,6 +556,13 @@ sub _expand_expr_hashpair {
     if ($k eq '-nest') {
       return $self->_expand_expr($v);
     }
+    if ($k eq '-bool') {
+      if (ref($v)) {
+        return $self->_expand_expr($v);
+      }
+      puke "-bool => undef not supported" unless defined($v);
+      return { -ident => $v };
+    }
     if (my ($rest) = $k =~/^-not[_ ](.*)$/) {
       return $self->_expand_expr({ -not => { "-${rest}", $v } }, $logic);
     }
@@ -733,9 +740,10 @@ sub _where_unary_op {
   my ($self, $op, $rhs) = @_;
 
   # top level special ops are illegal in general
-  # this includes the -ident/-value ops (dual purpose unary and special)
   puke "Illegal use of top-level '-$op'"
-    if ! defined $self->{_nested_func_lhs} and List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}};
+    if !(defined $self->{_nested_func_lhs})
+    and List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}}
+    and not List::Util::first { $op =~ $_->{regex} } @{$self->{unary_ops}};
 
   if (my $op_entry = List::Util::first { $op =~ $_->{regex} } @{$self->{unary_ops}}) {
     my $handler = $op_entry->{handler};
