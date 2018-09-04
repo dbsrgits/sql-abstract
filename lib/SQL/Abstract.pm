@@ -556,6 +556,9 @@ sub _expand_expr_hashpair {
     if ($k eq '-nest') {
       return $self->_expand_expr($v);
     }
+    if (my ($rest) = $k =~/^-not[_ ](.*)$/) {
+      return $self->_expand_expr({ -not => { "-${rest}", $v } }, $logic);
+    }
   } else {
     if (!ref($v)) {
       return +{ $k => { $self->{cmp} => $v } };
