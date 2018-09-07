@@ -549,6 +549,32 @@ sub _expand_expr {
     }
     return $self->_expand_expr_hashpair(%$expr, $logic);
   }
+  if (ref($expr) eq 'ARRAY') {
+    $logic = lc($logic || $self->{logic});
+    $logic eq 'and' or $logic eq 'or' or puke "unknown logic: $logic";
+
+    my @expr = @$expr;
+
+    my @res;
+
+    while (my ($el) = splice @expr, 0, 1) {
+      puke "Supplying an empty left hand side argument is not supported in array-pairs"
+        unless defined($el) and length($el);
+      my $elref = ref($el);
+      if (!$elref) {
+        push(@res, $self->_expand_expr({ $el, shift(@expr) }));
+      } elsif ($elref eq 'ARRAY') {
+        push(@res, $self->_expand_expr($el)) if @$el;
+      } elsif (is_literal_value($el)) {
+        push @res, $el;
+      } elsif ($elref eq 'HASH') {
+        push @res, $self->_expand_expr($el);
+      } else {
+        die "unimplemented"
+      }
+    }
+    return { '-'.$logic => \@res };
+  }
   return $expr;
 }
 
