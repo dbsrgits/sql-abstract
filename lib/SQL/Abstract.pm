@@ -53,6 +53,8 @@ my @BUILTIN_UNARY_OPS = (
   { regex => qr/^ (?: not \s )? bool     $/xi, handler => '_where_op_BOOL' },
   { regex => qr/^ ident                  $/xi, handler => '_where_op_IDENT' },
   { regex => qr/^ value                  $/xi, handler => '_where_op_VALUE' },
+  { regex => qr/^ op                     $/xi, handler => '_where_op_OP' },
+  { regex => qr/^ bind                   $/xi, handler => '_where_op_BIND' },
 );
 
 #======================================================================
@@ -552,6 +554,13 @@ sub _expand_expr {
 
 sub _expand_expr_hashpair {
   my ($self, $k, $v, $logic) = @_;
+  unless (defined($k) and length($k)) {
+    if (defined($k) and is_literal_value($v)) {
+      belch 'Hash-pairs consisting of an empty string with a literal are deprecated, and will be removed in 2.0: use -and => [ $literal ] instead';
+      return $v;
+    }
+    puke "Supplying an empty left hand side argument is not supported";
+  }
   if ($k =~ /^-/) {
     if ($k eq '-nest') {
       return $self->_expand_expr($v);
@@ -567,8 +576,25 @@ sub _expand_expr_hashpair {
       return $self->_expand_expr({ -not => { "-${rest}", $v } }, $logic);
     }
   } else {
+    unless (defined($v)) {
+      my $orig_op = my $op = $self->{cmp};
+      my $is =
+        $op =~ /^not$/i               ? 'is not'  # legacy
+      : $op =~ $self->{equality_op}   ? 'is'
+      : $op =~ $self->{like_op}       ? belch("Supplying an undefined argument to '@{[ uc $op]}' is deprecated") && 'is'
+      : $op =~ $self->{inequality_op} ? 'is not'
+      : $op =~ $self->{not_like_op}   ? belch("Supplying an undefined argument to '@{[ uc $op]}' is deprecated") && 'is not'
+      : puke "unexpected operator '$orig_op' with undef operand";
+      return +{ -op => [ $is.' null', { -ident => $k } ] };
+    }
     if (!ref($v)) {
-      return +{ $k => { $self->{cmp} => $v } };
+      return +{
+        -op => [
+          $self->{cmp},
+          { -ident => $k },
+          { -bind => [ $k, $v ] }
+        ]
+      };
     }
     if (ref($v) eq 'ARRAY') {
       return $self->{sqlfalse} unless @$v;
@@ -883,11 +909,11 @@ sub _where_op_IDENT {
   }
 
   # in case we are called as a top level special op (no '=')
-  my $lhs = shift;
+  my $has_lhs = my $lhs = shift;
 
   $_ = $self->_convert($self->_quote($_)) for ($lhs, $rhs);
 
-  return $lhs
+  return $has_lhs
     ? "$lhs = $rhs"
     : $rhs
   ;
@@ -925,6 +951,36 @@ sub _where_op_VALUE {
       @bind,
     )
   ;
+}
+
+
+my %unop_postfix = map +($_ => 1), 'is null', 'is not null';
+
+sub _where_op_OP {
+  my ($self, undef, $v) = @_;
+  my ($op, @args) = @$v;
+  $op =~ s/^-// if length($op) > 1;
+  local $self->{_nested_func_lhs};
+  if (@args == 1) {
+    my ($expr_sql, @bind) = $self->_recurse_where($args[0]);
+    my $final_op = join ' ', split '_', $op;
+    my $op_sql = $self->_sqlcase($final_op);
+    my $final_sql = (
+      $unop_postfix{lc($final_op)}
+        ? "${expr_sql} ${op_sql}"
+        : "${op_sql} ${expr_sql}"
+    );
+    return ($final_sql, @bind);
+  } elsif (@args == 2) {
+     my ($l, $r) = map [ $self->_recurse_where($_) ], @args;
+     return (                                                                          $l->[0].' '.$self->_sqlcase(join ' ', split '_', $op).' '.$r->[0],              @{$l}[1..$#$l], @{$r}[1..$#$r]                                                );
+  }
+  die "unhandled";
+}
+
+sub _where_op_BIND {
+  my ($self, undef, $bind) = @_;
+  return ($self->_convert('?'), $self->_bindtype(@$bind));
 }
 
 sub _where_hashpair_ARRAYREF {
