@@ -2,8 +2,9 @@ use strict;
 use warnings;
 use Test::More;
 use Test::Warn;
+use Test::Exception;
 
-use SQL::Abstract::Test import => ['is_same_sql'];
+use SQL::Abstract::Test import => [ qw(is_same_sql dumper) ];
 use SQL::Abstract;
 
 my @handle_tests = (
@@ -90,13 +91,15 @@ my @handle_tests = (
 for (@handle_tests) {
   my $sqla  = SQL::Abstract->new($_->{args});
   my $stmt;
-  warnings_exist {
-    $stmt = $sqla->select(
-      'test',
-      '*',
-      $_->{where} || { a => 4, b => 0}
-    );
-  } $_->{warns} || [];
+  lives_ok(sub {
+    (warnings_exist {
+      $stmt = $sqla->select(
+        'test',
+        '*',
+        $_->{where} || { a => 4, b => 0}
+      );
+    } $_->{warns} || []) || diag dumper($_);
+  }) or diag dumper({ %$_, threw => $@ });
 
   is_same_sql($stmt, $_->{stmt});
 }
