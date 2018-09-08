@@ -1033,6 +1033,7 @@ sub _where_op_BIND {
 
 sub _where_op_LITERAL {
   my ($self, undef, $literal) = @_;
+  $self->_assert_bindval_matches_bindtype(@{$literal}[1..$#$literal]);
   return @$literal;
 }
 
