@@ -726,9 +726,6 @@ for my $lhs (undef, '') {
     [ foo => "bar", $lhs => \["baz"], bizz => "buzz" ],
     [ $lhs => \"baz" ],
     [ $lhs => \["baz"] ],
-
-    # except for this one, that is automagically arrayified
-    { foo => "bar", -or => { $lhs => \"baz" }, bizz => "buzz" },
   ) {
     push @tests, {
       func => 'where',
@@ -741,6 +738,7 @@ for my $lhs (undef, '') {
 ## deprecations - sorta worked, likely abused by folks
   for my $where_arg (
     # the arrayref forms of this never worked and throw above
+    { foo => "bar", -or => { $lhs => \"baz" }, bizz => "buzz" },
     { foo => "bar", -and => { $lhs => \"baz" }, bizz => "buzz" },
     { foo => "bar", $lhs => \"baz", bizz => "buzz" },
     { foo => "bar", $lhs => \["baz"], bizz => "buzz" },
