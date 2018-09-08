@@ -622,6 +622,12 @@ sub _expand_expr_hashpair {
         ]
       };
     }
+    if (ref($v) eq 'HASH' and keys %$v > 1) {
+      return { -and => [
+        map $self->_expand_expr_hashpair($k => { $_ => $v->{$_} }),
+          sort keys %$v
+      ] };
+    }
     if (ref($v) eq 'ARRAY') {
       return $self->{sqlfalse} unless @$v;
       $self->_debug("ARRAY($k) means distribute over elements");
