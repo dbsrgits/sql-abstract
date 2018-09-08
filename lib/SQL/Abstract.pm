@@ -576,6 +576,9 @@ sub _expand_expr {
     }
     return { '-'.$logic => \@res };
   }
+  if (my $literal = is_literal_value($expr)) {
+    return +{ -literal => $literal };
+  }
   return $expr;
 }
 
