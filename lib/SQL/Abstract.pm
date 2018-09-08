@@ -55,6 +55,7 @@ my @BUILTIN_UNARY_OPS = (
   { regex => qr/^ value                  $/xi, handler => '_where_op_VALUE' },
   { regex => qr/^ op                     $/xi, handler => '_where_op_OP' },
   { regex => qr/^ bind                   $/xi, handler => '_where_op_BIND' },
+  { regex => qr/^ literal                $/xi, handler => '_where_op_LITERAL' },
 );
 
 #======================================================================
@@ -644,7 +645,14 @@ sub _expand_expr_hashpair {
         return \$literal;
       }
       my ($sql, @bind) = @$literal;
-      return \[ $self->_quote($k).' '.$sql, @bind ];
+      if ($self->{bindtype} eq 'columns') {
+        for (@bind) {
+          if (!defined $_ || ref($_) ne 'ARRAY' || @$_ != 2) {
+            puke "bindtype 'columns' selected, you need to pass: [column_name => bind_value]"
+          }
+        }
+      }
+      return +{ -literal => [ $self->_quote($k).' '.$sql, @bind ] };
     }
   }
   return { $k => $v };
@@ -1013,6 +1021,11 @@ sub _where_op_OP {
 sub _where_op_BIND {
   my ($self, undef, $bind) = @_;
   return ($self->_convert('?'), $self->_bindtype(@$bind));
+}
+
+sub _where_op_LITERAL {
+  my ($self, undef, $literal) = @_;
+  return @$literal;
 }
 
 sub _where_hashpair_ARRAYREF {
