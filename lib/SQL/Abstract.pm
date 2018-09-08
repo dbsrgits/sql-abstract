@@ -585,9 +585,9 @@ sub _expand_expr {
 sub _expand_expr_hashpair {
   my ($self, $k, $v, $logic) = @_;
   unless (defined($k) and length($k)) {
-    if (defined($k) and is_literal_value($v)) {
+    if (defined($k) and my $literal = is_literal_value($v)) {
       belch 'Hash-pairs consisting of an empty string with a literal are deprecated, and will be removed in 2.0: use -and => [ $literal ] instead';
-      return $v;
+      return { -literal => $literal };
     }
     puke "Supplying an empty left hand side argument is not supported";
   }
