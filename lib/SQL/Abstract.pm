@@ -605,6 +605,11 @@ sub _expand_expr_hashpair {
     if (my ($rest) = $k =~/^-not[_ ](.*)$/) {
       return $self->_expand_expr({ -not => { "-${rest}", $v } }, $logic);
     }
+    if (my ($logic) = $k =~ /^-(and|or)$/) {
+      if (ref($v) eq 'HASH') {
+        return $self->_expand_expr($v, $logic);
+      }
+    }
   } else {
     unless (defined($v)) {
       my $orig_op = my $op = $self->{cmp};
