@@ -631,11 +631,33 @@ sub _expand_expr_hashpair {
         ]
       };
     }
-    if (ref($v) eq 'HASH' and keys %$v > 1) {
-      return { -and => [
-        map $self->_expand_expr_hashpair($k => { $_ => $v->{$_} }),
-          sort keys %$v
-      ] };
+    if (ref($v) eq 'HASH') {
+      if (keys %$v > 1) {
+        return { -and => [
+          map $self->_expand_expr_hashpair($k => { $_ => $v->{$_} }),
+            sort keys %$v
+        ] };
+      }
+      my ($vk, $vv) = %$v;
+      $vk =~ s/^-//;
+      if ($vk =~ /^(?:not[ _])?between$/) {
+        my @rhs = map $self->_expand_expr($_),
+                    ref($vv) eq 'ARRAY' ? @$vv : $vv;
+        unless (
+          (@rhs == 1 and ref($rhs[0]) eq 'HASH' and $rhs[0]->{-literal})
+          or
+          (@rhs == 2 and defined($rhs[0]) and defined($rhs[1]))
+        ) {
+          puke "Operator '${\uc($vk)}' requires either an arrayref with two defined values or expressions, or a single literal scalarref/arrayref-ref";
+        }
+        return +{ -op => [
+          $vk, { -ident => $k },
+          map {
+            my $v = ref($_) ? $_->{-value} :$_;
+            ($v ? { -bind => [ $k, $v ] } : $_)
+          } @rhs
+        ] }
+      }
     }
     if (ref($v) eq 'ARRAY') {
       return $self->{sqlfalse} unless @$v;
@@ -812,6 +834,8 @@ sub _where_HASHREF {
 
 sub _where_unary_op {
   my ($self, $op, $rhs) = @_;
+
+  $op =~ s/^-// if length($op) > 1;
 
   # top level special ops are illegal in general
   puke "Illegal use of top-level '-$op'"
@@ -1004,11 +1028,42 @@ sub _where_op_VALUE {
 
 my %unop_postfix = map +($_ => 1), 'is null', 'is not null';
 
+my %special = (
+  (map +($_ => do {
+    my $op = $_;
+    sub {
+      my ($self, $args) = @_;
+      my ($left, $low, $high) = @$args;
+      my ($rhsql, @rhbind) = do {
+        if (@$args == 2) {
+          puke "Single arg to between must be a literal"
+            unless $low->{-literal};
+          @{$low->{-literal}}
+        } else {
+          local $self->{_nested_func_lhs} = $left->{-ident}
+            if ref($left) eq 'HASH' and $left->{-ident};
+          my ($l, $h) = map [ $self->_where_unary_op(%$_) ], $low, $high;
+          (join(' ', $l->[0], $self->_sqlcase('and'), $h->[0]),
+           @{$l}[1..$#$l], @{$h}[1..$#$h])
+        }
+      };
+      my ($lhsql, @lhbind) = $self->_recurse_where($left);
+      return (
+        join(' ', '(', $lhsql, $self->_sqlcase($op), $rhsql, ')'),
+        @lhbind, @rhbind
+      );
+    }
+  }), 'between', 'not between'),
+);
+
 sub _where_op_OP {
   my ($self, undef, $v) = @_;
   my ($op, @args) = @$v;
   $op =~ s/^-// if length($op) > 1;
   local $self->{_nested_func_lhs};
+  if (my $h = $special{$op}) {
+    return $self->$h(\@args);
+  }
   if (@args == 1) {
     my ($expr_sql, @bind) = $self->_recurse_where($args[0]);
     my $final_op = join ' ', split '_', $op;
