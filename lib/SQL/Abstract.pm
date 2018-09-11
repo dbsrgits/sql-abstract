@@ -40,7 +40,7 @@ my @BUILTIN_SPECIAL_OPS = (
   {regex => qr/^ (?: not \s )? between $/ix, handler => sub { die "NOPE" }},
   {regex => qr/^ (?: not \s )? in      $/ix, handler => sub { die "NOPE" }},
   {regex => qr/^ ident                 $/ix, handler => sub { die "NOPE" }},
-  {regex => qr/^ value                 $/ix, handler => '_where_op_VALUE'},
+  {regex => qr/^ value                 $/ix, handler => sub { die "NOPE" }},
   {regex => qr/^ is (?: \s+ not )?     $/ix, handler => '_where_field_IS'},
 );
 
@@ -699,6 +699,14 @@ sub _expand_expr_hashpair {
           $self->{cmp},
           { -ident => $k },
           { -ident => $vv }
+        ] };
+      }
+      if ($vk eq 'value') {
+        return $self->_expand_expr_hashpair($k, undef) unless defined($vv);
+        return +{ -op => [
+          $self->{cmp},
+          { -ident => $k },
+          { -bind => [ $k, $vv ] }
         ] };
       }
     }
