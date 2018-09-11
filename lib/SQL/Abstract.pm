@@ -39,7 +39,7 @@ our $AUTOLOAD;
 my @BUILTIN_SPECIAL_OPS = (
   {regex => qr/^ (?: not \s )? between $/ix, handler => sub { die "NOPE" }},
   {regex => qr/^ (?: not \s )? in      $/ix, handler => sub { die "NOPE" }},
-  {regex => qr/^ ident                 $/ix, handler => '_where_op_IDENT'},
+  {regex => qr/^ ident                 $/ix, handler => sub { die "NOPE" }},
   {regex => qr/^ value                 $/ix, handler => '_where_op_VALUE'},
   {regex => qr/^ is (?: \s+ not )?     $/ix, handler => '_where_field_IS'},
 );
@@ -689,6 +689,16 @@ sub _expand_expr_hashpair {
           join(' ', split '_', $vk),
           { -ident => $k },
           \@rhs
+        ] };
+      }
+      if ($vk eq 'ident') {
+        if (! defined $vv or ref $vv) {
+          puke "-$vk requires a single plain scalar argument (a quotable identifier)";
+        }
+        return +{ -op => [
+          $self->{cmp},
+          { -ident => $k },
+          { -ident => $vv }
         ] };
       }
     }
