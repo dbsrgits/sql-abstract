@@ -41,7 +41,7 @@ my @BUILTIN_SPECIAL_OPS = (
   {regex => qr/^ (?: not \s )? in      $/ix, handler => sub { die "NOPE" }},
   {regex => qr/^ ident                 $/ix, handler => sub { die "NOPE" }},
   {regex => qr/^ value                 $/ix, handler => sub { die "NOPE" }},
-  {regex => qr/^ is (?: \s+ not )?     $/ix, handler => '_where_field_IS'},
+  {regex => qr/^ is (?: \s+ not )?     $/ix, handler => sub { die "NOPE" }},
 );
 
 # unaryish operators - key maps to handler
@@ -708,6 +708,17 @@ sub _expand_expr_hashpair {
           { -ident => $k },
           { -bind => [ $k, $vv ] }
         ] };
+      }
+      if ($vk =~ /^is(?:[ _]not)?$/) {
+        puke "$vk can only take undef as argument"
+          if defined($vv)
+             and not (
+               ref($vv) eq 'HASH'
+               and exists($vv->{-value})
+               and !defined($vv->{-value})
+             );
+        $vk =~ s/_/ /g;
+        return +{ -op => [ $vk.' null', { -ident => $k } ] };
       }
     }
     if (ref($v) eq 'ARRAY') {
