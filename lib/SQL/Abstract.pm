@@ -37,8 +37,8 @@ our $AUTOLOAD;
 # special operators (-in, -between). May be extended/overridden by user.
 # See section WHERE: BUILTIN SPECIAL OPERATORS below for implementation
 my @BUILTIN_SPECIAL_OPS = (
-  {regex => qr/^ (?: not \s )? between $/ix, handler => '_where_field_BETWEEN'},
-  {regex => qr/^ (?: not \s )? in      $/ix, handler => '_where_field_IN'},
+  {regex => qr/^ (?: not \s )? between $/ix, handler => sub { die "NOPE" }},
+  {regex => qr/^ (?: not \s )? in      $/ix, handler => sub { die "NOPE" }},
   {regex => qr/^ ident                 $/ix, handler => '_where_op_IDENT'},
   {regex => qr/^ value                 $/ix, handler => '_where_op_VALUE'},
   {regex => qr/^ is (?: \s+ not )?     $/ix, handler => '_where_field_IS'},
