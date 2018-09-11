@@ -640,6 +640,7 @@ sub _expand_expr_hashpair {
       }
       my ($vk, $vv) = %$v;
       $vk =~ s/^-//;
+      $vk = lc($vk);
       if ($vk =~ /^(?:not[ _])?between$/) {
         my @rhs = map $self->_expand_expr($_),
                     ref($vv) eq 'ARRAY' ? @$vv : $vv;
