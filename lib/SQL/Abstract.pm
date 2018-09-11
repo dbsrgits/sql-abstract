@@ -651,12 +651,44 @@ sub _expand_expr_hashpair {
           puke "Operator '${\uc($vk)}' requires either an arrayref with two defined values or expressions, or a single literal scalarref/arrayref-ref";
         }
         return +{ -op => [
-          $vk, { -ident => $k },
+          join(' ', split '_', $vk),
+          { -ident => $k },
           map {
             my $v = ref($_) ? $_->{-value} :$_;
             ($v ? { -bind => [ $k, $v ] } : $_)
           } @rhs
         ] }
+      }
+      if ($vk =~ /^(?:not[ _])?in$/) {
+        if (my $literal = is_literal_value($vv)) {
+          my ($sql, @bind) = @$literal;
+          my $opened_sql = $self->_open_outer_paren($sql);
+          return +{ -op => [
+            $vk, { -ident => $k },
+            [ { -literal => [ $opened_sql, @bind ] } ]
+          ] };
+        }
+        my $undef_err =
+          'SQL::Abstract before v1.75 used to generate incorrect SQL when the '
+        . "-${\uc($vk)} operator was given an undef-containing list: !!!AUDIT YOUR CODE "
+        . 'AND DATA!!! (the upcoming Data::Query-based version of SQL::Abstract '
+        . 'will emit the logically correct SQL instead of raising this exception)'
+        ;
+        puke("Argument passed to the '${\uc($vk)}' operator can not be undefined")
+          if !defined($vv);
+        my @rhs = map $self->_expand_expr($_),
+                    map { ref($_) ? $_ : { -bind => [ $k, $_ ] } }
+                    map { defined($_) ? $_: puke($undef_err) }
+                      (ref($vv) eq 'ARRAY' ? @$vv : $vv);
+        return +{
+          -literal => [ $self->{$vk =~ /^not/ ? 'sqltrue' : 'sqlfalse'} ]
+        } unless @rhs;
+
+        return +{ -op => [
+          join(' ', split '_', $vk),
+          { -ident => $k },
+          \@rhs
+        ] };
       }
     }
     if (ref($v) eq 'ARRAY') {
@@ -1054,6 +1086,28 @@ my %special = (
       );
     }
   }), 'between', 'not between'),
+  (map +($_ => do {
+    my $op = $_;
+    sub {
+      my ($self, $args) = @_;
+      my ($lhs, $rhs) = @$args;
+      my @in_bind;
+      my @in_sql = map {
+        local $self->{_nested_func_lhs} = $lhs->{-ident}
+          if ref($lhs) eq 'HASH' and $lhs->{-ident};
+        my ($sql, @bind) = $self->_where_unary_op(%$_);
+        push @in_bind, @bind;
+        $sql;
+      } @$rhs;
+      my ($lhsql, @lbind) = $self->_recurse_where($lhs);
+      return (
+        $lhsql.' '.$self->_sqlcase($op).' ( '
+        .join(', ', @in_sql)
+        .' )',
+        @lbind, @in_bind
+      );
+    }
+  }), 'in', 'not in'),
 );
 
 sub _where_op_OP {
