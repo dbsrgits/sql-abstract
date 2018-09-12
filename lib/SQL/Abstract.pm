@@ -540,6 +540,7 @@ sub where {
 
 sub _expand_expr {
   my ($self, $expr, $logic) = @_;
+  return undef unless defined($expr);
   if (ref($expr) eq 'HASH') {
     if (keys %$expr > 1) {
       $logic ||= 'and';
@@ -579,7 +580,11 @@ sub _expand_expr {
   if (my $literal = is_literal_value($expr)) {
     return +{ -literal => $literal };
   }
-  return $expr;
+  if (!ref($expr)) {
+    return +{ -value => $expr };
+  }
+  #::Ddie([ HUH => $expr ]);
+  die "notreached";
 }
 
 sub _expand_expr_hashpair {
