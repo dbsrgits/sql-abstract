@@ -171,7 +171,7 @@ sub new {
   $opt{sqlfalse} ||= '0=1';
 
   # special operators
-  $opt{special_ops} ||= [];
+  $opt{user_special_ops} = [ @{$opt{special_ops} ||= []} ];
   # regexes are applied in order, thus push after user-defines
   push @{$opt{special_ops}}, @BUILTIN_SPECIAL_OPS;
 
@@ -549,10 +549,11 @@ sub _expand_expr {
           sort keys %$expr
       ] };
     }
+    return unless %$expr;
     return $self->_expand_expr_hashpair(%$expr, $logic);
   }
   if (ref($expr) eq 'ARRAY') {
-    $logic = lc($logic || $self->{logic});
+    my $logic = lc($logic || $self->{logic});
     $logic eq 'and' or $logic eq 'or' or puke "unknown logic: $logic";
 
     my @expr = @$expr;
@@ -580,7 +581,10 @@ sub _expand_expr {
   if (my $literal = is_literal_value($expr)) {
     return +{ -literal => $literal };
   }
-  if (!ref($expr)) {
+  if (!ref($expr) or Scalar::Util::blessed($expr)) {
+    if (my $m = our $Cur_Col_Meta) {
+      return +{ -bind => [ $m, $expr ] };
+    }
     return +{ -value => $expr };
   }
   #::Ddie([ HUH => $expr ]);
@@ -597,6 +601,11 @@ sub _expand_expr_hashpair {
     puke "Supplying an empty left hand side argument is not supported";
   }
   if ($k =~ /^-/) {
+    $self->_assert_pass_injection_guard($k =~ /^-(.*)$/s);
+    if ($k =~ s/ [_\s]? \d+ $//x ) {
+      belch 'Use of [and|or|nest]_N modifiers is deprecated and will be removed in SQLA v2.0. '
+          . "You probably wanted ...-and => [ $k => COND1, $k => COND2 ... ]";
+    }
     if ($k eq '-nest') {
       return $self->_expand_expr($v);
     }
@@ -607,158 +616,252 @@ sub _expand_expr_hashpair {
       puke "-bool => undef not supported" unless defined($v);
       return { -ident => $v };
     }
-    if (my ($rest) = $k =~/^-not[_ ](.*)$/) {
-      return $self->_expand_expr({ -not => { "-${rest}", $v } }, $logic);
+    if ($k eq '-not') {
+      return { -not => $self->_expand_expr($v) };
     }
-    if (my ($logic) = $k =~ /^-(and|or)$/) {
+    if (my ($rest) = $k =~/^-not[_ ](.*)$/) {
+      return +{ -not =>
+        $self->_expand_expr_hashpair("-${rest}", $v, $logic)
+      };
+    }
+    if (my ($logic) = $k =~ /^-(and|or)$/i) {
       if (ref($v) eq 'HASH') {
         return $self->_expand_expr($v, $logic);
       }
+      if (ref($v) eq 'ARRAY') {
+        return $self->_expand_expr($v, $logic);
+      }
     }
-  } else {
-    unless (defined($v)) {
-      my $orig_op = my $op = $self->{cmp};
+    {
+      my $op = $k;
+      $op =~ s/^-// if length($op) > 1;
+    
+      # top level special ops are illegal in general
+      puke "Illegal use of top-level '-$op'"
+        if !(defined $self->{_nested_func_lhs})
+        and List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}}
+        and not List::Util::first { $op =~ $_->{regex} } @{$self->{unary_ops}};
+    }
+    if ($k eq '-value' and my $m = our $Cur_Col_Meta) {
+      return +{ -bind => [ $m, $v ] };
+    }
+    if ($k eq '-op' or $k eq '-ident' or $k eq '-value' or $k eq '-bind' or $k eq '-literal') {
+      return { $k => $v };
+    }
+    if (!ref($v)) {
+      return +{ -op => [ $k =~ /^-(.*)$/, $self->_expand_expr($v) ] };
+    }
+  }
+  if (
+    !defined($v)
+    or (
+      ref($v) eq 'HASH'
+      and exists $v->{-value}
+      and not defined $v->{-value}
+    )
+  ) {
+    return $self->_expand_expr_hashpair($k => { $self->{cmp} => undef });
+  }
+  if (!ref($v) or Scalar::Util::blessed($v)) {
+    return +{
+      -op => [
+        $self->{cmp},
+        { -ident => $k },
+        { -bind => [ $k, $v ] }
+      ]
+    };
+  }
+  if (ref($v) eq 'HASH') {
+    if (keys %$v > 1) {
+      return { -and => [
+        map $self->_expand_expr_hashpair($k => { $_ => $v->{$_} }),
+          sort keys %$v
+      ] };
+    }
+    my ($vk, $vv) = %$v;
+    $vk =~ s/^-//;
+    $vk = lc($vk);
+    $self->_assert_pass_injection_guard($vk);
+    if ($vk =~ s/ [_\s]? \d+ $//x ) {
+      belch 'Use of [and|or|nest]_N modifiers is deprecated and will be removed in SQLA v2.0. '
+          . "You probably wanted ...-and => [ -$vk => COND1, -$vk => COND2 ... ]";
+    }
+    if ($vk =~ /^(?:not[ _])?between$/) {
+      local our $Cur_Col_Meta = $k;
+      my @rhs = map $self->_expand_expr($_),
+                  ref($vv) eq 'ARRAY' ? @$vv : $vv;
+      unless (
+        (@rhs == 1 and ref($rhs[0]) eq 'HASH' and $rhs[0]->{-literal})
+        or
+        (@rhs == 2 and defined($rhs[0]) and defined($rhs[1]))
+      ) {
+        puke "Operator '${\uc($vk)}' requires either an arrayref with two defined values or expressions, or a single literal scalarref/arrayref-ref";
+      }
+      return +{ -op => [
+        join(' ', split '_', $vk),
+        { -ident => $k },
+        @rhs
+      ] }
+    }
+    if ($vk =~ /^(?:not[ _])?in$/) {
+      if (my $literal = is_literal_value($vv)) {
+        my ($sql, @bind) = @$literal;
+        my $opened_sql = $self->_open_outer_paren($sql);
+        return +{ -op => [
+          $vk, { -ident => $k },
+          [ { -literal => [ $opened_sql, @bind ] } ]
+        ] };
+      }
+      my $undef_err =
+        'SQL::Abstract before v1.75 used to generate incorrect SQL when the '
+      . "-${\uc($vk)} operator was given an undef-containing list: !!!AUDIT YOUR CODE "
+      . 'AND DATA!!! (the upcoming Data::Query-based version of SQL::Abstract '
+      . 'will emit the logically correct SQL instead of raising this exception)'
+      ;
+      puke("Argument passed to the '${\uc($vk)}' operator can not be undefined")
+        if !defined($vv);
+      my @rhs = map $self->_expand_expr($_),
+                  map { ref($_) ? $_ : { -bind => [ $k, $_ ] } }
+                  map { defined($_) ? $_: puke($undef_err) }
+                    (ref($vv) eq 'ARRAY' ? @$vv : $vv);
+      return +{
+        -literal => [ $self->{$vk =~ /^not/ ? 'sqltrue' : 'sqlfalse'} ]
+      } unless @rhs;
+
+      return +{ -op => [
+        join(' ', split '_', $vk),
+        { -ident => $k },
+        \@rhs
+      ] };
+    }
+    if ($vk eq 'ident') {
+      if (! defined $vv or ref $vv) {
+        puke "-$vk requires a single plain scalar argument (a quotable identifier)";
+      }
+      return +{ -op => [
+        $self->{cmp},
+        { -ident => $k },
+        { -ident => $vv }
+      ] };
+    }
+    if ($vk eq 'value') {
+      return $self->_expand_expr_hashpair($k, undef) unless defined($vv);
+      return +{ -op => [
+        $self->{cmp},
+        { -ident => $k },
+        { -bind => [ $k, $vv ] }
+      ] };
+    }
+    if ($vk =~ /^is(?:[ _]not)?$/) {
+      puke "$vk can only take undef as argument"
+        if defined($vv)
+           and not (
+             ref($vv) eq 'HASH'
+             and exists($vv->{-value})
+             and !defined($vv->{-value})
+           );
+      $vk =~ s/_/ /g;
+      return +{ -op => [ $vk.' null', { -ident => $k } ] };
+    }
+    if ($vk =~ /^(and|or)$/) {
+      if (ref($vv) eq 'HASH') {
+        return +{ "-${vk}" => [
+          map $self->_expand_expr_hashpair($k, { $_ => $vv->{$_} }),
+            sort keys %$vv
+        ] };
+      }
+    }
+    if (my $us = List::Util::first { $vk =~ $_->{regex} } @{$self->{user_special_ops}}) {
+      return { -op => [ $vk, { -ident => $k }, $vv ] };
+    }
+    if (ref($vv) eq 'ARRAY') {
+      my ($logic, @values) = (
+        (defined($vv->[0]) and $vv->[0] =~ /^-(and|or)$/i)
+          ? @$vv
+          : (-or => @$vv)
+      );
+      if (
+        $vk =~ $self->{inequality_op}
+        or join(' ', split '_', $vk) =~ $self->{not_like_op}
+      ) {
+        if (lc($logic) eq '-or' and @values > 1) {
+          my $op = uc join ' ', split '_', $vk;
+          belch "A multi-element arrayref as an argument to the inequality op '$op' "
+              . 'is technically equivalent to an always-true 1=1 (you probably wanted '
+              . "to say ...{ \$inequality_op => [ -and => \@values ] }... instead)"
+          ;
+        }
+        return $self->{sqltrue} unless @values;
+      }
+      return $self->{sqlfalse} unless @values;
+      return +{ $logic => [
+        map $self->_expand_expr_hashpair($k => { $vk => $_ }),
+          @values
+      ] };
+    }
+    if (
+      !defined($vv)
+      or (
+        ref($vv) eq 'HASH'
+        and exists $vv->{-value}
+        and not defined $vv->{-value}
+      )
+    ) {
+      my $op = join ' ', split '_', $vk;
       my $is =
         $op =~ /^not$/i               ? 'is not'  # legacy
       : $op =~ $self->{equality_op}   ? 'is'
       : $op =~ $self->{like_op}       ? belch("Supplying an undefined argument to '@{[ uc $op]}' is deprecated") && 'is'
       : $op =~ $self->{inequality_op} ? 'is not'
       : $op =~ $self->{not_like_op}   ? belch("Supplying an undefined argument to '@{[ uc $op]}' is deprecated") && 'is not'
-      : puke "unexpected operator '$orig_op' with undef operand";
+      : puke "unexpected operator '$op' with undef operand";
       return +{ -op => [ $is.' null', { -ident => $k } ] };
     }
-    if (!ref($v)) {
-      return +{
-        -op => [
-          $self->{cmp},
-          { -ident => $k },
-          { -bind => [ $k, $v ] }
-        ]
-      };
-    }
-    if (ref($v) eq 'HASH') {
-      if (keys %$v > 1) {
-        return { -and => [
-          map $self->_expand_expr_hashpair($k => { $_ => $v->{$_} }),
-            sort keys %$v
-        ] };
-      }
-      my ($vk, $vv) = %$v;
-      $vk =~ s/^-//;
-      $vk = lc($vk);
-      if ($vk =~ /^(?:not[ _])?between$/) {
-        my @rhs = map $self->_expand_expr($_),
-                    ref($vv) eq 'ARRAY' ? @$vv : $vv;
-        unless (
-          (@rhs == 1 and ref($rhs[0]) eq 'HASH' and $rhs[0]->{-literal})
-          or
-          (@rhs == 2 and defined($rhs[0]) and defined($rhs[1]))
-        ) {
-          puke "Operator '${\uc($vk)}' requires either an arrayref with two defined values or expressions, or a single literal scalarref/arrayref-ref";
-        }
-        return +{ -op => [
-          join(' ', split '_', $vk),
-          { -ident => $k },
-          map {
-            my $v = ref($_) ? $_->{-value} :$_;
-            ($v ? { -bind => [ $k, $v ] } : $_)
-          } @rhs
-        ] }
-      }
-      if ($vk =~ /^(?:not[ _])?in$/) {
-        if (my $literal = is_literal_value($vv)) {
-          my ($sql, @bind) = @$literal;
-          my $opened_sql = $self->_open_outer_paren($sql);
-          return +{ -op => [
-            $vk, { -ident => $k },
-            [ { -literal => [ $opened_sql, @bind ] } ]
-          ] };
-        }
-        my $undef_err =
-          'SQL::Abstract before v1.75 used to generate incorrect SQL when the '
-        . "-${\uc($vk)} operator was given an undef-containing list: !!!AUDIT YOUR CODE "
-        . 'AND DATA!!! (the upcoming Data::Query-based version of SQL::Abstract '
-        . 'will emit the logically correct SQL instead of raising this exception)'
-        ;
-        puke("Argument passed to the '${\uc($vk)}' operator can not be undefined")
-          if !defined($vv);
-        my @rhs = map $self->_expand_expr($_),
-                    map { ref($_) ? $_ : { -bind => [ $k, $_ ] } }
-                    map { defined($_) ? $_: puke($undef_err) }
-                      (ref($vv) eq 'ARRAY' ? @$vv : $vv);
-        return +{
-          -literal => [ $self->{$vk =~ /^not/ ? 'sqltrue' : 'sqlfalse'} ]
-        } unless @rhs;
-
-        return +{ -op => [
-          join(' ', split '_', $vk),
-          { -ident => $k },
-          \@rhs
-        ] };
-      }
-      if ($vk eq 'ident') {
-        if (! defined $vv or ref $vv) {
-          puke "-$vk requires a single plain scalar argument (a quotable identifier)";
-        }
-        return +{ -op => [
-          $self->{cmp},
-          { -ident => $k },
-          { -ident => $vv }
-        ] };
-      }
-      if ($vk eq 'value') {
-        return $self->_expand_expr_hashpair($k, undef) unless defined($vv);
-        return +{ -op => [
-          $self->{cmp},
-          { -ident => $k },
-          { -bind => [ $k, $vv ] }
-        ] };
-      }
-      if ($vk =~ /^is(?:[ _]not)?$/) {
-        puke "$vk can only take undef as argument"
-          if defined($vv)
-             and not (
-               ref($vv) eq 'HASH'
-               and exists($vv->{-value})
-               and !defined($vv->{-value})
-             );
-        $vk =~ s/_/ /g;
-        return +{ -op => [ $vk.' null', { -ident => $k } ] };
-      }
-    }
-    if (ref($v) eq 'ARRAY') {
-      return $self->{sqlfalse} unless @$v;
-      $self->_debug("ARRAY($k) means distribute over elements");
-      my $this_logic = (
-        $v->[0] =~ /^-((?:and|or))$/i
-          ? ($v = [ @{$v}[1..$#$v] ], $1)
-          : ($self->{logic} || 'or')
-      );
-      return +{ "-${this_logic}" => [ map $self->_expand_expr({ $k => $_ }, $this_logic), @$v ] };
-    }
-    if (my $literal = is_literal_value($v)) {
-      unless (length $k) {
-        belch 'Hash-pairs consisting of an empty string with a literal are deprecated, and will be removed in 2.0: use -and => [ $literal ] instead';
-        return \$literal;
-      }
-      my ($sql, @bind) = @$literal;
-      if ($self->{bindtype} eq 'columns') {
-        for (@bind) {
-          if (!defined $_ || ref($_) ne 'ARRAY' || @$_ != 2) {
-            puke "bindtype 'columns' selected, you need to pass: [column_name => bind_value]"
-          }
-        }
-      }
-      return +{ -literal => [ $self->_quote($k).' '.$sql, @bind ] };
-    }
+    local our $Cur_Col_Meta = $k;
+    return +{ -op => [
+      $vk,
+     { -ident => $k },
+     $self->_expand_expr($vv)
+    ] };
   }
+  if (ref($v) eq 'ARRAY') {
+    return $self->{sqlfalse} unless @$v;
+    $self->_debug("ARRAY($k) means distribute over elements");
+    my $this_logic = (
+      $v->[0] =~ /^-((?:and|or))$/i
+        ? ($v = [ @{$v}[1..$#$v] ], $1)
+        : ($self->{logic} || 'or')
+    );
+    return +{ "-${this_logic}" => [ map $self->_expand_expr({ $k => $_ }, $this_logic), @$v ] };
+  }
+  if (my $literal = is_literal_value($v)) {
+    unless (length $k) {
+      belch 'Hash-pairs consisting of an empty string with a literal are deprecated, and will be removed in 2.0: use -and => [ $literal ] instead';
+      return \$literal;
+    }
+    my ($sql, @bind) = @$literal;
+    if ($self->{bindtype} eq 'columns') {
+      for (@bind) {
+        if (!defined $_ || ref($_) ne 'ARRAY' || @$_ != 2) {
+          puke "bindtype 'columns' selected, you need to pass: [column_name => bind_value]"
+        }
+      }
+    }
+    return +{ -literal => [ $self->_quote($k).' '.$sql, @bind ] };
+  }
+  ::Ddie([ HUH => { $k => $v } ]);
+  die "notreached";
   return { $k => $v };
 }
 
 sub _recurse_where {
   my ($self, $where, $logic) = @_;
 
+#print STDERR Data::Dumper::Concise::Dumper([ $where, $logic ]);
+
   my $where_exp = $self->_expand_expr($where, $logic);
+
+#print STDERR Data::Dumper::Concise::Dumper([ EXP => $where_exp ]);
 
   # dispatch on appropriate method according to refkind of $where
   my $method = $self->_METHOD_FOR_refkind("_where", $where_exp);
@@ -1153,9 +1256,14 @@ sub _where_op_OP {
   if (my $h = $special{$op}) {
     return $self->$h(\@args);
   }
+  if (my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{user_special_ops}}) {
+    puke "Special op '${op}' requires first value to be identifier"
+      unless my ($k) = map $_->{-ident}, grep ref($_) eq 'HASH', $args[0];
+    return $self->${\($us->{handler})}($k, $op, $args[1]);
+  }
+  my $final_op = $op =~ /^(?:is|not)_/ ? join(' ', split '_', $op) : $op;
   if (@args == 1) {
     my ($expr_sql, @bind) = $self->_recurse_where($args[0]);
-    my $final_op = join ' ', split '_', $op;
     my $op_sql = $self->_sqlcase($final_op);
     my $final_sql = (
       $unop_postfix{lc($final_op)}
@@ -1165,7 +1273,10 @@ sub _where_op_OP {
     return ($final_sql, @bind);
   } elsif (@args == 2) {
      my ($l, $r) = map [ $self->_recurse_where($_) ], @args;
-     return (                                                                          $l->[0].' '.$self->_sqlcase(join ' ', split '_', $op).' '.$r->[0],              @{$l}[1..$#$l], @{$r}[1..$#$r]                                                );
+     return (
+       $l->[0].' '.$self->_sqlcase($final_op).' '.$r->[0],
+       @{$l}[1..$#$l], @{$r}[1..$#$r]
+     );
   }
   die "unhandled";
 }
