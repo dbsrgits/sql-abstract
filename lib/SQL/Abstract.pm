@@ -574,7 +574,7 @@ sub _expand_expr {
       } elsif ($elref eq 'HASH') {
         push @res, $self->_expand_expr($el);
       } else {
-        die "unimplemented"
+        die "notreached";
       }
     }
     return { '-'.$logic => \@res };
@@ -588,7 +588,6 @@ sub _expand_expr {
     }
     return +{ -value => $expr };
   }
-  #::Ddie([ HUH => $expr ]);
   die "notreached";
 }
 
@@ -866,9 +865,7 @@ sub _expand_expr_hashpair {
     }
     return +{ -literal => [ $self->_quote($k).' '.$sql, @bind ] };
   }
-  ::Ddie([ HUH => { $k => $v } ]);
   die "notreached";
-  return { $k => $v };
 }
 
 sub _recurse_where {
