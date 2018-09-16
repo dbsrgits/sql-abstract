@@ -800,9 +800,17 @@ sub _expand_expr_hashpair {
               . "to say ...{ \$inequality_op => [ -and => \@values ] }... instead)"
           ;
         }
-        return $self->{sqltrue} unless @values;
       }
-      return $self->{sqlfalse} unless @values;
+      unless (@values) {
+        # try to DWIM on equality operators
+        my $op = join ' ', split '_', $vk;
+        return
+          $op =~ $self->{equality_op}   ? $self->{sqlfalse}
+        : $op =~ $self->{like_op}       ? belch("Supplying an empty arrayref to '@{[ uc $op]}' is deprecated") && $self->{sqlfalse}
+        : $op =~ $self->{inequality_op} ? $self->{sqltrue}
+        : $op =~ $self->{not_like_op}   ? belch("Supplying an empty arrayref to '@{[ uc $op]}' is deprecated") && $self->{sqltrue}
+        : puke "operator '$op' applied on an empty array (field '$k')";
+      }
       return +{ $logic => [
         map $self->_expand_expr_hashpair($k => { $vk => $_ }),
           @values
