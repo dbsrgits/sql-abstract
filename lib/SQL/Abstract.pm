@@ -1286,11 +1286,11 @@ sub _where_op_OP {
         : "${op_sql} ${expr_sql}"
     );
     return (($op eq 'not' ? '('.$final_sql.')' : $final_sql), @bind);
-  } elsif (@args == 2) {
-     my ($l, $r) = map [ $self->_recurse_where($_) ], @args;
+  } else {
+     my @parts = map [ $self->_recurse_where($_) ], @args;
      return (
-       $l->[0].' '.$self->_sqlcase($final_op).' '.$r->[0],
-       @{$l}[1..$#$l], @{$r}[1..$#$r]
+       join(' '.$self->_sqlcase($final_op).' ', map $_->[0], @parts),
+       map @{$_}[1..$#$_], @parts
      );
   }
   die "unhandled";
