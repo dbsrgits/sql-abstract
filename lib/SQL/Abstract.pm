@@ -56,6 +56,7 @@ my @BUILTIN_UNARY_OPS = (
   { regex => qr/^ op                     $/xi, handler => '_where_op_OP' },
   { regex => qr/^ bind                   $/xi, handler => '_where_op_BIND' },
   { regex => qr/^ literal                $/xi, handler => '_where_op_LITERAL' },
+  { regex => qr/^ func                   $/xi, handler => '_where_op_FUNC' },
 );
 
 #======================================================================
@@ -645,10 +646,18 @@ sub _expand_expr_hashpair {
     if ($k eq '-value' and my $m = our $Cur_Col_Meta) {
       return +{ -bind => [ $m, $v ] };
     }
-    if ($k eq '-op' or $k eq '-ident' or $k eq '-value' or $k eq '-bind' or $k eq '-literal') {
+    if ($k eq '-op' or $k eq '-ident' or $k eq '-value' or $k eq '-bind' or $k eq '-literal' or $k eq '-func') {
       return { $k => $v };
     }
-    if (!ref($v)) {
+    if (
+      ref($v) eq 'HASH'
+      and keys %$v == 1
+      and (keys %$v)[0] =~ /^-/
+    ) {
+      my ($func) = $k =~ /^-(.*)$/;
+      return +{ -func => [ $func, $self->_expand_expr($v) ] };
+    }
+    if (!ref($v) or is_literal_value($v)) {
       return +{ -op => [ $k =~ /^-(.*)$/, $self->_expand_expr($v) ] };
     }
   }
@@ -1279,6 +1288,18 @@ sub _where_op_OP {
      );
   }
   die "unhandled";
+}
+
+sub _where_op_FUNC {
+  my ($self, undef, $rest) = @_;
+  my ($func, @args) = @$rest;
+  my @arg_sql;
+  my @bind = map {
+    my @x = @$_;
+    push @arg_sql, shift @x;
+    @x
+  } map [ $self->_recurse_where($_) ], @args;
+  return ($self->_sqlcase($func).'('.join(', ', @arg_sql).')', @bind);
 }
 
 sub _where_op_BIND {
