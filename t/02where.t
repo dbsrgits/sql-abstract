@@ -2,7 +2,8 @@ use strict;
 use warnings;
 use Test::More;
 use Test::Warn;
-use SQL::Abstract::Test import => [qw(is_same_sql_bind diag_where) ];
+use Test::Exception;
+use SQL::Abstract::Test import => [qw(is_same_sql_bind diag_where dumper) ];
 
 use SQL::Abstract;
 
@@ -396,12 +397,14 @@ my @handle_tests = (
 for my $case (@handle_tests) {
     my $sql = SQL::Abstract->new;
     my ($stmt, @bind);
-    warnings_exist {
-      ($stmt, @bind) = $sql->where($case->{where}, $case->{order});
-    } $case->{warns} || [];
+    lives_ok {
+      warnings_exist {
+        ($stmt, @bind) = $sql->where($case->{where}, $case->{order});
+      } $case->{warns} || [];
+    };
 
     is_same_sql_bind($stmt, \@bind, $case->{stmt}, $case->{bind})
-      || diag_where ( $case->{where} );
+      || do { diag_where ( $case->{where} ); diag dumper($sql->_expand_expr($case->{where})) };
 }
 
 done_testing;
