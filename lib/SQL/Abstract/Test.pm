@@ -124,6 +124,12 @@ sub _sql_differ_diag {
   my $sql2 = shift || '';
 
   my $tb = $tb || __PACKAGE__->builder;
+
+  if (my $profile = $ENV{SQL_ABSTRACT_TEST_TREE_PROFILE}) {
+    my $sqlat = SQL::Abstract::Tree->new(profile => $profile);
+    $_ = $sqlat->format($_) for ($sql1, $sql2);
+  }
+
   $tb->${\($tb->in_todo ? 'note' : 'diag')} (
        "SQL expressions differ\n"
       ." got: $sql1\n"
