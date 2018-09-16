@@ -617,12 +617,13 @@ sub _expand_expr_hashpair {
       return { -ident => $v };
     }
     if ($k eq '-not') {
-      return { -not => $self->_expand_expr($v) };
+      return { -op => [ 'not', $self->_expand_expr($v) ] };
     }
     if (my ($rest) = $k =~/^-not[_ ](.*)$/) {
-      return +{ -not =>
+      return +{ -op => [
+        'not',
         $self->_expand_expr_hashpair("-${rest}", $v, $logic)
-      };
+      ] };
     }
     if (my ($logic) = $k =~ /^-(and|or)$/i) {
       if (ref($v) eq 'HASH') {
@@ -1284,7 +1285,7 @@ sub _where_op_OP {
         ? "${expr_sql} ${op_sql}"
         : "${op_sql} ${expr_sql}"
     );
-    return ($final_sql, @bind);
+    return (($op eq 'not' ? '('.$final_sql.')' : $final_sql), @bind);
   } elsif (@args == 2) {
      my ($l, $r) = map [ $self->_recurse_where($_) ], @args;
      return (
