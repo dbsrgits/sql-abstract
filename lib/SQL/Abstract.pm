@@ -545,7 +545,8 @@ sub _expand_expr {
   if (ref($expr) eq 'HASH') {
     if (keys %$expr > 1) {
       $logic ||= 'and';
-      return +{ "-${logic}" => [
+      return +{ -op => [
+        $logic,
         map $self->_expand_expr_hashpair($_ => $expr->{$_}, $logic),
           sort keys %$expr
       ] };
@@ -1288,8 +1289,12 @@ sub _where_op_OP {
     return (($op eq 'not' ? '('.$final_sql.')' : $final_sql), @bind);
   } else {
      my @parts = map [ $self->_recurse_where($_) ], @args;
+     my ($final_sql) = map +($op =~ /^(and|or)$/ ? "(${_})" : $_), join(
+       ' '.$self->_sqlcase($final_op).' ',
+       map $_->[0], @parts
+     );
      return (
-       join(' '.$self->_sqlcase($final_op).' ', map $_->[0], @parts),
+       $final_sql,
        map @{$_}[1..$#$_], @parts
      );
   }
