@@ -39,24 +39,7 @@ our $AUTOLOAD;
 my @BUILTIN_SPECIAL_OPS = (
   {regex => qr/^ (?: not \s )? between $/ix, handler => sub { die "NOPE" }},
   {regex => qr/^ (?: not \s )? in      $/ix, handler => sub { die "NOPE" }},
-  {regex => qr/^ ident                 $/ix, handler => sub { die "NOPE" }},
-  {regex => qr/^ value                 $/ix, handler => sub { die "NOPE" }},
   {regex => qr/^ is (?: \s+ not )?     $/ix, handler => sub { die "NOPE" }},
-);
-
-# unaryish operators - key maps to handler
-my @BUILTIN_UNARY_OPS = (
-  # the digits are backcompat stuff
-  { regex => qr/^ and  (?: [_\s]? \d+ )? $/xi, handler => '_where_op_ANDOR' },
-  { regex => qr/^ or   (?: [_\s]? \d+ )? $/xi, handler => '_where_op_ANDOR' },
-  { regex => qr/^ nest (?: [_\s]? \d+ )? $/xi, handler => '_where_op_NEST' },
-  { regex => qr/^ (?: not \s )? bool     $/xi, handler => '_where_op_BOOL' },
-  { regex => qr/^ ident                  $/xi, handler => '_where_op_IDENT' },
-  { regex => qr/^ value                  $/xi, handler => '_where_op_VALUE' },
-  { regex => qr/^ op                     $/xi, handler => '_where_op_OP' },
-  { regex => qr/^ bind                   $/xi, handler => '_where_op_BIND' },
-  { regex => qr/^ literal                $/xi, handler => '_where_op_LITERAL' },
-  { regex => qr/^ func                   $/xi, handler => '_where_op_FUNC' },
 );
 
 #======================================================================
@@ -178,7 +161,6 @@ sub new {
 
   # unary operators
   $opt{unary_ops} ||= [];
-  push @{$opt{unary_ops}}, @BUILTIN_UNARY_OPS;
 
   # rudimentary sanity-check for user supplied bits treated as functions/operators
   # If a purported  function matches this regular expression, an exception is thrown.
@@ -647,8 +629,7 @@ sub _expand_expr_hashpair {
       # top level special ops are illegal in general
       puke "Illegal use of top-level '-$op'"
         if !(defined $self->{_nested_func_lhs})
-        and List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}}
-        and not List::Util::first { $op =~ $_->{regex} } @{$self->{unary_ops}};
+        and List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}};
     }
     if ($k eq '-value' and my $m = our $Cur_Col_Meta) {
       return +{ -bind => [ $m, $v ] };
