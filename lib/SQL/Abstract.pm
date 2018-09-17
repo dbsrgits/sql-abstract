@@ -433,8 +433,10 @@ sub _update_set_values {
         puke 'Operator calls in update must be in the form { -op => $arg }'
           if (@rest or not $op =~ /^\-(.+)/);
 
-        local $self->{_nested_func_lhs} = $k;
-        my ($sql, @bind) = $self->_where_unary_op($1, $arg);
+        local our $Cur_Col_Meta = $k;
+        my ($sql, @bind) = $self->_render_expr(
+          $self->_expand_expr_hashpair($op, $arg)
+        );
 
         push @set, "$label = $sql";
         push @all_bind, @bind;
