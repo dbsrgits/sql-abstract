@@ -852,7 +852,10 @@ sub _expand_expr_hashpair {
         ? ($v = [ @{$v}[1..$#$v] ], $1)
         : ($self->{logic} || 'or')
     );
-    return +{ "-${this_logic}" => [ map $self->_expand_expr({ $k => $_ }, $this_logic), @$v ] };
+    return +{ -op => [
+      $this_logic,
+      map $self->_expand_expr({ $k => $_ }, $this_logic), @$v
+    ] };
   }
   if (my $literal = is_literal_value($v)) {
     unless (length $k) {
@@ -1270,6 +1273,7 @@ sub _where_op_OP {
   my ($self, undef, $v) = @_;
   my ($op, @args) = @$v;
   $op =~ s/^-// if length($op) > 1;
+  $op = lc($op);
   local $self->{_nested_func_lhs};
   if (my $h = $special{$op}) {
     return $self->$h(\@args);
