@@ -865,10 +865,10 @@ sub _render_expr {
   my ($self, $expr) = @_;
   my ($k, $v, @rest) = %$expr;
   die "No" if @rest;
-  my %op = map +("-$_" => '_where_op_'.uc($_)),
+  my %op = map +("-$_" => '_render_'.$_),
     qw(op func value bind ident literal);
   if (my $meth = $op{$k}) {
-    return $self->$meth(undef, $v);
+    return $self->$meth($v);
   }
   die "notreached: $k";
 }
@@ -900,14 +900,14 @@ sub _recurse_where {
   }
 }
 
-sub _where_op_IDENT {
-  my ($self, undef, $ident) = @_;
+sub _render_ident {
+  my ($self, $ident) = @_;
 
   return $self->_convert($self->_quote($ident));
 }
 
-sub _where_op_VALUE {
-  my ($self, undef, $value) = @_;
+sub _render_value {
+  my ($self, $value) = @_;
 
   return ($self->_convert('?'), $self->_bindtype(undef, $value));
 }
@@ -960,8 +960,8 @@ my %special = (
   }), 'in', 'not in'),
 );
 
-sub _where_op_OP {
-  my ($self, undef, $v) = @_;
+sub _render_op {
+  my ($self, $v) = @_;
   my ($op, @args) = @$v;
   $op =~ s/^-// if length($op) > 1;
   $op = lc($op);
@@ -998,8 +998,8 @@ sub _where_op_OP {
   die "unhandled";
 }
 
-sub _where_op_FUNC {
-  my ($self, undef, $rest) = @_;
+sub _render_func {
+  my ($self, $rest) = @_;
   my ($func, @args) = @$rest;
   my @arg_sql;
   my @bind = map {
@@ -1010,13 +1010,13 @@ sub _where_op_FUNC {
   return ($self->_sqlcase($func).'('.join(', ', @arg_sql).')', @bind);
 }
 
-sub _where_op_BIND {
-  my ($self, undef, $bind) = @_;
+sub _render_bind {
+  my ($self,  $bind) = @_;
   return ($self->_convert('?'), $self->_bindtype(@$bind));
 }
 
-sub _where_op_LITERAL {
-  my ($self, undef, $literal) = @_;
+sub _render_literal {
+  my ($self, $literal) = @_;
   $self->_assert_bindval_matches_bindtype(@{$literal}[1..$#$literal]);
   return @$literal;
 }
