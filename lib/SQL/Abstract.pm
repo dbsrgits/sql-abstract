@@ -197,6 +197,8 @@ sub new {
   return bless \%opt, $class;
 }
 
+sub sqltrue { +{ -literal => [ $_[0]->{sqltrue} ] } }
+sub sqlfalse { +{ -literal => [ $_[0]->{sqlfalse} ] } }
 
 sub _assert_pass_injection_guard {
   if ($_[1] =~ $_[0]->{injection_guard}) {
@@ -526,7 +528,9 @@ sub where {
   my ($self, $where, $order) = @_;
 
   # where ?
-  my ($sql, @bind) = $self->_recurse_where($where);
+  my ($sql, @bind) = defined($where)
+   ? $self->_recurse_where($where)
+   : (undef);
   $sql = (defined $sql and length $sql) ? $self->_sqlcase(' where ') . "( $sql )" : '';
 
   # order by?
@@ -683,7 +687,8 @@ sub _expand_expr_hashpair {
   }
   if (ref($v) eq 'HASH') {
     if (keys %$v > 1) {
-      return { -and => [
+      return { -op => [
+        'and',
         map $self->_expand_expr_hashpair($k => { $_ => $v->{$_} }),
           sort keys %$v
       ] };
@@ -734,9 +739,7 @@ sub _expand_expr_hashpair {
                   map { ref($_) ? $_ : { -bind => [ $k, $_ ] } }
                   map { defined($_) ? $_: puke($undef_err) }
                     (ref($vv) eq 'ARRAY' ? @$vv : $vv);
-      return +{
-        -literal => [ $self->{$vk =~ /^not/ ? 'sqltrue' : 'sqlfalse'} ]
-      } unless @rhs;
+      return $self->${\($vk =~ /^not/ ? 'sqltrue' : 'sqlfalse')} unless @rhs;
 
       return +{ -op => [
         join(' ', split '_', $vk),
@@ -807,10 +810,10 @@ sub _expand_expr_hashpair {
         # try to DWIM on equality operators
         my $op = join ' ', split '_', $vk;
         return
-          $op =~ $self->{equality_op}   ? $self->{sqlfalse}
-        : $op =~ $self->{like_op}       ? belch("Supplying an empty arrayref to '@{[ uc $op]}' is deprecated") && $self->{sqlfalse}
-        : $op =~ $self->{inequality_op} ? $self->{sqltrue}
-        : $op =~ $self->{not_like_op}   ? belch("Supplying an empty arrayref to '@{[ uc $op]}' is deprecated") && $self->{sqltrue}
+          $op =~ $self->{equality_op}   ? $self->sqlfalse
+        : $op =~ $self->{like_op}       ? belch("Supplying an empty arrayref to '@{[ uc $op]}' is deprecated") && $self->sqlfalse
+        : $op =~ $self->{inequality_op} ? $self->sqltrue
+        : $op =~ $self->{not_like_op}   ? belch("Supplying an empty arrayref to '@{[ uc $op]}' is deprecated") && $self->sqltrue
         : puke "operator '$op' applied on an empty array (field '$k')";
       }
       return +{ -op => [
@@ -845,7 +848,7 @@ sub _expand_expr_hashpair {
     ] };
   }
   if (ref($v) eq 'ARRAY') {
-    return $self->{sqlfalse} unless @$v;
+    return $self->sqlfalse unless @$v;
     $self->_debug("ARRAY($k) means distribute over elements");
     my $this_logic = (
       $v->[0] =~ /^-((?:and|or))$/i
@@ -875,6 +878,18 @@ sub _expand_expr_hashpair {
   die "notreached";
 }
 
+sub _render_expr {
+  my ($self, $expr) = @_;
+  my ($k, $v, @rest) = %$expr;
+  die "No" if @rest;
+  my %op = map +("-$_" => '_where_op_'.uc($_)),
+    qw(op func value bind ident literal);
+  if (my $meth = $op{$k}) {
+    return $self->$meth(undef, $v);
+  }
+  die "notreached: $k";
+}
+
 sub _recurse_where {
   my ($self, $where, $logic) = @_;
 
@@ -885,9 +900,11 @@ sub _recurse_where {
 #print STDERR Data::Dumper::Concise::Dumper([ EXP => $where_exp ]);
 
   # dispatch on appropriate method according to refkind of $where
-  my $method = $self->_METHOD_FOR_refkind("_where", $where_exp);
+#  my $method = $self->_METHOD_FOR_refkind("_where", $where_exp);
 
-  my ($sql, @bind) =  $self->$method($where_exp, $logic);
+#  my ($sql, @bind) =  $self->$method($where_exp, $logic);
+
+  my ($sql, @bind) = defined($where_exp) ? $self->_render_expr($where_exp) : (undef);
 
   # DBIx::Class used to call _recurse_where in scalar context
   # something else might too...
