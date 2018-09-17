@@ -1229,13 +1229,11 @@ my %special = (
       my ($lhs, $rhs) = @$args;
       my @in_bind;
       my @in_sql = map {
-        local $self->{_nested_func_lhs} = $lhs->{-ident}
-          if ref($lhs) eq 'HASH' and $lhs->{-ident};
-        my ($sql, @bind) = $self->_where_unary_op(%$_);
+        my ($sql, @bind) = $self->_render_expr($_);
         push @in_bind, @bind;
         $sql;
       } @$rhs;
-      my ($lhsql, @lbind) = $self->_recurse_where($lhs);
+      my ($lhsql, @lbind) = $self->_render_expr($lhs);
       return (
         $lhsql.' '.$self->_sqlcase($op).' ( '
         .join(', ', @in_sql)
