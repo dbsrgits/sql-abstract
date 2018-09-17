@@ -528,7 +528,8 @@ sub where {
 }
 
 sub _expand_expr {
-  my ($self, $expr, $logic) = @_;
+  my ($self, $expr, $logic, $default_scalar_to) = @_;
+  local our $Default_Scalar_To = $default_scalar_to if $default_scalar_to;
   return undef unless defined($expr);
   if (ref($expr) eq 'HASH') {
     if (keys %$expr > 1) {
@@ -572,6 +573,9 @@ sub _expand_expr {
     return +{ -literal => $literal };
   }
   if (!ref($expr) or Scalar::Util::blessed($expr)) {
+    if (my $d = $Default_Scalar_To) {
+      return +{ $d => $expr };
+    }
     if (my $m = our $Cur_Col_Meta) {
       return +{ -bind => [ $m, $expr ] };
     }
