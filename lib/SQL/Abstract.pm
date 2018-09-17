@@ -912,7 +912,10 @@ sub _render_value {
   return ($self->_convert('?'), $self->_bindtype(undef, $value));
 }
 
-my %unop_postfix = map +($_ => 1), 'is null', 'is not null';
+my %unop_postfix = map +($_ => 1),
+  'is null', 'is not null',
+  'asc', 'desc',
+;
 
 my %special = (
   (map +($_ => do {
@@ -1082,48 +1085,32 @@ sub _order_by {
 sub _order_by_chunks {
   my ($self, $arg) = @_;
 
-  return $self->_SWITCH_refkind($arg, {
+  if (ref($arg) eq 'ARRAY') {
+    return map $self->_order_by_chunks($_), @$arg;
+  }
+  if (my $l = is_literal_value($arg)) {
+    return +{ -literal => $l };
+  }
+  if (!ref($arg)) {
+    return +{ -ident => $arg };
+  }
+  if (!defined($arg)) {
+    # Seriously?
+    return
+  }
+  if (ref($arg) eq 'HASH') {
+    my ($key, $val, @rest) = %$arg;
 
-    ARRAYREF => sub {
-      map { $self->_order_by_chunks($_ ) } @$arg;
-    },
+    return () unless $key;
 
-    ARRAYREFREF => sub {
-      my ($s, @b) = @$$arg;
-      $self->_assert_bindval_matches_bindtype(@b);
-      +{ -literal => [ $s, @b ] };
-    },
+    if (@rest or not $key =~ /^-(desc|asc)/i) {
+      puke "hash passed to _order_by must have exactly one key (-desc or -asc)";
+    }
 
-    SCALAR    => sub { +{ -ident => $arg } },
+    my $dir = $1;
 
-    UNDEF     => sub {return () },
-
-    SCALARREF => sub { +{ -literal => [ $$arg ] } },
-
-    HASHREF   => sub {
-      # get first pair in hash
-      my ($key, $val, @rest) = %$arg;
-
-      return () unless $key;
-
-      if (@rest or not $key =~ /^-(desc|asc)/i) {
-        puke "hash passed to _order_by must have exactly one key (-desc or -asc)";
-      }
-
-      my $direction = $1;
-
-      my @ret;
-      for my $c ($self->_order_by_chunks($val)) {
-        my ($sql, @bind) = $self->_render_expr($c);
-
-        $sql = $sql . ' ' . $self->_sqlcase($direction);
-
-        push @ret, { -literal => [ $sql, @bind ] };
-      }
-
-      return @ret;
-    },
-  });
+    map +{ -op => [ $dir, $_ ] }, $self->_order_by_chunks($val);
+  };
 }
 
 
