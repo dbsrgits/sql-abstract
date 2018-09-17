@@ -995,7 +995,7 @@ sub _render_op {
   } else {
      my @parts = map [ $self->_render_expr($_) ], @args;
      my ($final_sql) = map +($op =~ /^(and|or)$/ ? "(${_})" : $_), join(
-       ' '.$self->_sqlcase($final_op).' ',
+       ($final_op eq ',' ? '' : ' ').$self->_sqlcase($final_op).' ',
        map $_->[0], @parts
      );
      return (
