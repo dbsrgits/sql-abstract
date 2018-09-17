@@ -1292,7 +1292,7 @@ sub _where_op_FUNC {
     my @x = @$_;
     push @arg_sql, shift @x;
     @x
-  } map [ $self->_recurse_where($_) ], @args;
+  } map [ $self->_render_expr($_) ], @args;
   return ($self->_sqlcase($func).'('.join(', ', @arg_sql).')', @bind);
 }
 
