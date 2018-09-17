@@ -1091,34 +1091,6 @@ sub _order_by {
   return wantarray ? ($final_sql, @bind) : $final_sql;
 }
 
-sub _order_by_chunks {
-  my ($self, $arg) = @_;
-
-  if (ref($arg) eq 'ARRAY') {
-    return map $self->_order_by_chunks($_), @$arg;
-  }
-  if (my $l = is_literal_value($arg)) {
-    return +{ -literal => $l };
-  }
-  if (!ref($arg)) {
-    return +{ -ident => $arg };
-  }
-  if (ref($arg) eq 'HASH') {
-    my ($key, $val, @rest) = %$arg;
-
-    return () unless $key;
-
-    if (@rest or not $key =~ /^-(desc|asc)/i) {
-      puke "hash passed to _order_by must have exactly one key (-desc or -asc)";
-    }
-
-    my $dir = $1;
-
-    map +{ -op => [ $dir, $_ ] }, $self->_order_by_chunks($val);
-  };
-}
-
-
 #======================================================================
 # DATASOURCE (FOR NOW, JUST PLAIN TABLE OR LIST OF TABLES)
 #======================================================================
