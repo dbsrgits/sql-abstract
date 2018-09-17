@@ -578,7 +578,7 @@ sub _expand_expr {
         die "notreached";
       }
     }
-    return { '-'.$logic => \@res };
+    return { -op => [ $logic, @res ] };
   }
   if (my $literal = is_literal_value($expr)) {
     return +{ -literal => $literal };
@@ -1278,7 +1278,7 @@ sub _where_op_OP {
     return $self->${\($us->{handler})}($k, $op, $args[1]);
   }
   my $final_op = $op =~ /^(?:is|not)_/ ? join(' ', split '_', $op) : $op;
-  if (@args == 1) {
+  if (@args == 1 and $op !~ /^(and|or)$/) {
     my ($expr_sql, @bind) = $self->_recurse_where($args[0]);
     my $op_sql = $self->_sqlcase($final_op);
     my $final_sql = (
