@@ -1208,14 +1208,12 @@ my %special = (
             unless $low->{-literal};
           @{$low->{-literal}}
         } else {
-          local $self->{_nested_func_lhs} = $left->{-ident}
-            if ref($left) eq 'HASH' and $left->{-ident};
-          my ($l, $h) = map [ $self->_where_unary_op(%$_) ], $low, $high;
+          my ($l, $h) = map [ $self->_render_expr($_) ], $low, $high;
           (join(' ', $l->[0], $self->_sqlcase('and'), $h->[0]),
            @{$l}[1..$#$l], @{$h}[1..$#$h])
         }
       };
-      my ($lhsql, @lhbind) = $self->_recurse_where($left);
+      my ($lhsql, @lhbind) = $self->_render_expr($left);
       return (
         join(' ', '(', $lhsql, $self->_sqlcase($op), $rhsql, ')'),
         @lhbind, @rhbind
