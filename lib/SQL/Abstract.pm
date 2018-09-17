@@ -901,21 +901,9 @@ sub _recurse_where {
 }
 
 sub _where_op_IDENT {
-  my $self = shift;
-  my ($op, $rhs) = splice @_, -2;
-  if (! defined $rhs or length ref $rhs) {
-    puke "-$op requires a single plain scalar argument (a quotable identifier)";
-  }
+  my ($self, undef, $ident) = @_;
 
-  # in case we are called as a top level special op (no '=')
-  my $has_lhs = my $lhs = shift;
-
-  $_ = $self->_convert($self->_quote($_)) for ($lhs, $rhs);
-
-  return $has_lhs
-    ? "$lhs = $rhs"
-    : $rhs
-  ;
+  return $self->_convert($self->_quote($ident));
 }
 
 sub _where_op_VALUE {
