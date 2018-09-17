@@ -1096,46 +1096,6 @@ sub _where_unary_op {
   return ($sql, @bind);
 }
 
-sub _where_op_ANDOR {
-  my ($self, $op, $v) = @_;
-
-  $self->_SWITCH_refkind($v, {
-    ARRAYREF => sub {
-      return $self->_where_ARRAYREF($v, $op);
-    },
-
-    HASHREF => sub {
-      return ($op =~ /^or/i)
-        ? $self->_where_ARRAYREF([ map { $_ => $v->{$_} } (sort keys %$v) ], $op)
-        : $self->_where_HASHREF($v);
-    },
-
-    SCALARREF  => sub {
-      puke "-$op => \\\$scalar makes little sense, use " .
-        ($op =~ /^or/i
-          ? '[ \$scalar, \%rest_of_conditions ] instead'
-          : '-and => [ \$scalar, \%rest_of_conditions ] instead'
-        );
-    },
-
-    ARRAYREFREF => sub {
-      puke "-$op => \\[...] makes little sense, use " .
-        ($op =~ /^or/i
-          ? '[ \[...], \%rest_of_conditions ] instead'
-          : '-and => [ \[...], \%rest_of_conditions ] instead'
-        );
-    },
-
-    SCALAR => sub { # permissively interpreted as SQL
-      puke "-$op => \$value makes little sense, use -bool => \$value instead";
-    },
-
-    UNDEF => sub {
-      puke "-$op => undef not supported";
-    },
-   });
-}
-
 sub _where_op_NEST {
   my ($self, $op, $v) = @_;
 
