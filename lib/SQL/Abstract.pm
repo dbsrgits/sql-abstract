@@ -628,8 +628,7 @@ sub _expand_expr_hashpair {
     
       # top level special ops are illegal in general
       puke "Illegal use of top-level '-$op'"
-        if !(defined $self->{_nested_func_lhs})
-        and List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}};
+        if List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}};
     }
     if ($k eq '-value' and my $m = our $Cur_Col_Meta) {
       return +{ -bind => [ $m, $v ] };
@@ -968,7 +967,6 @@ sub _render_op {
   my ($op, @args) = @$v;
   $op =~ s/^-// if length($op) > 1;
   $op = lc($op);
-  local $self->{_nested_func_lhs};
   if (my $h = $special{$op}) {
     return $self->$h(\@args);
   }
