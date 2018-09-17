@@ -775,7 +775,8 @@ sub _expand_expr_hashpair {
     }
     if ($vk =~ /^(and|or)$/) {
       if (ref($vv) eq 'HASH') {
-        return +{ "-${vk}" => [
+        return +{ -op => [
+          $vk,
           map $self->_expand_expr_hashpair($k, { $_ => $vv->{$_} }),
             sort keys %$vv
         ] };
