@@ -919,39 +919,10 @@ sub _where_op_IDENT {
 }
 
 sub _where_op_VALUE {
-  my $self = shift;
-  my ($op, $rhs) = splice @_, -2;
+  my ($self, undef, $value) = @_;
 
-  # in case we are called as a top level special op (no '=')
-  my $lhs = shift;
-
-  # special-case NULL
-  if (! defined $rhs) {
-    return defined $lhs
-      ? $self->_where_hashpair_HASHREF($lhs, { -is => undef })
-      : undef
-    ;
-  }
-
-  my @bind =
-    $self->_bindtype(
-      (defined $lhs ? $lhs : $self->{_nested_func_lhs}),
-      $rhs,
-    )
-  ;
-
-  return $lhs
-    ? (
-      $self->_convert($self->_quote($lhs)) . ' = ' . $self->_convert('?'),
-      @bind
-    )
-    : (
-      $self->_convert('?'),
-      @bind,
-    )
-  ;
+  return ($self->_convert('?'), $self->_bindtype(undef, $value));
 }
-
 
 my %unop_postfix = map +($_ => 1), 'is null', 'is not null';
 
