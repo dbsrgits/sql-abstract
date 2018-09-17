@@ -640,6 +640,9 @@ sub _expand_expr_hashpair {
     if ($k eq '-op' or $k eq '-ident' or $k eq '-value' or $k eq '-bind' or $k eq '-literal' or $k eq '-func') {
       return { $k => $v };
     }
+    if (my $custom = $self->{custom_expansions}{($k =~ /^-(.*)$/)[0]}) {
+      return $self->$custom($v);
+    }
     if (
       ref($v) eq 'HASH'
       and keys %$v == 1
@@ -1064,26 +1067,28 @@ sub _open_outer_paren {
 sub _order_by {
   my ($self, $arg) = @_;
 
-  return '' unless defined($arg);
+  return '' unless defined($arg) and not (ref($arg) eq 'ARRAY' and !@$arg);
 
-  my @chunks = $self->_order_by_chunks($arg);
+  my $expander = sub {
+    my ($self, $dir, $expr) = @_;
+    my @exp = map +(defined($dir) ? { -op => [ $dir => $_ ] } : $_),
+                map $self->_expand_expr($_, undef, -ident),
+                  ref($expr) eq 'ARRAY' ? @$expr : $expr;
+    return (@exp > 1 ? { -op => [ ',', @exp ] } : $exp[0]);
+  };
 
-  my @sql;
-  my @bind = map {
-    my ($s, @b) = $self->_render_expr($_);
-    push @sql, $s;
-    @b;
-  } @chunks;
+  local $self->{custom_expansions} = {
+    asc => sub { shift->$expander(asc => @_) },
+    desc => sub { shift->$expander(desc => @_) },
+  };
 
-  my $sql = @sql
-    ? sprintf('%s %s',
-        $self->_sqlcase(' order by'),
-        join(', ', @sql)
-      )
-    : ''
-  ;
+  my $expanded = $self->$expander(undef, $arg);
 
-  return wantarray ? ($sql, @bind) : $sql;
+  my ($sql, @bind) = $self->_render_expr($expanded);
+
+  my $final_sql = $self->_sqlcase(' order by ').$sql;
+
+  return wantarray ? ($final_sql, @bind) : $final_sql;
 }
 
 sub _order_by_chunks {
