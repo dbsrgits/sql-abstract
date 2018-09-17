@@ -813,7 +813,8 @@ sub _expand_expr_hashpair {
         : $op =~ $self->{not_like_op}   ? belch("Supplying an empty arrayref to '@{[ uc $op]}' is deprecated") && $self->{sqltrue}
         : puke "operator '$op' applied on an empty array (field '$k')";
       }
-      return +{ $logic => [
+      return +{ -op => [
+        $logic =~ /^-(.*)$/,
         map $self->_expand_expr_hashpair($k => { $vk => $_ }),
           @values
       ] };
