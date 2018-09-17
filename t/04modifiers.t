@@ -393,7 +393,7 @@ for my $case (@and_or_tests) {
         \@bind,
         $case->{stmt},
         $case->{bind},
-      ) || diag_where( $case->{where} );
+      ) || (diag_where ( $case->{where} ), diag dumper ([ EXP => $sql->_expand_expr($case->{where}) ]));
     } [], 'No warnings within and-or tests';
 
     is_deeply ($case->{where}, $where_copy, 'Where conditions unchanged');
@@ -414,7 +414,7 @@ for my $case (@nest_tests) {
         \@bind,
         $case->{stmt},
         $case->{bind},
-      ) || diag_where ( $case->{where} );
+      ) || (diag_where ( $case->{where} ), diag dumper ([ EXP => $sql->_expand_expr($case->{where}) ]));
     });
   }
 }

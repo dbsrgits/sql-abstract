@@ -315,7 +315,7 @@ for my $case (@in_between_tests) {
         $case->{stmt},
         $case->{bind},
         "$label generates correct SQL and bind",
-      ) || diag_where ( $case->{where} );
+      ) || diag dumper ({ where => $case->{where}, exp => $sql->_expand_expr($case->{where}) });
     }
   }
 }
