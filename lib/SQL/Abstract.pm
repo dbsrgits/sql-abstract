@@ -1062,6 +1062,8 @@ sub _open_outer_paren {
 sub _order_by {
   my ($self, $arg) = @_;
 
+  return '' unless defined($arg);
+
   my @chunks = $self->_order_by_chunks($arg);
 
   my @sql;
@@ -1093,10 +1095,6 @@ sub _order_by_chunks {
   }
   if (!ref($arg)) {
     return +{ -ident => $arg };
-  }
-  if (!defined($arg)) {
-    # Seriously?
-    return
   }
   if (ref($arg) eq 'HASH') {
     my ($key, $val, @rest) = %$arg;
