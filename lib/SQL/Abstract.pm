@@ -574,8 +574,8 @@ sub _expand_expr {
         push(@res, $self->_expand_expr({ $el, shift(@expr) }));
       } elsif ($elref eq 'ARRAY') {
         push(@res, $self->_expand_expr($el)) if @$el;
-      } elsif (is_literal_value($el)) {
-        push @res, $el;
+      } elsif (my $l = is_literal_value($el)) {
+        push @res, { -literal => $l };
       } elsif ($elref eq 'HASH') {
         push @res, $self->_expand_expr($el);
       } else {
@@ -1302,7 +1302,7 @@ sub _where_op_OP {
   }
   my $final_op = $op =~ /^(?:is|not)_/ ? join(' ', split '_', $op) : $op;
   if (@args == 1 and $op !~ /^(and|or)$/) {
-    my ($expr_sql, @bind) = $self->_recurse_where($args[0]);
+    my ($expr_sql, @bind) = $self->_render_expr($args[0]);
     my $op_sql = $self->_sqlcase($final_op);
     my $final_sql = (
       $unop_postfix{lc($final_op)}
@@ -1311,7 +1311,7 @@ sub _where_op_OP {
     );
     return (($op eq 'not' ? '('.$final_sql.')' : $final_sql), @bind);
   } else {
-     my @parts = map [ $self->_recurse_where($_) ], @args;
+     my @parts = map [ $self->_render_expr($_) ], @args;
      my ($final_sql) = map +($op =~ /^(and|or)$/ ? "(${_})" : $_), join(
        ' '.$self->_sqlcase($final_op).' ',
        map $_->[0], @parts
