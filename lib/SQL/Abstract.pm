@@ -1059,13 +1059,14 @@ sub _open_outer_paren {
 sub _order_by {
   my ($self, $arg) = @_;
 
-  my (@sql, @bind);
-  for my $c ($self->_order_by_chunks($arg) ) {
-    $self->_SWITCH_refkind($c, {
-      SCALAR => sub { push @sql, $c },
-      ARRAYREF => sub { push @sql, shift @$c; push @bind, @$c },
-    });
-  }
+  my @chunks = $self->_order_by_chunks($arg);
+
+  my @sql;
+  my @bind = map {
+    my ($s, @b) = $self->_render_expr($_);
+    push @sql, $s;
+    @b;
+  } @chunks;
 
   my $sql = @sql
     ? sprintf('%s %s',
@@ -1090,14 +1091,14 @@ sub _order_by_chunks {
     ARRAYREFREF => sub {
       my ($s, @b) = @$$arg;
       $self->_assert_bindval_matches_bindtype(@b);
-      [ $s, @b ];
+      +{ -literal => [ $s, @b ] };
     },
 
-    SCALAR    => sub {$self->_quote($arg)},
+    SCALAR    => sub { +{ -ident => $arg } },
 
     UNDEF     => sub {return () },
 
-    SCALARREF => sub {$$arg}, # literal SQL, no quoting
+    SCALARREF => sub { +{ -literal => [ $$arg ] } },
 
     HASHREF   => sub {
       # get first pair in hash
@@ -1113,20 +1114,11 @@ sub _order_by_chunks {
 
       my @ret;
       for my $c ($self->_order_by_chunks($val)) {
-        my ($sql, @bind);
-
-        $self->_SWITCH_refkind($c, {
-          SCALAR => sub {
-            $sql = $c;
-          },
-          ARRAYREF => sub {
-            ($sql, @bind) = @$c;
-          },
-        });
+        my ($sql, @bind) = $self->_render_expr($c);
 
         $sql = $sql . ' ' . $self->_sqlcase($direction);
 
-        push @ret, [ $sql, @bind];
+        push @ret, { -literal => [ $sql, @bind ] };
       }
 
       return @ret;
