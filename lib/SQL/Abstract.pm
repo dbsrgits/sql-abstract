@@ -511,6 +511,8 @@ sub _delete_returning { shift->_returning(@_) }
 sub where {
   my ($self, $where, $order) = @_;
 
+  local $self->{convert_where} = $self->{convert};
+
   # where ?
   my ($sql, @bind) = defined($where)
    ? $self->_recurse_where($where)
@@ -1098,11 +1100,13 @@ sub _order_by {
 sub _table  {
   my $self = shift;
   my $from = shift;
-  $self->_SWITCH_refkind($from, {
-    ARRAYREF     => sub {join ', ', map { $self->_quote($_) } @$from;},
-    SCALAR       => sub {$self->_quote($from)},
-    SCALARREF    => sub {$$from},
-  });
+  ($self->_render_expr(
+    ref($from) eq 'ARRAY'
+      ? { -op => [
+          ',', map $self->_expand_expr($_, undef, -ident), @$from
+        ] }
+      : $self->_expand_expr($from, undef, -ident)
+  ))[0];
 }
 
 
@@ -1139,8 +1143,8 @@ sub _quote {
 # Conversion, if applicable
 sub _convert {
   #my ($self, $arg) = @_;
-  if ($_[0]->{convert}) {
-    return $_[0]->_sqlcase($_[0]->{convert}) .'(' . $_[1] . ')';
+  if ($_[0]->{convert_where}) {
+    return $_[0]->_sqlcase($_[0]->{convert_where}) .'(' . $_[1] . ')';
   }
   return $_[1];
 }
