@@ -224,12 +224,12 @@ sub _returning {
 
   my $f = $options->{returning};
 
-  my $fieldlist = $self->_SWITCH_refkind($f, {
-    ARRAYREF     => sub {join ', ', map { $self->_quote($_) } @$f;},
-    SCALAR       => sub {$self->_quote($f)},
-    SCALARREF    => sub {$$f},
-  });
-  return $self->_sqlcase(' returning ') . $fieldlist;
+  my ($sql, @bind) = $self->_render_expr(
+    $self->_expand_maybe_list_expr($f, undef, -ident)
+  );
+  return wantarray
+    ? $self->_sqlcase(' returning ') . $sql
+    : ($self->_sqlcase(' returning ').$sql, @bind);
 }
 
 sub _insert_HASHREF { # explicit list of fields and then values
