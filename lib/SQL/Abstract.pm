@@ -1112,11 +1112,17 @@ sub _table  {
 
 sub _expand_maybe_list_expr {
   my ($self, $expr, $logic, $default) = @_;
-  return ref($expr) eq 'ARRAY'
-    ? { -op => [
+  my $e = do {
+    if (ref($expr) eq 'ARRAY') {
+      return { -op => [
         ',', map $self->_expand_expr($_, $logic, $default), @$expr
-      ] }
-    : $self->_expand_expr($expr, $logic, $default);
+      ] } if @$expr > 1;
+      $expr->[0]
+    } else {
+      $expr
+    }
+  };
+  return $self->_expand_expr($e, $logic, $default);
 }
 
 # highly optimized, as it's called way too often
