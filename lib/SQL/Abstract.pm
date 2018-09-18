@@ -295,50 +295,33 @@ sub _insert_values {
 sub _insert_value {
   my ($self, $column, $v) = @_;
 
-  my (@values, @all_bind);
-  $self->_SWITCH_refkind($v, {
+  return $self->_render_expr(
+    $self->_expand_insert_value($column, $v)
+  );
+}
 
-    ARRAYREF => sub {
-      if ($self->{array_datatypes}) { # if array datatype are activated
-        push @values, '?';
-        push @all_bind, $self->_bindtype($column, $v);
-      }
-      else {                  # else literal SQL with bind
-        my ($sql, @bind) = @$v;
-        $self->_assert_bindval_matches_bindtype(@bind);
-        push @values, $sql;
-        push @all_bind, @bind;
-      }
-    },
+sub _expand_insert_value {
+  my ($self, $column, $v) = @_;
 
-    ARRAYREFREF => sub {        # literal SQL with bind
-      my ($sql, @bind) = @${$v};
-      $self->_assert_bindval_matches_bindtype(@bind);
-      push @values, $sql;
-      push @all_bind, @bind;
-    },
-
-    # THINK: anything useful to do with a HASHREF ?
-    HASHREF => sub {       # (nothing, but old SQLA passed it through)
-      #TODO in SQLA >= 2.0 it will die instead
+  if (ref($v) eq 'ARRAY') {
+    if ($self->{array_datatypes}) {
+      return +{ -bind => [ $column, $v ] };
+    }
+    my ($sql, @bind) = @$v;
+    $self->_assert_bindval_matches_bindtype(@bind);
+    return +{ -literal => $v };
+  }
+  if (ref($v) eq 'HASH') {
+    if (grep !/^-/, keys %$v) {
       belch "HASH ref as bind value in insert is not supported";
-      push @values, '?';
-      push @all_bind, $self->_bindtype($column, $v);
-    },
-
-    SCALARREF => sub {          # literal SQL without bind
-      push @values, $$v;
-    },
-
-    SCALAR_or_UNDEF => sub {
-      push @values, '?';
-      push @all_bind, $self->_bindtype($column, $v);
-    },
-
-  });
-
-  my $sql = join(", ", @values);
-  return ($sql, @all_bind);
+      return +{ -bind => [ $column, $v ] };
+    }
+  }
+  if (!defined($v)) {
+    return +{ -bind => [ $column, undef ] };
+  }
+  local our $Cur_Col_Meta = $column;
+  return $self->_expand_expr($v);
 }
 
 
