@@ -468,8 +468,9 @@ sub select {
 
 sub _select_fields {
   my ($self, $fields) = @_;
-  return ref $fields eq 'ARRAY' ? join ', ', map { $self->_quote($_) } @$fields
-                                : $fields;
+  return $self->_render_expr(
+    $self->_expand_maybe_list_expr($fields, undef, '-ident')
+  );
 }
 
 #======================================================================
