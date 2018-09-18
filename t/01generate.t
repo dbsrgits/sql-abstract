@@ -860,7 +860,7 @@ for my $t (@tests) {
         \@bind,
         $quoted ? $t->{stmt_q}: $t->{stmt},
         $t->{bind}
-      );
+      ) || diag dumper({ args => $t->{args}, result => $stmt });;
     }
   }
 }
