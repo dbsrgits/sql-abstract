@@ -364,59 +364,32 @@ sub update {
 sub _update_set_values {
   my ($self, $data) = @_;
 
-  my (@set, @all_bind);
-  for my $k (sort keys %$data) {
-    my $v = $data->{$k};
-    my $r = ref $v;
-    my $label = $self->_quote($k);
+  return $self->_render_expr(
+    $self->_expand_update_set_values($data),
+  );
+}
 
-    $self->_SWITCH_refkind($v, {
-      ARRAYREF => sub {
-        if ($self->{array_datatypes}) { # array datatype
-          push @set, "$label = ?";
-          push @all_bind, $self->_bindtype($k, $v);
-        }
-        else {                          # literal SQL with bind
-          my ($sql, @bind) = @$v;
-          $self->_assert_bindval_matches_bindtype(@bind);
-          push @set, "$label = $sql";
-          push @all_bind, @bind;
-        }
-      },
-      ARRAYREFREF => sub { # literal SQL with bind
-        my ($sql, @bind) = @${$v};
-        $self->_assert_bindval_matches_bindtype(@bind);
-        push @set, "$label = $sql";
-        push @all_bind, @bind;
-      },
-      SCALARREF => sub {  # literal SQL without bind
-        push @set, "$label = $$v";
-      },
-      HASHREF => sub {
-        my ($op, $arg, @rest) = %$v;
-
-        puke 'Operator calls in update must be in the form { -op => $arg }'
-          if (@rest or not $op =~ /^\-(.+)/);
-
-        local our $Cur_Col_Meta = $k;
-        my ($sql, @bind) = $self->_render_expr(
-          $self->_expand_expr_hashpair($op, $arg)
-        );
-
-        push @set, "$label = $sql";
-        push @all_bind, @bind;
-      },
-      SCALAR_or_UNDEF => sub {
-        push @set, "$label = ?";
-        push @all_bind, $self->_bindtype($k, $v);
-      },
-    });
-  }
-
-  # generate sql
-  my $sql = join ', ', @set;
-
-  return ($sql, @all_bind);
+sub _expand_update_set_values {
+  my ($self, $data) = @_;
+  $self->_expand_maybe_list_expr( [
+    map {
+      my ($k, $set) = @$_;
+      +{ -op => [ '=', { -ident => $k }, $set ] };
+    }
+    map {
+      my $k = $_;
+      my $v = $data->{$k};
+      (ref($v) eq 'ARRAY'
+        ? ($self->{array_datatypes}
+            ? [ $k, +{ -bind => [ $k, $v ] } ]
+            : [ $k, +{ -literal => $v } ])
+        : do {
+            local our $Cur_Col_Meta = $k;
+            [ $k, $self->_expand_expr($v) ]
+          }
+      );
+    } sort keys %$data
+  ] );
 }
 
 # So that subclasses can override UPDATE ... RETURNING separately from
