@@ -1101,11 +1101,7 @@ sub _table  {
   my $self = shift;
   my $from = shift;
   ($self->_render_expr(
-    ref($from) eq 'ARRAY'
-      ? { -op => [
-          ',', map $self->_expand_expr($_, undef, -ident), @$from
-        ] }
-      : $self->_expand_expr($from, undef, -ident)
+    $self->_expand_maybe_list_expr($from, undef, -ident)
   ))[0];
 }
 
@@ -1113,6 +1109,15 @@ sub _table  {
 #======================================================================
 # UTILITY FUNCTIONS
 #======================================================================
+
+sub _expand_maybe_list_expr {
+  my ($self, $expr, $logic, $default) = @_;
+  return ref($expr) eq 'ARRAY'
+    ? { -op => [
+        ',', map $self->_expand_expr($_, $logic, $default), @$expr
+      ] }
+    : $self->_expand_expr($expr, $logic, $default);
+}
 
 # highly optimized, as it's called way too often
 sub _quote {
