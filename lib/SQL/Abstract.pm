@@ -1088,9 +1088,16 @@ sub _quote {
 
   return '' unless defined $_[1];
   return ${$_[1]} if ref($_[1]) eq 'SCALAR';
+  puke 'Identifier cannot be hashref' if ref($_[1]) eq 'HASH';
 
-  $_[0]->{quote_char} or
-    ($_[0]->_assert_pass_injection_guard($_[1]), return $_[1]);
+  unless ($_[0]->{quote_char}) {
+    if (ref($_[1]) eq 'ARRAY') {
+      return join($_[0]->{name_sep}||'.', @{$_[1]});
+    } else {
+      $_[0]->_assert_pass_injection_guard($_[1]);
+      return $_[1];
+    }
+  }
 
   my $qref = ref $_[0]->{quote_char};
   my ($l, $r) =
@@ -1101,9 +1108,21 @@ sub _quote {
   my $esc = $_[0]->{escape_char} || $r;
 
   # parts containing * are naturally unquoted
-  return join($_[0]->{name_sep}||'', map
-    +( $_ eq '*' ? $_ : do { (my $n = $_) =~ s/(\Q$esc\E|\Q$r\E)/$esc$1/g; $l . $n . $r } ),
-    ( $_[0]->{name_sep} ? split (/\Q$_[0]->{name_sep}\E/, $_[1] ) : $_[1] )
+  return join(
+    $_[0]->{name_sep}||'',
+    map +(
+      $_ eq '*'
+        ? $_
+        : do { (my $n = $_) =~ s/(\Q$esc\E|\Q$r\E)/$esc$1/g; $l . $n . $r }
+    ),
+    (ref($_[1]) eq 'ARRAY'
+      ? @{$_[1]}
+      : (
+          $_[0]->{name_sep}
+            ? split (/\Q$_[0]->{name_sep}\E/, $_[1] )
+            : $_[1]
+        )
+    )
   );
 }
 

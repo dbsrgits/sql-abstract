@@ -41,6 +41,18 @@ for my $q ('', '"') {
     ",
     [],
   );
+
+  ($sql) = $sql_maker->select(
+    \(my $from = 'foo JOIN bar ON foo.bar_id = bar.id'),
+    [ { -ident => [ 'foo', 'name' ] }, { -ident => [ 'bar', '*' ] } ]
+  );
+
+  is_same_sql_bind(
+    $sql,
+    undef,
+    "SELECT ${q}foo${q}.${q}name${q}, ${q}bar${q}.*
+     FROM $from"
+  );
 }
 
 done_testing;
