@@ -176,6 +176,11 @@ sub new {
     ^ \s* go \s
   /xmi;
 
+  $opt{node_types} = +{
+    map +("-$_" => '_render_'.$_),
+      qw(op func value bind ident literal)
+  };
+
   return bless \%opt, $class;
 }
 
@@ -596,7 +601,7 @@ sub _expand_expr_hashpair {
     if ($k eq '-value' and my $m = our $Cur_Col_Meta) {
       return +{ -bind => [ $m, $v ] };
     }
-    if ($k eq '-op' or $k eq '-ident' or $k eq '-value' or $k eq '-bind' or $k eq '-literal' or $k eq '-func') {
+    if ($self->{node_types}{$k}) {
       return { $k => $v };
     }
     if (my $custom = $self->{custom_expansions}{($k =~ /^-(.*)$/)[0]}) {
@@ -830,9 +835,7 @@ sub _render_expr {
   my ($self, $expr) = @_;
   my ($k, $v, @rest) = %$expr;
   die "No" if @rest;
-  my %op = map +("-$_" => '_render_'.$_),
-    qw(op func value bind ident literal);
-  if (my $meth = $op{$k}) {
+  if (my $meth = $self->{node_types}{$k}) {
     return $self->$meth($v);
   }
   die "notreached: $k";
