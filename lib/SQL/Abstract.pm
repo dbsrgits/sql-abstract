@@ -701,8 +701,8 @@ sub _expand_expr_hashpair {
       ] };
     }
     if ($vk eq 'ident') {
-      if (! defined $vv or ref $vv) {
-        puke "-$vk requires a single plain scalar argument (a quotable identifier)";
+      if (! defined $vv or (ref($vv) and ref($vv) eq 'ARRAY')) {
+        puke "-$vk requires a single plain scalar argument (a quotable identifier) or an arrayref of identifier parts";
       }
       return +{ -op => [
         $self->{cmp},
