@@ -181,6 +181,8 @@ sub new {
       qw(op func value bind ident literal)
   };
 
+  $opt{expand_unary} = {};
+
   return bless \%opt, $class;
 }
 
@@ -601,11 +603,11 @@ sub _expand_expr_hashpair {
     if ($k eq '-value' and my $m = our $Cur_Col_Meta) {
       return +{ -bind => [ $m, $v ] };
     }
+    if (my $custom = $self->{expand_unary}{$k}) {
+      return $self->$custom($v);
+    }
     if ($self->{node_types}{$k}) {
       return { $k => $v };
-    }
-    if (my $custom = $self->{custom_expansions}{($k =~ /^-(.*)$/)[0]}) {
-      return $self->$custom($v);
     }
     if (
       ref($v) eq 'HASH'
@@ -630,11 +632,12 @@ sub _expand_expr_hashpair {
     return $self->_expand_expr_hashpair($k => { $self->{cmp} => undef });
   }
   if (!ref($v) or Scalar::Util::blessed($v)) {
+    my $d = our $Default_Scalar_To;
     return +{
       -op => [
         $self->{cmp},
         { -ident => $k },
-        { -bind => [ $k, $v ] }
+        ($d ? { $d => $v } : { -bind => [ $k, $v ] })
       ]
     };
   }
@@ -1039,10 +1042,10 @@ sub _order_by {
     return (@exp > 1 ? { -op => [ ',', @exp ] } : $exp[0]);
   };
 
-  local $self->{custom_expansions} = {
-    asc => sub { shift->$expander(asc => @_) },
-    desc => sub { shift->$expander(desc => @_) },
-  };
+  local @{$self->{expand_unary}}{qw(-asc -desc)} = (
+    sub { shift->$expander(asc => @_) },
+    sub { shift->$expander(desc => @_) },
+  );
 
   my $expanded = $self->$expander(undef, $arg);
 
