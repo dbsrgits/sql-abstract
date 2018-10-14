@@ -155,7 +155,8 @@ sub new {
   $opt{sqlfalse} ||= '0=1';
 
   # special operators
-  $opt{user_special_ops} = [ @{$opt{special_ops} ||= []} ];
+  $opt{special_ops} ||= [];
+
   # regexes are applied in order, thus push after user-defines
   push @{$opt{special_ops}}, @BUILTIN_SPECIAL_OPS;
 
@@ -744,7 +745,7 @@ sub _expand_expr_hashpair {
         ] };
       }
     }
-    if (my $us = List::Util::first { $vk =~ $_->{regex} } @{$self->{user_special_ops}}) {
+    if (my $us = List::Util::first { $vk =~ $_->{regex} } @{$self->{special_ops}}) {
       return { -op => [ $vk, { -ident => $k }, $vv ] };
     }
     if (my $us = List::Util::first { $vk =~ $_->{regex} } @{$self->{unary_ops}}) {
@@ -952,7 +953,7 @@ sub _render_op {
   if (my $h = $special{$op}) {
     return $self->$h(\@args);
   }
-  if (my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{user_special_ops}}) {
+  if (my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}}) {
     puke "Special op '${op}' requires first value to be identifier"
       unless my ($k) = map $_->{-ident}, grep ref($_) eq 'HASH', $args[0];
     return $self->${\($us->{handler})}($k, $op, $args[1]);
