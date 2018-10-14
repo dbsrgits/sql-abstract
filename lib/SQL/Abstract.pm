@@ -599,6 +599,9 @@ sub _expand_expr_hashpair {
       # top level special ops are illegal in general
       puke "Illegal use of top-level '-$op'"
         if List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}};
+      if (my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{unary_ops}}) {
+        return { -op => [ $op, $v ] };
+      }
     }
     if ($k eq '-value' and my $m = our $Cur_Col_Meta) {
       return +{ -bind => [ $m, $v ] };
@@ -743,6 +746,13 @@ sub _expand_expr_hashpair {
     }
     if (my $us = List::Util::first { $vk =~ $_->{regex} } @{$self->{user_special_ops}}) {
       return { -op => [ $vk, { -ident => $k }, $vv ] };
+    }
+    if (my $us = List::Util::first { $vk =~ $_->{regex} } @{$self->{unary_ops}}) {
+      return { -op => [
+        $self->{cmp},
+        { -ident => $k },
+        { -op => [ $vk, $vv ] }
+      ] };
     }
     if (ref($vv) eq 'ARRAY') {
       my ($logic, @values) = (
@@ -946,6 +956,9 @@ sub _render_op {
     puke "Special op '${op}' requires first value to be identifier"
       unless my ($k) = map $_->{-ident}, grep ref($_) eq 'HASH', $args[0];
     return $self->${\($us->{handler})}($k, $op, $args[1]);
+  }
+  if (my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{unary_ops}}) {
+    return $self->${\($us->{handler})}($op, $args[0]);
   }
   my $final_op = $op =~ /^(?:is|not)_/ ? join(' ', split '_', $op) : $op;
   if (@args == 1 and $op !~ /^(and|or)$/) {

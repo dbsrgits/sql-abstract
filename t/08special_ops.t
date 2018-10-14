@@ -33,6 +33,11 @@ my $sqlmaker = SQL::Abstract->new(special_ops => [
      }
    },
 
+], unary_ops => [
+  # unary op from Mojo::Pg
+  {regex => qr/^json$/i,
+   handler => sub { '?', { json => $_[2] } }
+  },
 ]);
 
 my @tests = (
@@ -48,6 +53,18 @@ my @tests = (
   { where => {foo => {-native => "PH IS 'bar'"}},
     stmt  => " WHERE ( NATIVE (' foo PH IS ''bar'' ') )",
     bind  => [],
+  },
+
+  #3
+  { where => { foo => { -json => { bar => 'baz' } } },
+    stmt => "WHERE foo = ?",
+    bind => [ { json => { bar => 'baz' } } ],
+  },
+
+  #4
+  { where => { foo => { '@>' => { -json => { bar => 'baz' } } } },
+    stmt => "WHERE foo @> ?",
+    bind => [ { json => { bar => 'baz' } } ],
   },
 
 );
