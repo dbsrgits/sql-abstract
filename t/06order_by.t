@@ -127,12 +127,6 @@ for my $case (@cases) {
   );
 }
 
-# meh
-
-done_testing;
-
-exit;
-
 throws_ok (
   sub { $sql->_order_by({-desc => 'colA', -asc => 'colB' }) },
   qr/hash passed .+ must have exactly one key/,
