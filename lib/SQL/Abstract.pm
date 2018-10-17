@@ -1056,6 +1056,14 @@ sub _order_by {
     return (@exp > 1 ? { -op => [ ',', @exp ] } : $exp[0]);
   };
 
+  if (
+    ref($arg) eq 'HASH'
+    and keys %$arg > 1
+    and grep /^-(asc|desc)$/, keys %$arg
+  ) {
+    puke "ordering direction hash passed to order by must have exactly one key (-asc or -desc)";
+  }
+
   local @{$self->{expand_unary}}{qw(-asc -desc)} = (
     sub { shift->$expander(asc => @_) },
     sub { shift->$expander(desc => @_) },
