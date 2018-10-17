@@ -1050,19 +1050,20 @@ sub _order_by {
 
   my $expander = sub {
     my ($self, $dir, $expr) = @_;
+    my @to_expand = ref($expr) eq 'ARRAY' ? @$expr : $expr;
+    foreach my $arg (@to_expand) {
+      if (
+        ref($arg) eq 'HASH'
+        and keys %$arg > 1
+        and grep /^-(asc|desc)$/, keys %$arg
+      ) {
+        puke "ordering direction hash passed to order by must have exactly one key (-asc or -desc)";
+      }
+    }
     my @exp = map +(defined($dir) ? { -op => [ $dir => $_ ] } : $_),
-                map $self->_expand_expr($_, undef, -ident),
-                  ref($expr) eq 'ARRAY' ? @$expr : $expr;
+                map $self->_expand_expr($_, undef, -ident), @to_expand;
     return (@exp > 1 ? { -op => [ ',', @exp ] } : $exp[0]);
   };
-
-  if (
-    ref($arg) eq 'HASH'
-    and keys %$arg > 1
-    and grep /^-(asc|desc)$/, keys %$arg
-  ) {
-    puke "ordering direction hash passed to order by must have exactly one key (-asc or -desc)";
-  }
 
   local @{$self->{expand_unary}}{qw(-asc -desc)} = (
     sub { shift->$expander(asc => @_) },
