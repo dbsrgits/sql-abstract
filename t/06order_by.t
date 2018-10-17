@@ -134,6 +134,12 @@ throws_ok (
 );
 
 throws_ok (
+  sub { $sql->_order_by([ {-desc => 'colA', -asc => 'colB' } ]) },
+  qr/hash passed .+ must have exactly one key/,
+  'Undeterministic order exception',
+);
+
+throws_ok (
   sub { $sql->_order_by({-desc => [ qw/colA colB/ ], -asc => [ qw/colC colD/ ] }) },
   qr/hash passed .+ must have exactly one key/,
   'Undeterministic order exception',
