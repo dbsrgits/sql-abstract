@@ -382,6 +382,7 @@ sub _expand_update_set_values {
   $self->_expand_maybe_list_expr( [
     map {
       my ($k, $set) = @$_;
+      $set = { -bind => $_ } unless defined $set;
       +{ -op => [ '=', { -ident => $k }, $set ] };
     }
     map {

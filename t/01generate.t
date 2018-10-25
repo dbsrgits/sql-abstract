@@ -83,6 +83,13 @@ my @tests = (
       },
       {
               func   => 'update',
+              args   => ['test', {a => undef }, {a => 'boom'}],
+              stmt   => 'UPDATE test SET a = ? WHERE ( a = ? )',
+              stmt_q => 'UPDATE `test` SET `a` = ? WHERE ( `a` = ? )',
+              bind   => [undef,'boom']
+      },
+      {
+              func   => 'update',
               args   => ['test', {a => 'boom'}, { a => {'!=', "bang" }} ],
               stmt   => 'UPDATE test SET a = ? WHERE ( a != ? )',
               stmt_q => 'UPDATE `test` SET `a` = ? WHERE ( `a` != ? )',
