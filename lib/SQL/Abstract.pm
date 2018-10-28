@@ -1045,10 +1045,10 @@ sub _open_outer_paren {
 # ORDER BY
 #======================================================================
 
-sub _order_by {
+sub _expand_order_by {
   my ($self, $arg) = @_;
 
-  return '' unless defined($arg) and not (ref($arg) eq 'ARRAY' and !@$arg);
+  return unless defined($arg) and not (ref($arg) eq 'ARRAY' and !@$arg);
 
   my $expander = sub {
     my ($self, $dir, $expr) = @_;
@@ -1072,13 +1072,34 @@ sub _order_by {
     sub { shift->$expander(desc => @_) },
   );
 
-  my $expanded = $self->$expander(undef, $arg);
+  return $self->$expander(undef, $arg);
+}
+
+sub _order_by {
+  my ($self, $arg) = @_;
+
+  return '' unless defined(my $expanded = $self->_expand_order_by($arg));
 
   my ($sql, @bind) = $self->_render_expr($expanded);
 
   my $final_sql = $self->_sqlcase(' order by ').$sql;
 
   return wantarray ? ($final_sql, @bind) : $final_sql;
+}
+
+sub _order_by_chunks {
+  my ($self, $arg) = @_;
+
+  return () unless defined(my $expanded = $self->_expand_order_by($arg));
+
+  for ($expanded) {
+    if (ref() eq 'HASH' and my $op = $_->{-op}) {
+      if ($op->[0] eq ',') {
+        return map [ $self->_render_expr($_) ], @{$op}[1..$#$op];
+      }
+    }
+    return [ $self->_render_expr($_) ];
+  }
 }
 
 #======================================================================
