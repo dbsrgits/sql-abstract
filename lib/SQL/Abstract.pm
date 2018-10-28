@@ -433,6 +433,7 @@ sub select {
 
 sub _select_fields {
   my ($self, $fields) = @_;
+  return $fields unless ref($fields);
   return $self->_render_expr(
     $self->_expand_maybe_list_expr($fields, undef, '-ident')
   );
