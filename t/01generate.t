@@ -75,6 +75,14 @@ my @tests = (
               bind   => ['boom']
       },
       {
+              # this is maybe wrong but a single arg doesn't get quoted
+              func   => 'select',
+              args   => ['test', 'id', { a => { '!=', 'boom' } }],
+              stmt   => 'SELECT id FROM test WHERE ( a != ? )',
+              stmt_q => 'SELECT id FROM `test` WHERE ( `a` != ? )',
+              bind   => ['boom']
+      },
+      {
               func   => 'update',
               args   => ['test', {a => 'boom'}, {a => undef}],
               stmt   => 'UPDATE test SET a = ? WHERE ( a IS NULL )',
