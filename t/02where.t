@@ -11,6 +11,12 @@ my $not_stringifiable = bless {}, 'SQLA::NotStringifiable';
 
 my @handle_tests = (
     {
+        where => 'foo',
+        order => [],
+        stmt => ' WHERE foo',
+        bind => [],
+    },
+    {
         where => {
             requestor => 'inna',
             worker => ['nwiger', 'rcwe', 'sfz'],

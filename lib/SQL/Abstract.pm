@@ -862,7 +862,11 @@ sub _recurse_where {
 
 #print STDERR Data::Dumper::Concise::Dumper([ $where, $logic ]);
 
-  my $where_exp = $self->_expand_expr($where, $logic);
+  # Special case: top level simple string treated as literal
+
+  my $where_exp = (ref($where)
+                    ? $self->_expand_expr($where, $logic)
+                    : { -literal => [ $where ] });
 
 #print STDERR Data::Dumper::Concise::Dumper([ EXP => $where_exp ]);
 
