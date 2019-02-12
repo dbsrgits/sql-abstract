@@ -553,6 +553,8 @@ sub _expand_expr {
   die "notreached";
 }
 
+our $Nest_Warning_Emitted = 0;
+
 sub _expand_expr_hashpair {
   my ($self, $k, $v, $logic) = @_;
   unless (defined($k) and length($k)) {
@@ -569,6 +571,10 @@ sub _expand_expr_hashpair {
           . "You probably wanted ...-and => [ $k => COND1, $k => COND2 ... ]";
     }
     if ($k eq '-nest') {
+      belch(
+        "-nest in search conditions is deprecated, you most probably wanted:\n"
+        .q|{..., -and => [ \%cond0, \@cond1, \'cond2', \[ 'cond3', [ col => bind ] ], etc. ], ... }|
+      ) unless $Nest_Warning_Emitted++;
       return $self->_expand_expr($v);
     }
     if ($k eq '-bool') {
@@ -1067,7 +1073,8 @@ sub _expand_order_by {
       }
     }
     my @exp = map +(defined($dir) ? { -op => [ $dir => $_ ] } : $_),
-                map $self->_expand_expr($_, undef, -ident), @to_expand;
+                map $self->_expand_expr($_, undef, -ident),
+                map ref($_) eq 'ARRAY' ? @$_ : $_, @to_expand;
     return (@exp > 1 ? { -op => [ ',', @exp ] } : $exp[0]);
   };
 
