@@ -553,7 +553,7 @@ sub _expand_expr {
   die "notreached";
 }
 
-our $Nest_Warning_Emitted = 0;
+my $Nest_Warned = 0;
 
 sub _expand_expr_hashpair {
   my ($self, $k, $v, $logic) = @_;
@@ -571,10 +571,17 @@ sub _expand_expr_hashpair {
           . "You probably wanted ...-and => [ $k => COND1, $k => COND2 ... ]";
     }
     if ($k eq '-nest') {
-      belch(
-        "-nest in search conditions is deprecated, you most probably wanted:\n"
-        .q|{..., -and => [ \%cond0, \@cond1, \'cond2', \[ 'cond3', [ col => bind ] ], etc. ], ... }|
-      ) unless $Nest_Warning_Emitted++;
+      # DBIx::Class requires a nest warning to be emitted once but the private
+      # method it overrode to do so no longer exists
+      if (ref($self) =~ /^DBIx::Class::SQLMaker/) {
+        unless ($Nest_Warned) {
+          belch(
+            "-nest in search conditions is deprecated, you most probably wanted:\n"
+            .q|{..., -and => [ \%cond0, \@cond1, \'cond2', \[ 'cond3', [ col => bind ] ], etc. ], ... }|
+          );
+          $Nest_Warned = 1;
+        }
+      }
       return $self->_expand_expr($v);
     }
     if ($k eq '-bool') {
