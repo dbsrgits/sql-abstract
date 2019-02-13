@@ -16,12 +16,6 @@ use SQL::Abstract;
 #
 #################
 
-# DBIx::Class requires a nest warning to be emitted once but the private
-# method it overrode to do so no longer exists; here we cancel said warning
-# to avoid disturbing the SQLA tests
-
-$SQL::Abstract::Nest_Warning_Emitted++;
-
 my @tests = (
       {
               func   => 'select',
