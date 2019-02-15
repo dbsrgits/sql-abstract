@@ -499,6 +499,7 @@ sub where {
 sub _expand_expr {
   my ($self, $expr, $logic, $default_scalar_to) = @_;
   local our $Default_Scalar_To = $default_scalar_to if $default_scalar_to;
+  our $Expand_Depth ||= 0; local $Expand_Depth = $Expand_Depth + 1;
   return undef unless defined($expr);
   if (ref($expr) eq 'HASH') {
     if (keys %$expr > 1) {
@@ -613,8 +614,15 @@ sub _expand_expr_hashpair {
       $op =~ s/^-// if length($op) > 1;
     
       # top level special ops are illegal in general
-      puke "Illegal use of top-level '-$op'"
-        if List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}};
+      # note that, arguably, if it makes no sense at top level, it also
+      # makes no sense on the other side of an = sign or similar but DBIC
+      # gets disappointingly upset if I disallow it
+      if (
+        (our $Expand_Depth) == 1
+        and List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}}
+      ) {
+        puke "Illegal use of top-level '-$op'"
+      }
       if (my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{unary_ops}}) {
         return { -op => [ $op, $v ] };
       }
@@ -634,6 +642,9 @@ sub _expand_expr_hashpair {
       and (keys %$v)[0] =~ /^-/
     ) {
       my ($func) = $k =~ /^-(.*)$/;
+      if (List::Util::first { $func =~ $_->{regex} } @{$self->{special_ops}}) {
+        return +{ -op => [ $func, $self->_expand_expr($v) ] };
+      }
       return +{ -func => [ $func, $self->_expand_expr($v) ] };
     }
     if (!ref($v) or is_literal_value($v)) {
@@ -972,7 +983,8 @@ sub _render_op {
   if (my $h = $special{$op}) {
     return $self->$h(\@args);
   }
-  if (my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}}) {
+  my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}};
+  if ($us and @args > 1) {
     puke "Special op '${op}' requires first value to be identifier"
       unless my ($k) = map $_->{-ident}, grep ref($_) eq 'HASH', $args[0];
     return $self->${\($us->{handler})}($k, $op, $args[1]);
@@ -989,7 +1001,7 @@ sub _render_op {
         ? "${expr_sql} ${op_sql}"
         : "${op_sql} ${expr_sql}"
     );
-    return (($op eq 'not' ? '('.$final_sql.')' : $final_sql), @bind);
+    return (($op eq 'not' || $us ? '('.$final_sql.')' : $final_sql), @bind);
   } else {
      my @parts = map [ $self->_render_expr($_) ], @args;
      my ($final_sql) = map +($op =~ /^(and|or)$/ ? "( ${_} )" : $_), join(
