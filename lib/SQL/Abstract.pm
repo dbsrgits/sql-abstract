@@ -992,7 +992,7 @@ sub _render_op {
     return (($op eq 'not' ? '('.$final_sql.')' : $final_sql), @bind);
   } else {
      my @parts = map [ $self->_render_expr($_) ], @args;
-     my ($final_sql) = map +($op =~ /^(and|or)$/ ? "(${_})" : $_), join(
+     my ($final_sql) = map +($op =~ /^(and|or)$/ ? "( ${_} )" : $_), join(
        ($final_op eq ',' ? '' : ' ').$self->_sqlcase($final_op).' ',
        map $_->[0], @parts
      );
