@@ -1105,15 +1105,22 @@ sub _order_by {
   return wantarray ? ($final_sql, @bind) : $final_sql;
 }
 
+# _order_by no longer needs to call this so doesn't but DBIC uses it.
+
 sub _order_by_chunks {
   my ($self, $arg) = @_;
 
   return () unless defined(my $expanded = $self->_expand_order_by($arg));
 
+  return $self->_chunkify_order_by($expanded);
+}
+
+sub _chunkify_order_by {
+  my ($self, $expanded) = @_;
   for ($expanded) {
     if (ref() eq 'HASH' and my $op = $_->{-op}) {
       if ($op->[0] eq ',') {
-        return map [ $self->_render_expr($_) ], @{$op}[1..$#$op];
+        return map $self->_chunkify_order_by($_), @{$op}[1..$#$op];
       }
     }
     return [ $self->_render_expr($_) ];
