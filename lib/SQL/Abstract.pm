@@ -861,9 +861,7 @@ sub _expand_expr_hashpair {
     my ($sql, @bind) = @$literal;
     if ($self->{bindtype} eq 'columns') {
       for (@bind) {
-        if (!defined $_ || ref($_) ne 'ARRAY' || @$_ != 2) {
-          puke "bindtype 'columns' selected, you need to pass: [column_name => bind_value]"
-        }
+        $self->_assert_bindval_matches_bindtype($_);
       }
     }
     return +{ -literal => [ $self->_quote($k).' '.$sql, @bind ] };
