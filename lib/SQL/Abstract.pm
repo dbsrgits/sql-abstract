@@ -510,14 +510,19 @@ sub _expand_expr {
           sort keys %$expr
       ] };
     }
-    return unless %$expr;
+    return { -literal => [ '' ] } unless keys %$expr;
     return $self->_expand_expr_hashpair(%$expr, $logic);
   }
   if (ref($expr) eq 'ARRAY') {
     my $logic = lc($logic || $self->{logic});
     $logic eq 'and' or $logic eq 'or' or puke "unknown logic: $logic";
 
-    my @expr = @$expr;
+    #my @expr = @$expr;
+    my @expr = grep {
+      (ref($_) eq 'ARRAY' and @$_)
+      or (ref($_) eq 'HASH' and %$_)
+      or 1
+    } @$expr;
 
     my @res;
 
@@ -889,6 +894,7 @@ sub _recurse_where {
   my $where_exp = (ref($where)
                     ? $self->_expand_expr($where, $logic)
                     : { -literal => [ $where ] });
+#::Dwarn([ EXPANDED => $where_exp ]);
 
 #print STDERR Data::Dumper::Concise::Dumper([ EXP => $where_exp ]);
 
@@ -898,7 +904,6 @@ sub _recurse_where {
 #  my ($sql, @bind) =  $self->$method($where_exp, $logic);
 
   my ($sql, @bind) = defined($where_exp) ? $self->_render_expr($where_exp) : (undef);
-
   # DBIx::Class used to call _recurse_where in scalar context
   # something else might too...
   if (wantarray) {
@@ -1000,8 +1005,11 @@ sub _render_op {
         : "${op_sql} ${expr_sql}"
     );
     return (($op eq 'not' || $us ? '('.$final_sql.')' : $final_sql), @bind);
+  #} elsif (@args == 0) {
+  #  return '';
   } else {
-     my @parts = map [ $self->_render_expr($_) ], @args;
+     my @parts = grep length($_->[0]), map [ $self->_render_expr($_) ], @args;
+     return '' unless @parts;
      my $is_andor = !!($op =~ /^(and|or)$/);
      return @{$parts[0]} if $is_andor and @parts == 1;
      my ($final_sql) = map +($is_andor ? "( ${_} )" : $_), join(
