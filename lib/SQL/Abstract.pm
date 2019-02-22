@@ -537,7 +537,7 @@ sub _expand_expr {
       } elsif (my $l = is_literal_value($el)) {
         push @res, { -literal => $l };
       } elsif ($elref eq 'HASH') {
-        push @res, $self->_expand_expr($el);
+        push @res, $self->_expand_expr($el) if %$el;
       } else {
         die "notreached";
       }
@@ -1137,6 +1137,10 @@ sub _order_by_chunks {
 
 sub _chunkify_order_by {
   my ($self, $expanded) = @_;
+
+  return $self->_render_expr($expanded)
+    if $expanded->{-ident} or @{$expanded->{-literal}||[]} == 1;
+
   for ($expanded) {
     if (ref() eq 'HASH' and my $op = $_->{-op}) {
       if ($op->[0] eq ',') {
