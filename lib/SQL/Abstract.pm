@@ -160,6 +160,12 @@ sub new {
   # regexes are applied in order, thus push after user-defines
   push @{$opt{special_ops}}, @BUILTIN_SPECIAL_OPS;
 
+  if ($class =~ /^DBIx::Class::SQLMaker/) {
+    push @{$opt{special_ops}}, our $DBIC_Compat_Op ||= {
+      regex => qr/^(?:ident|value)$/i, handler => sub { die "NOPE" }
+    };
+  }
+
   # unary operators
   $opt{unary_ops} ||= [];
 
@@ -531,12 +537,14 @@ sub _expand_expr {
         unless defined($el) and length($el);
       my $elref = ref($el);
       if (!$elref) {
+        local $Expand_Depth = 0;
         push(@res, $self->_expand_expr({ $el, shift(@expr) }));
       } elsif ($elref eq 'ARRAY') {
         push(@res, $self->_expand_expr($el)) if @$el;
       } elsif (my $l = is_literal_value($el)) {
         push @res, { -literal => $l };
       } elsif ($elref eq 'HASH') {
+        local $Expand_Depth = 0;
         push @res, $self->_expand_expr($el) if %$el;
       } else {
         die "notreached";
@@ -684,6 +692,7 @@ sub _expand_expr_hashpair {
           sort keys %$v
       ] };
     }
+    return { -literal => [ '' ] } unless keys %$v;
     my ($vk, $vv) = %$v;
     $vk =~ s/^-//;
     $vk = lc($vk);
@@ -990,6 +999,7 @@ sub _render_op {
   if ($us and @args > 1) {
     puke "Special op '${op}' requires first value to be identifier"
       unless my ($k) = map $_->{-ident}, grep ref($_) eq 'HASH', $args[0];
+    local our $Expand_Depth = 1;
     return $self->${\($us->{handler})}($k, $op, $args[1]);
   }
   if (my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{unary_ops}}) {
@@ -1138,7 +1148,7 @@ sub _order_by_chunks {
 sub _chunkify_order_by {
   my ($self, $expanded) = @_;
 
-  return $self->_render_expr($expanded)
+  return grep length, $self->_render_expr($expanded)
     if $expanded->{-ident} or @{$expanded->{-literal}||[]} == 1;
 
   for ($expanded) {

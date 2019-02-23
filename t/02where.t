@@ -398,6 +398,11 @@ my @handle_tests = (
         stmt  => " WHERE ( 0 ) ",
         bind => [ ],
     },
+    {
+        where => { artistid => {} },
+        stmt => '',
+        bind => [ ],
+    }
 );
 
 for my $case (@handle_tests) {
