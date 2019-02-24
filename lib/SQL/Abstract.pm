@@ -1130,6 +1130,8 @@ sub _order_by {
 
   my ($sql, @bind) = $self->_render_expr($expanded);
 
+  return '' unless length($sql);
+
   my $final_sql = $self->_sqlcase(' order by ').$sql;
 
   return wantarray ? ($final_sql, @bind) : $final_sql;
