@@ -58,6 +58,11 @@ my @cases =
     expects => '',
     expects_quoted => '',
    },
+   {
+    given => [ {} ],
+    expects => '',
+    expects_quoted => '',
+   },
 
    {
     given => [{-desc => [ qw/colA colB/ ] }],
