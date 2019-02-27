@@ -691,7 +691,7 @@ sub _expand_expr_hashpair {
           sort keys %$v
       ] };
     }
-    return { -literal => [ '' ] } unless keys %$v;
+    return undef unless keys %$v;
     my ($vk, $vv) = %$v;
     $vk =~ s/^-//;
     $vk = lc($vk);
