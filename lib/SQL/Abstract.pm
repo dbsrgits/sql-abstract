@@ -160,10 +160,11 @@ sub new {
   # regexes are applied in order, thus push after user-defines
   push @{$opt{special_ops}}, @BUILTIN_SPECIAL_OPS;
 
-  if ($class =~ /^DBIx::Class::SQLMaker/) {
+  if ($class->isa('DBIx::Class::SQLMaker')) {
     push @{$opt{special_ops}}, our $DBIC_Compat_Op ||= {
       regex => qr/^(?:ident|value)$/i, handler => sub { die "NOPE" }
     };
+    $opt{is_dbic_sqlmaker} = 1;
   }
 
   # unary operators
@@ -567,8 +568,6 @@ sub _expand_expr {
   die "notreached";
 }
 
-my $Nest_Warned = 0;
-
 sub _expand_expr_hashpair {
   my ($self, $k, $v, $logic) = @_;
   unless (defined($k) and length($k)) {
@@ -587,8 +586,8 @@ sub _expand_expr_hashpair {
     if ($k eq '-nest') {
       # DBIx::Class requires a nest warning to be emitted once but the private
       # method it overrode to do so no longer exists
-      if (ref($self) =~ /^DBIx::Class::SQLMaker/) {
-        unless ($Nest_Warned) {
+      if ($self->{is_dbic_sqlmaker}) {
+        unless (our $Nest_Warned) {
           belch(
             "-nest in search conditions is deprecated, you most probably wanted:\n"
             .q|{..., -and => [ \%cond0, \@cond1, \'cond2', \[ 'cond3', [ col => bind ] ], etc. ], ... }|
