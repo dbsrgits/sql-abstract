@@ -186,7 +186,7 @@ sub new {
 
   $opt{node_types} = +{
     map +("-$_" => '_render_'.$_),
-      qw(op func value bind ident literal list)
+      qw(op func bind ident literal list)
   };
 
   $opt{expand_unary} = {};
@@ -558,12 +558,12 @@ sub _expand_expr {
   }
   if (!ref($expr) or Scalar::Util::blessed($expr)) {
     if (my $d = $Default_Scalar_To) {
-      return +{ $d => $expr };
+      return $self->_expand_expr({ $d => $expr });
     }
     if (my $m = our $Cur_Col_Meta) {
       return +{ -bind => [ $m, $expr ] };
     }
-    return +{ -value => $expr };
+    return +{ -bind => [ undef, $expr ] };
   }
   die "notreached";
 }
@@ -639,8 +639,8 @@ sub _expand_expr_hashpair {
         return { -op => [ $op, $v ] };
       }
     }
-    if ($k eq '-value' and my $m = our $Cur_Col_Meta) {
-      return +{ -bind => [ $m, $v ] };
+    if ($k eq '-value') {
+      return +{ -bind => [ our $Cur_Col_Meta, $v ] };
     }
     if (my $custom = $self->{expand_unary}{$k}) {
       return $self->$custom($v);
@@ -919,12 +919,6 @@ sub _render_ident {
   my ($self, $ident) = @_;
 
   return $self->_convert($self->_quote($ident));
-}
-
-sub _render_value {
-  my ($self, $value) = @_;
-
-  return ($self->_convert('?'), $self->_bindtype(undef, $value));
 }
 
 my %unop_postfix = map +($_ => 1),
