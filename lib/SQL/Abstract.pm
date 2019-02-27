@@ -186,7 +186,7 @@ sub new {
 
   $opt{node_types} = +{
     map +("-$_" => '_render_'.$_),
-      qw(op func value bind ident literal)
+      qw(op func value bind ident literal list)
   };
 
   $opt{expand_unary} = {};
@@ -1022,7 +1022,7 @@ sub _render_op {
      my $is_andor = !!($op =~ /^(and|or)$/);
      return @{$parts[0]} if $is_andor and @parts == 1;
      my ($final_sql) = map +($is_andor ? "( ${_} )" : $_), join(
-       ($final_op eq ',' ? '' : ' ').$self->_sqlcase($final_op).' ',
+       ' '.$self->_sqlcase($final_op).' ',
        map $_->[0], @parts
      );
      return (
@@ -1031,6 +1031,12 @@ sub _render_op {
      );
   }
   die "unhandled";
+}
+
+sub _render_list {
+  my ($self, $list) = @_;
+  my @parts = grep length($_->[0]), map [ $self->_render_expr($_) ], @$list;
+  return join(', ', map $_->[0], @parts), map @{$_}[1..$#$_], @parts;
 }
 
 sub _render_func {
@@ -1111,7 +1117,7 @@ sub _expand_order_by {
     my @exp = map +(defined($dir) ? { -op => [ $dir => $_ ] } : $_),
                 map $self->_expand_expr($_, undef, -ident),
                 map ref($_) eq 'ARRAY' ? @$_ : $_, @to_expand;
-    return (@exp > 1 ? { -op => [ ',', @exp ] } : $exp[0]);
+    return (@exp > 1 ? { -list => \@exp } : $exp[0]);
   };
 
   local @{$self->{expand_unary}}{qw(-asc -desc)} = (
@@ -1153,10 +1159,8 @@ sub _chunkify_order_by {
     if $expanded->{-ident} or @{$expanded->{-literal}||[]} == 1;
 
   for ($expanded) {
-    if (ref() eq 'HASH' and my $op = $_->{-op}) {
-      if ($op->[0] eq ',') {
-        return map $self->_chunkify_order_by($_), @{$op}[1..$#$op];
-      }
+    if (ref() eq 'HASH' and my $l = $_->{-list}) {
+      return map $self->_chunkify_order_by($_), @$l;
     }
     return [ $self->_render_expr($_) ];
   }
@@ -1183,8 +1187,8 @@ sub _expand_maybe_list_expr {
   my ($self, $expr, $logic, $default) = @_;
   my $e = do {
     if (ref($expr) eq 'ARRAY') {
-      return { -op => [
-        ',', map $self->_expand_expr($_, $logic, $default), @$expr
+      return { -list => [
+        map $self->_expand_expr($_, $logic, $default), @$expr
       ] } if @$expr > 1;
       $expr->[0]
     } else {
