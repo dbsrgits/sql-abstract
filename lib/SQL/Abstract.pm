@@ -895,21 +895,13 @@ sub _render_expr {
 sub _recurse_where {
   my ($self, $where, $logic) = @_;
 
-#print STDERR Data::Dumper::Concise::Dumper([ $where, $logic ]);
-
   # Special case: top level simple string treated as literal
 
   my $where_exp = (ref($where)
                     ? $self->_expand_expr($where, $logic)
                     : { -literal => [ $where ] });
-#::Dwarn([ EXPANDED => $where_exp ]);
 
-#print STDERR Data::Dumper::Concise::Dumper([ EXP => $where_exp ]);
-
-  # dispatch on appropriate method according to refkind of $where
-#  my $method = $self->_METHOD_FOR_refkind("_where", $where_exp);
-
-#  my ($sql, @bind) =  $self->$method($where_exp, $logic);
+  # dispatch expanded expression
 
   my ($sql, @bind) = defined($where_exp) ? $self->_render_expr($where_exp) : (undef);
   # DBIx::Class used to call _recurse_where in scalar context
