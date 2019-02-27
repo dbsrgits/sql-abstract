@@ -517,7 +517,7 @@ sub _expand_expr {
           sort keys %$expr
       ] };
     }
-    return { -literal => [ '' ] } unless keys %$expr;
+    return undef unless keys %$expr;
     return $self->_expand_expr_hashpair(%$expr, $logic);
   }
   if (ref($expr) eq 'ARRAY') {
