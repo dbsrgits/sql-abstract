@@ -184,9 +184,9 @@ sub new {
     ^ \s* go \s
   /xmi;
 
-  $opt{node_types} = +{
-    map +("-$_" => '_render_'.$_),
-      qw(op func bind ident literal list)
+  $opt{render} = {
+    (map +("-$_", "_render_$_"), qw(op func bind ident literal list)),
+    %{$opt{render}||{}}
   };
 
   $opt{expand_unary} = {};
@@ -512,7 +512,7 @@ sub render_aqt {
   my ($self, $aqt) = @_;
   my ($k, $v, @rest) = %$aqt;
   die "No" if @rest;
-  if (my $meth = $self->{node_types}{$k}) {
+  if (my $meth = $self->{render}{$k}) {
     return $self->$meth($v);
   }
   die "notreached: $k";
@@ -659,7 +659,7 @@ sub _expand_expr_hashpair {
     if (my $custom = $self->{expand_unary}{$k}) {
       return $self->$custom($v);
     }
-    if ($self->{node_types}{$k}) {
+    if ($self->{render}{$k}) {
       return { $k => $v };
     }
     if (
