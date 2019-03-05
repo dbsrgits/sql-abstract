@@ -239,7 +239,7 @@ sub _returning {
 
   my $f = $options->{returning};
 
-  my ($sql, @bind) = $self->_render_expr(
+  my ($sql, @bind) = $self->render_aqt(
     $self->_expand_maybe_list_expr($f, undef, -ident)
   );
   return wantarray
@@ -310,7 +310,7 @@ sub _insert_values {
 sub _insert_value {
   my ($self, $column, $v) = @_;
 
-  return $self->_render_expr(
+  return $self->render_aqt(
     $self->_expand_insert_value($column, $v)
   );
 }
@@ -336,7 +336,7 @@ sub _expand_insert_value {
     return +{ -bind => [ $column, undef ] };
   }
   local our $Cur_Col_Meta = $column;
-  return $self->_expand_expr($v);
+  return $self->expand_expr($v);
 }
 
 
@@ -379,7 +379,7 @@ sub update {
 sub _update_set_values {
   my ($self, $data) = @_;
 
-  return $self->_render_expr(
+  return $self->render_aqt(
     $self->_expand_update_set_values($data),
   );
 }
@@ -441,7 +441,7 @@ sub select {
 sub _select_fields {
   my ($self, $fields) = @_;
   return $fields unless ref($fields);
-  return $self->_render_expr(
+  return $self->render_aqt(
     $self->_expand_maybe_list_expr($fields, undef, '-ident')
   );
 }
@@ -501,6 +501,21 @@ sub where {
   }
 
   return wantarray ? ($sql, @bind) : $sql;
+}
+
+sub expand_expr {
+  my ($self, $expr, $default) = @_;
+  $self->_expand_expr($expr, undef, $default);
+}
+
+sub render_aqt {
+  my ($self, $aqt) = @_;
+  my ($k, $v, @rest) = %$aqt;
+  die "No" if @rest;
+  if (my $meth = $self->{node_types}{$k}) {
+    return $self->$meth($v);
+  }
+  die "notreached: $k";
 }
 
 sub _expand_expr {
@@ -881,28 +896,18 @@ sub _expand_expr_hashpair {
   die "notreached";
 }
 
-sub _render_expr {
-  my ($self, $expr) = @_;
-  my ($k, $v, @rest) = %$expr;
-  die "No" if @rest;
-  if (my $meth = $self->{node_types}{$k}) {
-    return $self->$meth($v);
-  }
-  die "notreached: $k";
-}
-
 sub _recurse_where {
   my ($self, $where, $logic) = @_;
 
   # Special case: top level simple string treated as literal
 
   my $where_exp = (ref($where)
-                    ? $self->_expand_expr($where, $logic)
+                    ? $self->expand_expr($where, $logic)
                     : { -literal => [ $where ] });
 
   # dispatch expanded expression
 
-  my ($sql, @bind) = defined($where_exp) ? $self->_render_expr($where_exp) : (undef);
+  my ($sql, @bind) = defined($where_exp) ? $self->render_aqt($where_exp) : (undef);
   # DBIx::Class used to call _recurse_where in scalar context
   # something else might too...
   if (wantarray) {
@@ -937,12 +942,12 @@ my %special = (
             unless $low->{-literal};
           @{$low->{-literal}}
         } else {
-          my ($l, $h) = map [ $self->_render_expr($_) ], $low, $high;
+          my ($l, $h) = map [ $self->render_aqt($_) ], $low, $high;
           (join(' ', $l->[0], $self->_sqlcase('and'), $h->[0]),
            @{$l}[1..$#$l], @{$h}[1..$#$h])
         }
       };
-      my ($lhsql, @lhbind) = $self->_render_expr($left);
+      my ($lhsql, @lhbind) = $self->render_aqt($left);
       return (
         join(' ', '(', $lhsql, $self->_sqlcase($op), $rhsql, ')'),
         @lhbind, @rhbind
@@ -956,11 +961,11 @@ my %special = (
       my ($lhs, $rhs) = @$args;
       my @in_bind;
       my @in_sql = map {
-        my ($sql, @bind) = $self->_render_expr($_);
+        my ($sql, @bind) = $self->render_aqt($_);
         push @in_bind, @bind;
         $sql;
       } @$rhs;
-      my ($lhsql, @lbind) = $self->_render_expr($lhs);
+      my ($lhsql, @lbind) = $self->render_aqt($lhs);
       return (
         $lhsql.' '.$self->_sqlcase($op).' ( '
         .join(', ', @in_sql)
@@ -991,7 +996,7 @@ sub _render_op {
   }
   my $final_op = $op =~ /^(?:is|not)_/ ? join(' ', split '_', $op) : $op;
   if (@args == 1 and $op !~ /^(and|or)$/) {
-    my ($expr_sql, @bind) = $self->_render_expr($args[0]);
+    my ($expr_sql, @bind) = $self->render_aqt($args[0]);
     my $op_sql = $self->_sqlcase($final_op);
     my $final_sql = (
       $unop_postfix{lc($final_op)}
@@ -1000,7 +1005,7 @@ sub _render_op {
     );
     return (($op eq 'not' || $us ? '('.$final_sql.')' : $final_sql), @bind);
   } else {
-     my @parts = grep length($_->[0]), map [ $self->_render_expr($_) ], @args;
+     my @parts = grep length($_->[0]), map [ $self->render_aqt($_) ], @args;
      return '' unless @parts;
      my $is_andor = !!($op =~ /^(and|or)$/);
      return @{$parts[0]} if $is_andor and @parts == 1;
@@ -1018,7 +1023,7 @@ sub _render_op {
 
 sub _render_list {
   my ($self, $list) = @_;
-  my @parts = grep length($_->[0]), map [ $self->_render_expr($_) ], @$list;
+  my @parts = grep length($_->[0]), map [ $self->render_aqt($_) ], @$list;
   return join(', ', map $_->[0], @parts), map @{$_}[1..$#$_], @parts;
 }
 
@@ -1030,7 +1035,7 @@ sub _render_func {
     my @x = @$_;
     push @arg_sql, shift @x;
     @x
-  } map [ $self->_render_expr($_) ], @args;
+  } map [ $self->render_aqt($_) ], @args;
   return ($self->_sqlcase($func).'('.join(', ', @arg_sql).')', @bind);
 }
 
@@ -1098,7 +1103,7 @@ sub _expand_order_by {
       }
     }
     my @exp = map +(defined($dir) ? { -op => [ $dir => $_ ] } : $_),
-                map $self->_expand_expr($_, undef, -ident),
+                map $self->expand_expr($_, -ident),
                 map ref($_) eq 'ARRAY' ? @$_ : $_, @to_expand;
     return (@exp > 1 ? { -list => \@exp } : $exp[0]);
   };
@@ -1116,7 +1121,7 @@ sub _order_by {
 
   return '' unless defined(my $expanded = $self->_expand_order_by($arg));
 
-  my ($sql, @bind) = $self->_render_expr($expanded);
+  my ($sql, @bind) = $self->render_aqt($expanded);
 
   return '' unless length($sql);
 
@@ -1138,14 +1143,14 @@ sub _order_by_chunks {
 sub _chunkify_order_by {
   my ($self, $expanded) = @_;
 
-  return grep length, $self->_render_expr($expanded)
+  return grep length, $self->render_aqt($expanded)
     if $expanded->{-ident} or @{$expanded->{-literal}||[]} == 1;
 
   for ($expanded) {
     if (ref() eq 'HASH' and my $l = $_->{-list}) {
       return map $self->_chunkify_order_by($_), @$l;
     }
-    return [ $self->_render_expr($_) ];
+    return [ $self->render_aqt($_) ];
   }
 }
 
@@ -1156,7 +1161,7 @@ sub _chunkify_order_by {
 sub _table  {
   my $self = shift;
   my $from = shift;
-  ($self->_render_expr(
+  ($self->render_aqt(
     $self->_expand_maybe_list_expr($from, undef, -ident)
   ))[0];
 }
