@@ -524,7 +524,6 @@ sub _expand_expr {
     my $logic = lc($logic || $self->{logic});
     $logic eq 'and' or $logic eq 'or' or puke "unknown logic: $logic";
 
-    #my @expr = @$expr;
     my @expr = grep {
       (ref($_) eq 'ARRAY' and @$_)
       or (ref($_) eq 'HASH' and %$_)
@@ -539,14 +538,14 @@ sub _expand_expr {
       my $elref = ref($el);
       if (!$elref) {
         local $Expand_Depth = 0;
-        push(@res, $self->_expand_expr({ $el, shift(@expr) }));
+        push(@res, grep defined, $self->_expand_expr({ $el, shift(@expr) }));
       } elsif ($elref eq 'ARRAY') {
-        push(@res, $self->_expand_expr($el)) if @$el;
+        push(@res, grep defined, $self->_expand_expr($el)) if @$el;
       } elsif (my $l = is_literal_value($el)) {
         push @res, { -literal => $l };
       } elsif ($elref eq 'HASH') {
         local $Expand_Depth = 0;
-        push @res, $self->_expand_expr($el) if %$el;
+        push @res, grep defined, $self->_expand_expr($el) if %$el;
       } else {
         die "notreached";
       }
@@ -1000,8 +999,6 @@ sub _render_op {
         : "${op_sql} ${expr_sql}"
     );
     return (($op eq 'not' || $us ? '('.$final_sql.')' : $final_sql), @bind);
-  #} elsif (@args == 0) {
-  #  return '';
   } else {
      my @parts = grep length($_->[0]), map [ $self->_render_expr($_) ], @args;
      return '' unless @parts;
