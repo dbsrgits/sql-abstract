@@ -902,7 +902,7 @@ sub _recurse_where {
   # Special case: top level simple string treated as literal
 
   my $where_exp = (ref($where)
-                    ? $self->expand_expr($where, $logic)
+                    ? $self->_expand_expr($where, $logic)
                     : { -literal => [ $where ] });
 
   # dispatch expanded expression
