@@ -504,8 +504,9 @@ sub where {
 }
 
 sub expand_expr {
-  my ($self, $expr, $default) = @_;
-  $self->_expand_expr($expr, undef, $default);
+  my ($self, $expr, $default_scalar_to) = @_;
+  local our $Default_Scalar_To = $default_scalar_to if $default_scalar_to;
+  $self->_expand_expr($expr, undef);
 }
 
 sub render_aqt {
