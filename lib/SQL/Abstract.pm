@@ -1177,14 +1177,14 @@ sub _expand_maybe_list_expr {
   my $e = do {
     if (ref($expr) eq 'ARRAY') {
       return { -list => [
-        map $self->_expand_expr($_, $logic, $default), @$expr
+        map $self->expand_expr($_, $default), @$expr
       ] } if @$expr > 1;
       $expr->[0]
     } else {
       $expr
     }
   };
-  return $self->_expand_expr($e, $logic, $default);
+  return $self->expand_expr($e, $default);
 }
 
 # highly optimized, as it's called way too often
