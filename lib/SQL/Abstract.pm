@@ -772,15 +772,15 @@ sub _expand_expr_hashpair {
       }
       return +{ -op => [
         $self->{cmp},
-        { -ident => $k },
-        { -ident => $vv }
+        $self->_expand_ident(-ident => $k),
+        $self->_expand_ident(-ident => $vv),
       ] };
     }
     if ($vk eq 'value') {
       return $self->_expand_expr_hashpair($k, undef) unless defined($vv);
       return +{ -op => [
         $self->{cmp},
-        { -ident => $k },
+        $self->_expand_ident(-ident => $k),
         { -bind => [ $k, $vv ] }
       ] };
     }
@@ -793,7 +793,7 @@ sub _expand_expr_hashpair {
              and !defined($vv->{-value})
            );
       $vk =~ s/_/ /g;
-      return +{ -op => [ $vk.' null', { -ident => $k } ] };
+      return +{ -op => [ $vk.' null', $self->_expand_ident(-ident => $k) ] };
     }
     if ($vk =~ /^(and|or)$/) {
       if (ref($vv) eq 'HASH') {
@@ -810,7 +810,7 @@ sub _expand_expr_hashpair {
     if (my $us = List::Util::first { $vk =~ $_->{regex} } @{$self->{unary_ops}}) {
       return { -op => [
         $self->{cmp},
-        { -ident => $k },
+        $self->_expand_ident(-ident => $k),
         { -op => [ $vk, $vv ] }
       ] };
     }
@@ -864,12 +864,12 @@ sub _expand_expr_hashpair {
       : $op =~ $self->{inequality_op} ? 'is not'
       : $op =~ $self->{not_like_op}   ? belch("Supplying an undefined argument to '@{[ uc $op]}' is deprecated") && 'is not'
       : puke "unexpected operator '$op' with undef operand";
-      return +{ -op => [ $is.' null', { -ident => $k } ] };
+      return +{ -op => [ $is.' null', $self->_expand_ident(-ident => $k) ] };
     }
     local our $Cur_Col_Meta = $k;
     return +{ -op => [
       $vk,
-     { -ident => $k },
+     $self->_expand_ident(-ident => $k),
      $self->_expand_expr($vv)
     ] };
   }
