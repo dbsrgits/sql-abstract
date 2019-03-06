@@ -622,7 +622,7 @@ sub _expand_expr_hashpair {
         return $self->_expand_expr($v);
       }
       puke "-bool => undef not supported" unless defined($v);
-      return { -ident => $v };
+      return $self->_expand_ident(-ident => $v);
     }
     if ($k eq '-not') {
       return { -op => [ 'not', $self->_expand_expr($v) ] };
@@ -698,7 +698,7 @@ sub _expand_expr_hashpair {
     return +{
       -op => [
         $self->{cmp},
-        { -ident => $k },
+        $self->_expand_ident(-ident => $k),
         ($d ? { $d => $v } : { -bind => [ $k, $v ] })
       ]
     };
@@ -733,7 +733,7 @@ sub _expand_expr_hashpair {
       }
       return +{ -op => [
         join(' ', split '_', $vk),
-        { -ident => $k },
+        $self->_expand_ident(-ident => $k),
         @rhs
       ] }
     }
@@ -742,7 +742,7 @@ sub _expand_expr_hashpair {
         my ($sql, @bind) = @$literal;
         my $opened_sql = $self->_open_outer_paren($sql);
         return +{ -op => [
-          $vk, { -ident => $k },
+          $vk, $self->_expand_ident(-ident => $k),
           [ { -literal => [ $opened_sql, @bind ] } ]
         ] };
       }
@@ -762,7 +762,7 @@ sub _expand_expr_hashpair {
 
       return +{ -op => [
         join(' ', split '_', $vk),
-        { -ident => $k },
+        $self->_expand_ident(-ident => $k),
         \@rhs
       ] };
     }
@@ -906,6 +906,10 @@ sub _expand_ident {
   my ($self, undef, $body) = @_;
   my @parts = map split(/\Q${\($self->{name_sep}||'.')}\E/, $_),
                 ref($body) ? @$body : $body;
+  return { -ident => $parts[-1] } if $self->{_dequalify_idents};
+  unless ($self->{quote_char}) {
+    $self->_assert_pass_injection_guard($_) for @parts;
+  }
   return +{ -ident => \@parts };
 }
 
