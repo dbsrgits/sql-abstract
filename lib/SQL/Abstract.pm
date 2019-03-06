@@ -519,6 +519,11 @@ sub render_aqt {
   die "notreached: $k";
 }
 
+sub render_expr {
+  my ($self, $expr) = @_;
+  $self->render_aqt($self->expand_expr($expr));
+}
+
 sub _expand_expr {
   my ($self, $expr, $logic, $default_scalar_to) = @_;
   local our $Default_Scalar_To = $default_scalar_to if $default_scalar_to;
