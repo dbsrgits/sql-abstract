@@ -390,7 +390,7 @@ sub _expand_update_set_values {
     map {
       my ($k, $set) = @$_;
       $set = { -bind => $_ } unless defined $set;
-      +{ -op => [ '=', { -ident => $k }, $set ] };
+      +{ -op => [ '=', $self->_expand_ident(-ident => $k), $set ] };
     }
     map {
       my $k = $_;
@@ -900,6 +900,13 @@ sub _expand_expr_hashpair {
     return +{ -literal => [ $self->_quote($k).' '.$sql, @bind ] };
   }
   die "notreached";
+}
+
+sub _expand_ident {
+  my ($self, undef, $body) = @_;
+  my @parts = map split(/\Q${\($self->{name_sep}||'.')}\E/, $_),
+                ref($body) ? @$body : $body;
+  return +{ -ident => \@parts };
 }
 
 sub _recurse_where {
