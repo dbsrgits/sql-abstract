@@ -506,7 +506,7 @@ sub where {
 sub expand_expr {
   my ($self, $expr, $default_scalar_to) = @_;
   local our $Default_Scalar_To = $default_scalar_to if $default_scalar_to;
-  $self->_expand_expr($expr, undef);
+  $self->_expand_expr($expr);
 }
 
 sub render_aqt {
@@ -662,6 +662,9 @@ sub _expand_expr_hashpair {
     if ($k eq '-value') {
       return +{ -bind => [ our $Cur_Col_Meta, $v ] };
     }
+    if ($k eq '-ident') {
+      return $self->_expand_ident(-ident => $v);
+    }
     if (my $custom = $self->{expand_unary}{$k}) {
       return $self->$custom($v);
     }
@@ -699,7 +702,10 @@ sub _expand_expr_hashpair {
       -op => [
         $self->{cmp},
         $self->_expand_ident(-ident => $k),
-        ($d ? { $d => $v } : { -bind => [ $k, $v ] })
+        ($d
+          ? $self->_expand_expr($d => $v)
+          : { -bind => [ $k, $v ] }
+        )
       ]
     };
   }
@@ -805,7 +811,7 @@ sub _expand_expr_hashpair {
       }
     }
     if (my $us = List::Util::first { $vk =~ $_->{regex} } @{$self->{special_ops}}) {
-      return { -op => [ $vk, { -ident => $k }, $vv ] };
+      return { -op => [ $vk, $self->_expand_ident(-ident => $k), $vv ] };
     }
     if (my $us = List::Util::first { $vk =~ $_->{regex} } @{$self->{unary_ops}}) {
       return { -op => [
@@ -1004,7 +1010,8 @@ sub _render_op {
   my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}};
   if ($us and @args > 1) {
     puke "Special op '${op}' requires first value to be identifier"
-      unless my ($k) = map $_->{-ident}, grep ref($_) eq 'HASH', $args[0];
+      unless my ($ident) = map $_->{-ident}, grep ref($_) eq 'HASH', $args[0];
+    my $k = join(($self->{name_sep}||'.'), @$ident);
     local our $Expand_Depth = 1;
     return $self->${\($us->{handler})}($k, $op, $args[1]);
   }
