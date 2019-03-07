@@ -644,7 +644,7 @@ sub _expand_expr_hashpair {
     {
       my $op = $k;
       $op =~ s/^-// if length($op) > 1;
-    
+
       # top level special ops are illegal in general
       # note that, arguably, if it makes no sense at top level, it also
       # makes no sense on the other side of an = sign or similar but DBIC
