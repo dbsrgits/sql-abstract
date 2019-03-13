@@ -719,14 +719,13 @@ sub _expand_expr_hashpair {
     }
     return undef unless keys %$v;
     my ($vk, $vv) = %$v;
-    $vk =~ s/^-//;
-    $vk = lc($vk);
-    $self->_assert_pass_injection_guard($vk);
-    if ($vk =~ s/ [_\s]? \d+ $//x ) {
+    my $op = join ' ', split '_', (map lc, $vk =~ /^-?(.*)$/)[0];
+    $self->_assert_pass_injection_guard($op);
+    if ($op =~ s/ [_\s]? \d+ $//x ) {
       belch 'Use of [and|or|nest]_N modifiers is deprecated and will be removed in SQLA v2.0. '
-          . "You probably wanted ...-and => [ -$vk => COND1, -$vk => COND2 ... ]";
+          . "You probably wanted ...-and => [ -$op => COND1, -$op => COND2 ... ]";
     }
-    if ($vk =~ /^(?:not[ _])?between$/) {
+    if ($op =~ /^(?:not )?between$/) {
       local our $Cur_Col_Meta = $k;
       my @rhs = map $self->_expand_expr($_),
                   ref($vv) eq 'ARRAY' ? @$vv : $vv;
@@ -735,46 +734,46 @@ sub _expand_expr_hashpair {
         or
         (@rhs == 2 and defined($rhs[0]) and defined($rhs[1]))
       ) {
-        puke "Operator '${\uc($vk)}' requires either an arrayref with two defined values or expressions, or a single literal scalarref/arrayref-ref";
+        puke "Operator '${\uc($op)}' requires either an arrayref with two defined values or expressions, or a single literal scalarref/arrayref-ref";
       }
       return +{ -op => [
-        join(' ', split '_', $vk),
+        $op,
         $self->_expand_ident(-ident => $k),
         @rhs
       ] }
     }
-    if ($vk =~ /^(?:not[ _])?in$/) {
+    if ($op =~ /^(?:not )?in$/) {
       if (my $literal = is_literal_value($vv)) {
         my ($sql, @bind) = @$literal;
         my $opened_sql = $self->_open_outer_paren($sql);
         return +{ -op => [
-          $vk, $self->_expand_ident(-ident => $k),
+          $op, $self->_expand_ident(-ident => $k),
           [ { -literal => [ $opened_sql, @bind ] } ]
         ] };
       }
       my $undef_err =
         'SQL::Abstract before v1.75 used to generate incorrect SQL when the '
-      . "-${\uc($vk)} operator was given an undef-containing list: !!!AUDIT YOUR CODE "
+      . "-${\uc($op)} operator was given an undef-containing list: !!!AUDIT YOUR CODE "
       . 'AND DATA!!! (the upcoming Data::Query-based version of SQL::Abstract '
       . 'will emit the logically correct SQL instead of raising this exception)'
       ;
-      puke("Argument passed to the '${\uc($vk)}' operator can not be undefined")
+      puke("Argument passed to the '${\uc($op)}' operator can not be undefined")
         if !defined($vv);
       my @rhs = map $self->_expand_expr($_),
                   map { ref($_) ? $_ : { -bind => [ $k, $_ ] } }
                   map { defined($_) ? $_: puke($undef_err) }
                     (ref($vv) eq 'ARRAY' ? @$vv : $vv);
-      return $self->${\($vk =~ /^not/ ? 'sqltrue' : 'sqlfalse')} unless @rhs;
+      return $self->${\($op =~ /^not/ ? 'sqltrue' : 'sqlfalse')} unless @rhs;
 
       return +{ -op => [
-        join(' ', split '_', $vk),
+        $op,
         $self->_expand_ident(-ident => $k),
         \@rhs
       ] };
     }
-    if ($vk eq 'ident') {
+    if ($op eq 'ident') {
       if (! defined $vv or (ref($vv) and ref($vv) eq 'ARRAY')) {
-        puke "-$vk requires a single plain scalar argument (a quotable identifier) or an arrayref of identifier parts";
+        puke "-$op requires a single plain scalar argument (a quotable identifier) or an arrayref of identifier parts";
       }
       return +{ -op => [
         $self->{cmp},
@@ -782,7 +781,7 @@ sub _expand_expr_hashpair {
         $self->_expand_ident(-ident => $vv),
       ] };
     }
-    if ($vk eq 'value') {
+    if ($op eq 'value') {
       return $self->_expand_expr_hashpair($k, undef) unless defined($vv);
       return +{ -op => [
         $self->{cmp},
@@ -790,34 +789,33 @@ sub _expand_expr_hashpair {
         { -bind => [ $k, $vv ] }
       ] };
     }
-    if ($vk =~ /^is(?:[ _]not)?$/) {
-      puke "$vk can only take undef as argument"
+    if ($op =~ /^is(?: not)?$/) {
+      puke "$op can only take undef as argument"
         if defined($vv)
            and not (
              ref($vv) eq 'HASH'
              and exists($vv->{-value})
              and !defined($vv->{-value})
            );
-      $vk =~ s/_/ /g;
-      return +{ -op => [ $vk.' null', $self->_expand_ident(-ident => $k) ] };
+      return +{ -op => [ $op.' null', $self->_expand_ident(-ident => $k) ] };
     }
-    if ($vk =~ /^(and|or)$/) {
+    if ($op =~ /^(and|or)$/) {
       if (ref($vv) eq 'HASH') {
         return +{ -op => [
-          $vk,
+          $op,
           map $self->_expand_expr_hashpair($k, { $_ => $vv->{$_} }),
             sort keys %$vv
         ] };
       }
     }
-    if (my $us = List::Util::first { $vk =~ $_->{regex} } @{$self->{special_ops}}) {
-      return { -op => [ $vk, $self->_expand_ident(-ident => $k), $vv ] };
+    if (my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}}) {
+      return { -op => [ $op, $self->_expand_ident(-ident => $k), $vv ] };
     }
-    if (my $us = List::Util::first { $vk =~ $_->{regex} } @{$self->{unary_ops}}) {
+    if (my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{unary_ops}}) {
       return { -op => [
         $self->{cmp},
         $self->_expand_ident(-ident => $k),
-        { -op => [ $vk, $vv ] }
+        { -op => [ $op, $vv ] }
       ] };
     }
     if (ref($vv) eq 'ARRAY') {
@@ -827,12 +825,11 @@ sub _expand_expr_hashpair {
           : (-or => @$vv)
       );
       if (
-        $vk =~ $self->{inequality_op}
-        or join(' ', split '_', $vk) =~ $self->{not_like_op}
+        $op =~ $self->{inequality_op}
+        or $op =~ $self->{not_like_op}
       ) {
         if (lc($logic) eq '-or' and @values > 1) {
-          my $op = uc join ' ', split '_', $vk;
-          belch "A multi-element arrayref as an argument to the inequality op '$op' "
+          belch "A multi-element arrayref as an argument to the inequality op '${\uc($op)}' "
               . 'is technically equivalent to an always-true 1=1 (you probably wanted '
               . "to say ...{ \$inequality_op => [ -and => \@values ] }... instead)"
           ;
@@ -840,7 +837,6 @@ sub _expand_expr_hashpair {
       }
       unless (@values) {
         # try to DWIM on equality operators
-        my $op = join ' ', split '_', $vk;
         return
           $op =~ $self->{equality_op}   ? $self->sqlfalse
         : $op =~ $self->{like_op}       ? belch("Supplying an empty arrayref to '@{[ uc $op]}' is deprecated") && $self->sqlfalse
@@ -862,7 +858,6 @@ sub _expand_expr_hashpair {
         and not defined $vv->{-value}
       )
     ) {
-      my $op = join ' ', split '_', $vk;
       my $is =
         $op =~ /^not$/i               ? 'is not'  # legacy
       : $op =~ $self->{equality_op}   ? 'is'
@@ -874,9 +869,9 @@ sub _expand_expr_hashpair {
     }
     local our $Cur_Col_Meta = $k;
     return +{ -op => [
-      $vk,
-     $self->_expand_ident(-ident => $k),
-     $self->_expand_expr($vv)
+      $op,
+      $self->_expand_ident(-ident => $k),
+      $self->_expand_expr($vv)
     ] };
   }
   if (ref($v) eq 'ARRAY') {
