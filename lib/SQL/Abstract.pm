@@ -525,8 +525,7 @@ sub render_expr {
 }
 
 sub _expand_expr {
-  my ($self, $expr, $logic, $default_scalar_to) = @_;
-  local our $Default_Scalar_To = $default_scalar_to if $default_scalar_to;
+  my ($self, $expr, $logic) = @_;
   our $Expand_Depth ||= 0; local $Expand_Depth = $Expand_Depth + 1;
   return undef unless defined($expr);
   if (ref($expr) eq 'HASH') {
@@ -577,7 +576,7 @@ sub _expand_expr {
     return +{ -literal => $literal };
   }
   if (!ref($expr) or Scalar::Util::blessed($expr)) {
-    if (my $d = $Default_Scalar_To) {
+    if (my $d = our $Default_Scalar_To) {
       return $self->_expand_expr({ $d => $expr });
     }
     if (my $m = our $Cur_Col_Meta) {
