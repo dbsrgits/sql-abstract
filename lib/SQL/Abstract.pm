@@ -193,7 +193,7 @@ sub new {
 
   $opt{expand} = {
     -ident => '_expand_ident',
-    -value => sub { +{ -bind => [ our $Cur_Col_Meta, $_[2] ] } },
+    -value => '_expand_value',
     -not => sub { +{ -op => [ 'not', $_[0]->_expand_expr($_[2]) ] } },
     -bool => sub {
       my ($self, undef, $v) = @_;
@@ -915,6 +915,10 @@ sub _expand_ident {
     $self->_assert_pass_injection_guard($_) for @parts;
   }
   return +{ -ident => \@parts };
+}
+
+sub _expand_value {
+  +{ -bind => [ our $Cur_Col_Meta, $_[2] ] };
 }
 
 sub _recurse_where {
