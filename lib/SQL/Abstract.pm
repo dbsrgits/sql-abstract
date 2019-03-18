@@ -786,7 +786,7 @@ sub _expand_expr_hashpair {
       ] };
     }
     if ($op eq 'value') {
-      return $self->_expand_expr_hashpair($k, undef) unless defined($vv);
+      return $self->_expand_expr({ $k, undef }) unless defined($vv);
       return +{ -op => [
         $self->{cmp},
         $self->_expand_ident(-ident => $k),
