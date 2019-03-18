@@ -196,6 +196,8 @@ sub new {
     -value => '_expand_value',
     -not => '_expand_not',
     -bool => '_expand_bool',
+    -and => '_expand_andor',
+    -or => '_expand_andor',
   };
 
   return bless \%opt, $class;
@@ -539,13 +541,13 @@ sub _expand_expr {
     return undef unless my $kc = keys %$expr;
     if ($kc > 1) {
       $logic ||= 'and';
-      return +{ -op => [
-        $logic,
-        map $self->_expand_expr({ $_ => $expr->{$_} }, $logic),
-          sort keys %$expr
-      ] };
+      return $self->_expand_andor("-${logic}", $expr);
     }
     my ($key, $value) = %$expr;
+    if ($key =~ /^-/ and $key =~ s/ [_\s]? \d+ $//x ) {
+      belch 'Use of [and|or|nest]_N modifiers is deprecated and will be removed in SQLA v2.0. '
+          . "You probably wanted ...-and => [ $key => COND1, $key => COND2 ... ]";
+    }
     if (my $exp = $self->{expand}{$key}) {
       return $self->$exp($key, $value);
     }
@@ -553,37 +555,7 @@ sub _expand_expr {
   }
   if (ref($expr) eq 'ARRAY') {
     my $logic = lc($logic || $self->{logic});
-    $logic eq 'and' or $logic eq 'or' or puke "unknown logic: $logic";
-
-    my @expr = grep {
-      (ref($_) eq 'ARRAY' and @$_)
-      or (ref($_) eq 'HASH' and %$_)
-      or 1
-    } @$expr;
-
-    my @res;
-
-    while (my ($el) = splice @expr, 0, 1) {
-      puke "Supplying an empty left hand side argument is not supported in array-pairs"
-        unless defined($el) and length($el);
-      my $elref = ref($el);
-      if (!$elref) {
-        local $Expand_Depth = 0;
-        push(@res, grep defined, $self->_expand_expr({ $el, shift(@expr) }));
-      } elsif ($elref eq 'ARRAY') {
-        push(@res, grep defined, $self->_expand_expr($el)) if @$el;
-      } elsif (my $l = is_literal_value($el)) {
-        push @res, { -literal => $l };
-      } elsif ($elref eq 'HASH') {
-        local $Expand_Depth = 0;
-        push @res, grep defined, $self->_expand_expr($el) if %$el;
-      } else {
-        die "notreached";
-      }
-    }
-    # ???
-    # return $res[0] if @res == 1;
-    return { -op => [ $logic, @res ] };
+    return $self->_expand_andor("-${logic}", $expr);
   }
   if (my $literal = is_literal_value($expr)) {
     return +{ -literal => $literal };
@@ -611,10 +583,6 @@ sub _expand_expr_hashpair {
   }
   if ($k =~ /^-/) {
     $self->_assert_pass_injection_guard($k =~ /^-(.*)$/s);
-    if ($k =~ s/ [_\s]? \d+ $//x ) {
-      belch 'Use of [and|or|nest]_N modifiers is deprecated and will be removed in SQLA v2.0. '
-          . "You probably wanted ...-and => [ $k => COND1, $k => COND2 ... ]";
-    }
     if ($k eq '-nest') {
       # DBIx::Class requires a nest warning to be emitted once but the private
       # method it overrode to do so no longer exists
@@ -634,15 +602,6 @@ sub _expand_expr_hashpair {
         'not',
         $self->_expand_expr({ "-${rest}", $v }, $logic)
       ] };
-    }
-    if (my ($logic) = $k =~ /^-(and|or)$/i) {
-      if (ref($v) eq 'HASH') {
-        return $self->_expand_expr($v, $logic);
-      }
-      if (ref($v) eq 'ARRAY') {
-        return $self->_expand_expr($v, $logic);
-      }
-      die "notreached";
     }
     {
       my $op = $k;
@@ -871,15 +830,14 @@ sub _expand_expr_hashpair {
   if (ref($v) eq 'ARRAY') {
     return $self->sqlfalse unless @$v;
     $self->_debug("ARRAY($k) means distribute over elements");
-    my $this_logic = (
-      $v->[0] =~ /^-((?:and|or))$/i
-        ? ($v = [ @{$v}[1..$#$v] ], $1)
-        : ($self->{logic} || 'or')
+    my $this_logic = lc(
+      $v->[0] =~ /^-(and|or)$/i
+        ? shift(@{$v = [ @$v ]})
+        : '-'.($self->{logic} || 'or')
     );
-    return +{ -op => [
-      $this_logic,
-      map $self->_expand_expr({ $k => $_ }, $this_logic), @$v
-    ] };
+    return $self->_expand_expr({
+      $this_logic => [ map +{ $k => $_ }, @$v ]
+    });
   }
   if (my $literal = is_literal_value($v)) {
     unless (length $k) {
@@ -923,6 +881,52 @@ sub _expand_bool {
   }
   puke "-bool => undef not supported" unless defined($v);
   return $self->_expand_ident(-ident => $v);
+}
+
+sub _expand_andor {
+  my ($self, $k, $v) = @_;
+  my ($logic) = $k =~ /^-(.*)$/;
+  if (ref($v) eq 'HASH') {
+    return +{ -op => [
+      $logic,
+      map $self->_expand_expr({ $_ => $v->{$_} }, $logic),
+        sort keys %$v
+    ] };
+  }
+  if (ref($v) eq 'ARRAY') {
+    $logic eq 'and' or $logic eq 'or' or puke "unknown logic: $logic";
+
+    my @expr = grep {
+      (ref($_) eq 'ARRAY' and @$_)
+      or (ref($_) eq 'HASH' and %$_)
+      or 1
+    } @$v;
+
+    my @res;
+
+    while (my ($el) = splice @expr, 0, 1) {
+      puke "Supplying an empty left hand side argument is not supported in array-pairs"
+        unless defined($el) and length($el);
+      my $elref = ref($el);
+      if (!$elref) {
+        local our $Expand_Depth = 0;
+        push(@res, grep defined, $self->_expand_expr({ $el, shift(@expr) }));
+      } elsif ($elref eq 'ARRAY') {
+        push(@res, grep defined, $self->_expand_expr($el)) if @$el;
+      } elsif (my $l = is_literal_value($el)) {
+        push @res, { -literal => $l };
+      } elsif ($elref eq 'HASH') {
+        local our $Expand_Depth = 0;
+        push @res, grep defined, $self->_expand_expr($el) if %$el;
+      } else {
+        die "notreached";
+      }
+    }
+    # ???
+    # return $res[0] if @res == 1;
+    return { -op => [ $logic, @res ] };
+  }
+  die "notreached";
 }
 
 sub _recurse_where {
