@@ -195,6 +195,14 @@ sub new {
     -ident => '_expand_ident',
     -value => sub { +{ -bind => [ our $Cur_Col_Meta, $_[2] ] } },
     -not => sub { +{ -op => [ 'not', $_[0]->_expand_expr($_[2]) ] } },
+    -bool => sub {
+      my ($self, undef, $v) = @_;
+      if (ref($v)) {
+        return $self->_expand_expr($v);
+      }
+      puke "-bool => undef not supported" unless defined($v);
+      return $self->_expand_ident(-ident => $v);
+    },
   };
 
   return bless \%opt, $class;
@@ -627,13 +635,6 @@ sub _expand_expr_hashpair {
         }
       }
       return $self->_expand_expr($v);
-    }
-    if ($k eq '-bool') {
-      if (ref($v)) {
-        return $self->_expand_expr($v);
-      }
-      puke "-bool => undef not supported" unless defined($v);
-      return $self->_expand_ident(-ident => $v);
     }
     if (my ($rest) = $k =~/^-not[_ ](.*)$/) {
       return +{ -op => [
