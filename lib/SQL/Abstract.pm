@@ -642,6 +642,7 @@ sub _expand_expr_hashpair {
       if (ref($v) eq 'ARRAY') {
         return $self->_expand_expr($v, $logic);
       }
+      die "notreached";
     }
     {
       my $op = $k;
@@ -660,9 +661,6 @@ sub _expand_expr_hashpair {
       if (my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{unary_ops}}) {
         return { -op => [ $op, $v ] };
       }
-    }
-    if (my $custom = $self->{expand_unary}{$k}) {
-      return $self->$custom($v);
     }
     if ($self->{render}{$k}) {
       return { $k => $v };
@@ -1134,16 +1132,15 @@ sub _expand_order_by {
         puke "ordering direction hash passed to order by must have exactly one key (-asc or -desc)";
       }
     }
-    my @exp = map +(defined($dir) ? { -op => [ $dir => $_ ] } : $_),
+    my @exp = map +(
+                defined($dir) ? { -op => [ $dir =~ /^-?(.*)$/ ,=> $_ ] } : $_
+              ),
                 map $self->expand_expr($_, -ident),
                 map ref($_) eq 'ARRAY' ? @$_ : $_, @to_expand;
     return (@exp > 1 ? { -list => \@exp } : $exp[0]);
   };
 
-  local @{$self->{expand_unary}}{qw(-asc -desc)} = (
-    sub { shift->$expander(asc => @_) },
-    sub { shift->$expander(desc => @_) },
-  );
+  local @{$self->{expand}}{qw(-asc -desc)} = (($expander) x 2);
 
   return $self->$expander(undef, $arg);
 }
