@@ -195,14 +195,7 @@ sub new {
     -ident => '_expand_ident',
     -value => '_expand_value',
     -not => '_expand_not',
-    -bool => sub {
-      my ($self, undef, $v) = @_;
-      if (ref($v)) {
-        return $self->_expand_expr($v);
-      }
-      puke "-bool => undef not supported" unless defined($v);
-      return $self->_expand_ident(-ident => $v);
-    },
+    -bool => '_expand_bool',
   };
 
   return bless \%opt, $class;
@@ -923,6 +916,15 @@ sub _expand_value {
 
 sub _expand_not {
   +{ -op => [ 'not', $_[0]->_expand_expr($_[2]) ] };
+}
+
+sub _expand_bool {
+  my ($self, undef, $v) = @_;
+  if (ref($v)) {
+    return $self->_expand_expr($v);
+  }
+  puke "-bool => undef not supported" unless defined($v);
+  return $self->_expand_ident(-ident => $v);
 }
 
 sub _recurse_where {
