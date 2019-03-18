@@ -194,7 +194,7 @@ sub new {
   $opt{expand} = {
     -ident => '_expand_ident',
     -value => '_expand_value',
-    -not => sub { +{ -op => [ 'not', $_[0]->_expand_expr($_[2]) ] } },
+    -not => '_expand_not',
     -bool => sub {
       my ($self, undef, $v) = @_;
       if (ref($v)) {
@@ -919,6 +919,10 @@ sub _expand_ident {
 
 sub _expand_value {
   +{ -bind => [ our $Cur_Col_Meta, $_[2] ] };
+}
+
+sub _expand_not {
+  +{ -op => [ 'not', $_[0]->_expand_expr($_[2]) ] };
 }
 
 sub _recurse_where {
