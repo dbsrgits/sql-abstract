@@ -723,7 +723,7 @@ sub _expand_expr_hashpair {
     if (keys %$v > 1) {
       return { -op => [
         'and',
-        map $self->_expand_expr_hashpair($k => { $_ => $v->{$_} }),
+        map $self->_expand_expr({ $k => { $_ => $v->{$_} } }),
           sort keys %$v
       ] };
     }
