@@ -856,7 +856,7 @@ sub _expand_expr_hashpair {
       }
       return +{ -op => [
         $logic =~ /^-(.*)$/,
-        map $self->_expand_expr_hashpair($k => { $vk => $_ }),
+        map $self->_expand_expr({ $k => { $vk => $_ } }),
           @values
       ] };
     }
