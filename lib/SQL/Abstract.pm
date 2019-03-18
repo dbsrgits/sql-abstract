@@ -191,6 +191,11 @@ sub new {
 
   $opt{expand_unary} = {};
 
+  $opt{expand} = {
+    '-ident' => '_expand_ident',
+    '-fffvalue' => sub { +{ -bind => [ our $Cur_Col_Meta, $_[2] ] } },
+  };
+
   return bless \%opt, $class;
 }
 
@@ -529,16 +534,20 @@ sub _expand_expr {
   our $Expand_Depth ||= 0; local $Expand_Depth = $Expand_Depth + 1;
   return undef unless defined($expr);
   if (ref($expr) eq 'HASH') {
-    if (keys %$expr > 1) {
+    return undef unless my $kc = keys %$expr;
+    if ($kc > 1) {
       $logic ||= 'and';
       return +{ -op => [
         $logic,
-        map $self->_expand_expr_hashpair($_ => $expr->{$_}, $logic),
+        map $self->_expand_expr({ $_ => $expr->{$_} }, $logic),
           sort keys %$expr
       ] };
     }
-    return undef unless keys %$expr;
-    return $self->_expand_expr_hashpair(%$expr, $logic);
+    my ($key, $value) = %$expr;
+    if (my $exp = $self->{expand}{$key}) {
+      $self->$exp($key, $value);
+    }
+    return $self->_expand_expr_hashpair($key, $value, $logic);
   }
   if (ref($expr) eq 'ARRAY') {
     my $logic = lc($logic || $self->{logic});
@@ -570,6 +579,8 @@ sub _expand_expr {
         die "notreached";
       }
     }
+    # ???
+    # return $res[0] if @res == 1;
     return { -op => [ $logic, @res ] };
   }
   if (my $literal = is_literal_value($expr)) {
@@ -629,7 +640,7 @@ sub _expand_expr_hashpair {
     if (my ($rest) = $k =~/^-not[_ ](.*)$/) {
       return +{ -op => [
         'not',
-        $self->_expand_expr_hashpair("-${rest}", $v, $logic)
+        $self->_expand_expr({ "-${rest}", $v }, $logic)
       ] };
     }
     if (my ($logic) = $k =~ /^-(and|or)$/i) {
@@ -661,9 +672,9 @@ sub _expand_expr_hashpair {
     if ($k eq '-value') {
       return +{ -bind => [ our $Cur_Col_Meta, $v ] };
     }
-    if ($k eq '-ident') {
-      return $self->_expand_ident(-ident => $v);
-    }
+#    if ($k eq '-ident') {
+#      return $self->_expand_ident(-ident => $v);
+#    }
     if (my $custom = $self->{expand_unary}{$k}) {
       return $self->$custom($v);
     }
