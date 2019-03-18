@@ -704,7 +704,7 @@ sub _expand_expr_hashpair {
       and not defined $v->{-value}
     )
   ) {
-    return $self->_expand_expr_hashpair($k => { $self->{cmp} => undef });
+    return $self->_expand_expr({ $k => { $self->{cmp} => undef } });
   }
   if (!ref($v) or Scalar::Util::blessed($v)) {
     my $d = our $Default_Scalar_To;
