@@ -813,7 +813,7 @@ sub _expand_expr_hashpair {
       if (ref($vv) eq 'HASH') {
         return +{ -op => [
           $op,
-          map $self->_expand_expr_hashpair($k, { $_ => $vv->{$_} }),
+          map $self->_expand_expr({ $k, { $_ => $vv->{$_} } }),
             sort keys %$vv
         ] };
       }
