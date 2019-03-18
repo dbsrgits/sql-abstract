@@ -192,8 +192,8 @@ sub new {
   $opt{expand_unary} = {};
 
   $opt{expand} = {
-    '-ident' => '_expand_ident',
-    '-fffvalue' => sub { +{ -bind => [ our $Cur_Col_Meta, $_[2] ] } },
+    -ident => '_expand_ident',
+    -value => sub { +{ -bind => [ our $Cur_Col_Meta, $_[2] ] } },
   };
 
   return bless \%opt, $class;
@@ -545,7 +545,7 @@ sub _expand_expr {
     }
     my ($key, $value) = %$expr;
     if (my $exp = $self->{expand}{$key}) {
-      $self->$exp($key, $value);
+      return $self->$exp($key, $value);
     }
     return $self->_expand_expr_hashpair($key, $value, $logic);
   }
@@ -669,12 +669,6 @@ sub _expand_expr_hashpair {
         return { -op => [ $op, $v ] };
       }
     }
-    if ($k eq '-value') {
-      return +{ -bind => [ our $Cur_Col_Meta, $v ] };
-    }
-#    if ($k eq '-ident') {
-#      return $self->_expand_ident(-ident => $v);
-#    }
     if (my $custom = $self->{expand_unary}{$k}) {
       return $self->$custom($v);
     }
