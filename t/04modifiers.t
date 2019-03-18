@@ -428,7 +428,7 @@ for my $case (@numbered_mods) {
     local $SIG{__WARN__} = sub { push @w, @_ };
 
     my $sql = SQL::Abstract->new($case->{args} || {});
-    {
+    lives_ok {
       my ($old_s, @old_b) = $sql->where($case->{backcompat});
       my ($new_s, @new_b) = $sql->where($case->{correct});
       is_same_sql_bind(
