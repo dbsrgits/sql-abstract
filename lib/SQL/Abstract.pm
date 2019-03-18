@@ -564,10 +564,7 @@ sub _expand_expr {
     if (my $d = our $Default_Scalar_To) {
       return $self->_expand_expr({ $d => $expr });
     }
-    if (my $m = our $Cur_Col_Meta) {
-      return +{ -bind => [ $m, $expr ] };
-    }
-    return +{ -bind => [ undef, $expr ] };
+    return $self->_expand_value(-value => $expr);
   }
   die "notreached";
 }
