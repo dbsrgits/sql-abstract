@@ -1025,12 +1025,11 @@ sub _render_op {
   if (my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{unary_ops}}) {
     return $self->${\($us->{handler})}($op, $args[0]);
   }
-  my $final_op = $op =~ /^(?:is|not)_/ ? join(' ', split '_', $op) : $op;
   if (@args == 1 and $op !~ /^(and|or)$/) {
     my ($expr_sql, @bind) = $self->render_aqt($args[0]);
-    my $op_sql = $self->_sqlcase($final_op);
+    my $op_sql = $self->_sqlcase($op);
     my $final_sql = (
-      $unop_postfix{lc($final_op)}
+      $unop_postfix{lc($op)}
         ? "${expr_sql} ${op_sql}"
         : "${op_sql} ${expr_sql}"
     );
@@ -1041,7 +1040,7 @@ sub _render_op {
      my $is_andor = !!($op =~ /^(and|or)$/);
      return @{$parts[0]} if $is_andor and @parts == 1;
      my ($final_sql) = map +($is_andor ? "( ${_} )" : $_), join(
-       ' '.$self->_sqlcase($final_op).' ',
+       ' '.$self->_sqlcase($op).' ',
        map $_->[0], @parts
      );
      return (
