@@ -184,11 +184,6 @@ sub new {
     ^ \s* go \s
   /xmi;
 
-  $opt{render} = {
-    (map +("-$_", "_render_$_"), qw(op func bind ident literal list)),
-    %{$opt{render}||{}}
-  };
-
   $opt{expand_unary} = {};
 
   $opt{expand} = {
@@ -198,6 +193,13 @@ sub new {
     -bool => '_expand_bool',
     -and => '_expand_andor',
     -or => '_expand_andor',
+  };
+
+  $opt{render_op} = our $RENDER_OP;
+
+  $opt{render} = {
+    (map +("-$_", "_render_$_"), qw(op func bind ident literal list)),
+    %{$opt{render}||{}}
   };
 
   return bless \%opt, $class;
@@ -955,12 +957,36 @@ sub _render_ident {
   return $self->_convert($self->_quote($ident));
 }
 
-my %unop_postfix = map +($_ => 1),
-  'is null', 'is not null',
-  'asc', 'desc',
-;
+sub _render_list {
+  my ($self, $list) = @_;
+  my @parts = grep length($_->[0]), map [ $self->render_aqt($_) ], @$list;
+  return join(', ', map $_->[0], @parts), map @{$_}[1..$#$_], @parts;
+}
 
-my %special = (
+sub _render_func {
+  my ($self, $rest) = @_;
+  my ($func, @args) = @$rest;
+  my @arg_sql;
+  my @bind = map {
+    my @x = @$_;
+    push @arg_sql, shift @x;
+    @x
+  } map [ $self->render_aqt($_) ], @args;
+  return ($self->_sqlcase($func).'('.join(', ', @arg_sql).')', @bind);
+}
+
+sub _render_bind {
+  my ($self,  $bind) = @_;
+  return ($self->_convert('?'), $self->_bindtype(@$bind));
+}
+
+sub _render_literal {
+  my ($self, $literal) = @_;
+  $self->_assert_bindval_matches_bindtype(@{$literal}[1..$#$literal]);
+  return @$literal;
+}
+
+our $RENDER_OP = {
   (map +($_ => do {
     my $op = $_;
     sub {
@@ -1004,13 +1030,18 @@ my %special = (
       );
     }
   }), 'in', 'not in'),
-);
+};
+
+my %unop_postfix = map +($_ => 1),
+  'is null', 'is not null',
+  'asc', 'desc',
+;
 
 sub _render_op {
   my ($self, $v) = @_;
   my ($op, @args) = @$v;
-  if (my $h = $special{$op}) {
-    return $self->$h(\@args);
+  if (my $r = $self->{render_op}{$op}) {
+    return $self->$r(\@args);
   }
   my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}};
   if ($us and @args > 1) {
@@ -1022,9 +1053,6 @@ sub _render_op {
   }
   if (my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{unary_ops}}) {
     return $self->${\($us->{handler})}($op, $args[0]);
-  }
-  if (my $r = $self->{render_op}{$op}) {
-    return $self->$r(\@args);
   }
   if (@args == 1 and $op !~ /^(and|or)$/) {
     my ($expr_sql, @bind) = $self->render_aqt($args[0]);
@@ -1050,35 +1078,6 @@ sub _render_op {
      );
   }
   die "unhandled";
-}
-
-sub _render_list {
-  my ($self, $list) = @_;
-  my @parts = grep length($_->[0]), map [ $self->render_aqt($_) ], @$list;
-  return join(', ', map $_->[0], @parts), map @{$_}[1..$#$_], @parts;
-}
-
-sub _render_func {
-  my ($self, $rest) = @_;
-  my ($func, @args) = @$rest;
-  my @arg_sql;
-  my @bind = map {
-    my @x = @$_;
-    push @arg_sql, shift @x;
-    @x
-  } map [ $self->render_aqt($_) ], @args;
-  return ($self->_sqlcase($func).'('.join(', ', @arg_sql).')', @bind);
-}
-
-sub _render_bind {
-  my ($self,  $bind) = @_;
-  return ($self->_convert('?'), $self->_bindtype(@$bind));
-}
-
-sub _render_literal {
-  my ($self, $literal) = @_;
-  $self->_assert_bindval_matches_bindtype(@{$literal}[1..$#$literal]);
-  return @$literal;
 }
 
 # Some databases (SQLite) treat col IN (1, 2) different from
