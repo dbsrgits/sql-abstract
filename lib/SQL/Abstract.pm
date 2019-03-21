@@ -195,12 +195,17 @@ sub new {
     -or => '_expand_andor',
   };
 
-  $opt{render_op} = our $RENDER_OP;
+  $opt{expand_op} = {
+    'between' => '_expand_between',
+    'not between' => '_expand_between',
+  };
 
   $opt{render} = {
     (map +("-$_", "_render_$_"), qw(op func bind ident literal list)),
     %{$opt{render}||{}}
   };
+
+  $opt{render_op} = our $RENDER_OP;
 
   return bless \%opt, $class;
 }
@@ -677,22 +682,8 @@ sub _expand_expr_hashpair {
       belch 'Use of [and|or|nest]_N modifiers is deprecated and will be removed in SQLA v2.0. '
           . "You probably wanted ...-and => [ -$op => COND1, -$op => COND2 ... ]";
     }
-    if ($op =~ /^(?:not )?between$/) {
-      local our $Cur_Col_Meta = $k;
-      my @rhs = map $self->_expand_expr($_),
-                  ref($vv) eq 'ARRAY' ? @$vv : $vv;
-      unless (
-        (@rhs == 1 and ref($rhs[0]) eq 'HASH' and $rhs[0]->{-literal})
-        or
-        (@rhs == 2 and defined($rhs[0]) and defined($rhs[1]))
-      ) {
-        puke "Operator '${\uc($op)}' requires either an arrayref with two defined values or expressions, or a single literal scalarref/arrayref-ref";
-      }
-      return +{ -op => [
-        $op,
-        $self->_expand_ident(-ident => $k),
-        @rhs
-      ] }
+    if (my $x = $self->{expand_op}{$op}) {
+      return $self->$x($op, $vv, $k);
     }
     if ($op =~ /^(?:not )?in$/) {
       if (my $literal = is_literal_value($vv)) {
@@ -926,6 +917,25 @@ sub _expand_andor {
     return { -op => [ $logic, @res ] };
   }
   die "notreached";
+}
+
+sub _expand_between {
+  my ($self, $op, $vv, $k) = @_;
+  local our $Cur_Col_Meta = $k;
+  my @rhs = map $self->_expand_expr($_),
+              ref($vv) eq 'ARRAY' ? @$vv : $vv;
+  unless (
+    (@rhs == 1 and ref($rhs[0]) eq 'HASH' and $rhs[0]->{-literal})
+    or
+    (@rhs == 2 and defined($rhs[0]) and defined($rhs[1]))
+  ) {
+    puke "Operator '${\uc($op)}' requires either an arrayref with two defined values or expressions, or a single literal scalarref/arrayref-ref";
+  }
+  return +{ -op => [
+    $op,
+    $self->_expand_ident(-ident => $k),
+    @rhs
+  ] }
 }
 
 sub _recurse_where {
