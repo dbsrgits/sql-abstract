@@ -987,50 +987,60 @@ sub _render_literal {
 }
 
 our $RENDER_OP = {
-  (map +($_ => do {
-    sub {
-      my ($self, $op, $args) = @_;
-      my ($left, $low, $high) = @$args;
-      my ($rhsql, @rhbind) = do {
-        if (@$args == 2) {
-          puke "Single arg to between must be a literal"
-            unless $low->{-literal};
-          @{$low->{-literal}}
-        } else {
-          my ($l, $h) = map [ $self->render_aqt($_) ], $low, $high;
-          (join(' ', $l->[0], $self->_sqlcase('and'), $h->[0]),
-           @{$l}[1..$#$l], @{$h}[1..$#$h])
-        }
-      };
-      my ($lhsql, @lhbind) = $self->render_aqt($left);
-      return (
-        join(' ', '(', $lhsql, $self->_sqlcase($op), $rhsql, ')'),
-        @lhbind, @rhbind
-      );
-    }
+  (map +($_ => sub {
+    my ($self, $op, $args) = @_;
+    my ($left, $low, $high) = @$args;
+    my ($rhsql, @rhbind) = do {
+      if (@$args == 2) {
+        puke "Single arg to between must be a literal"
+          unless $low->{-literal};
+        @{$low->{-literal}}
+      } else {
+        my ($l, $h) = map [ $self->render_aqt($_) ], $low, $high;
+        (join(' ', $l->[0], $self->_sqlcase('and'), $h->[0]),
+         @{$l}[1..$#$l], @{$h}[1..$#$h])
+      }
+    };
+    my ($lhsql, @lhbind) = $self->render_aqt($left);
+    return (
+      join(' ', '(', $lhsql, $self->_sqlcase($op), $rhsql, ')'),
+      @lhbind, @rhbind
+    );
   }), 'between', 'not between'),
-  (map +($_ => do {
-    sub {
-      my ($self, $op, $args) = @_;
-      my ($lhs, $rhs) = @$args;
-      my @in_bind;
-      my @in_sql = map {
-        my ($sql, @bind) = $self->render_aqt($_);
-        push @in_bind, @bind;
-        $sql;
-      } @$rhs;
-      my ($lhsql, @lbind) = $self->render_aqt($lhs);
-      return (
-        $lhsql.' '.$self->_sqlcase($op).' ( '
-        .join(', ', @in_sql)
-        .' )',
-        @lbind, @in_bind
-      );
-    }
+  (map +($_ => sub {
+    my ($self, $op, $args) = @_;
+    my ($lhs, $rhs) = @$args;
+    my @in_bind;
+    my @in_sql = map {
+      my ($sql, @bind) = $self->render_aqt($_);
+      push @in_bind, @bind;
+      $sql;
+    } @$rhs;
+    my ($lhsql, @lbind) = $self->render_aqt($lhs);
+    return (
+      $lhsql.' '.$self->_sqlcase($op).' ( '
+      .join(', ', @in_sql)
+      .' )',
+      @lbind, @in_bind
+    );
   }), 'in', 'not in'),
   (map +($_ => '_render_unop_postfix'),
     'is null', 'is not null', 'asc', 'desc',
   ),
+  (map +($_ => sub {
+    my ($self, $op, $args) = @_;
+    my @parts = grep length($_->[0]), map [ $self->render_aqt($_) ], @$args;
+    return '' unless @parts;
+    return @{$parts[0]} if @parts == 1;
+    my ($final_sql) = join(
+      ' '.$self->_sqlcase($op).' ',
+      map $_->[0], @parts
+    );
+    return (
+      '('.$final_sql.')',
+      map @{$_}[1..$#$_], @parts
+    );
+  }), qw(and or)),
 };
 
 sub _render_op {
@@ -1050,7 +1060,7 @@ sub _render_op {
   if (my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{unary_ops}}) {
     return $self->${\($us->{handler})}($op, $args[0]);
   }
-  if (@args == 1 and $op !~ /^(and|or)$/) {
+  if (@args == 1) {
     my ($expr_sql, @bind) = $self->render_aqt($args[0]);
     my $op_sql = $self->_sqlcase($op);
     my $final_sql = "${op_sql} ${expr_sql}";
@@ -1058,9 +1068,7 @@ sub _render_op {
   } else {
      my @parts = grep length($_->[0]), map [ $self->render_aqt($_) ], @args;
      return '' unless @parts;
-     my $is_andor = !!($op =~ /^(and|or)$/);
-     return @{$parts[0]} if $is_andor and @parts == 1;
-     my ($final_sql) = map +($is_andor ? "( ${_} )" : $_), join(
+     my ($final_sql) = join(
        ' '.$self->_sqlcase($op).' ',
        map $_->[0], @parts
      );
