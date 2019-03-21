@@ -597,8 +597,8 @@ sub _expand_expr_hashpair {
     }
     puke "Supplying an empty left hand side argument is not supported";
   }
+  $self->_assert_pass_injection_guard($k =~ /^-(.*)$/s) if $k =~ /^-/;
   if ($k =~ /^-/) {
-    $self->_assert_pass_injection_guard($k =~ /^-(.*)$/s);
     if (my ($rest) = $k =~/^-not[_ ](.*)$/) {
       return +{ -op => [
         'not',
