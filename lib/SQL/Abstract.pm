@@ -1033,11 +1033,6 @@ our $RENDER_OP = {
   ),
 };
 
-my %unop_postfix = map +($_ => 1),
-  'is null', 'is not null',
-  'asc', 'desc',
-;
-
 sub _render_op {
   my ($self, $v) = @_;
   my ($op, @args) = @$v;
@@ -1058,11 +1053,7 @@ sub _render_op {
   if (@args == 1 and $op !~ /^(and|or)$/) {
     my ($expr_sql, @bind) = $self->render_aqt($args[0]);
     my $op_sql = $self->_sqlcase($op);
-    my $final_sql = (
-      $unop_postfix{lc($op)}
-        ? "${expr_sql} ${op_sql}"
-        : "${op_sql} ${expr_sql}"
-    );
+    my $final_sql = "${op_sql} ${expr_sql}";
     return (($op eq 'not' || $us ? '('.$final_sql.')' : $final_sql), @bind);
   } else {
      my @parts = grep length($_->[0]), map [ $self->render_aqt($_) ], @args;
