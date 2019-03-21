@@ -1082,9 +1082,7 @@ sub _render_op {
 
 sub _render_unop_postfix {
   my ($self, $op, $v) = @_;
-  my ($arg, @argh) = @$v;
-  puke "Argh" if @argh;
-  my ($expr_sql, @bind) = $self->render_aqt($arg);
+  my ($expr_sql, @bind) = $self->render_aqt($v->[0]);
   my $op_sql = $self->_sqlcase($op);
   return ($expr_sql.' '.$op_sql, @bind);
 }
