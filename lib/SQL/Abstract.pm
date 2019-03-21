@@ -790,9 +790,9 @@ sub _expand_expr_hashpair {
         ? shift(@{$v = [ @$v ]})
         : '-'.($self->{logic} || 'or')
     );
-    return $self->_expand_expr({
+    return $self->_expand_andor(
       $this_logic => [ map +{ $k => $_ }, @$v ]
-    });
+    );
   }
   if (my $literal = is_literal_value($v)) {
     unless (length $k) {
