@@ -1009,8 +1009,6 @@ my %special = (
 sub _render_op {
   my ($self, $v) = @_;
   my ($op, @args) = @$v;
-  $op =~ s/^-// if length($op) > 1;
-  $op = lc($op);
   if (my $h = $special{$op}) {
     return $self->$h(\@args);
   }
@@ -1024,6 +1022,9 @@ sub _render_op {
   }
   if (my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{unary_ops}}) {
     return $self->${\($us->{handler})}($op, $args[0]);
+  }
+  if (my $r = $self->{render_op}{$op}) {
+    return $self->$r(\@args);
   }
   if (@args == 1 and $op !~ /^(and|or)$/) {
     my ($expr_sql, @bind) = $self->render_aqt($args[0]);
