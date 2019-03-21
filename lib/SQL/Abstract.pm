@@ -670,11 +670,10 @@ sub _expand_expr_hashpair {
   }
   if (ref($v) eq 'HASH') {
     if (keys %$v > 1) {
-      return { -op => [
-        'and',
-        map $self->_expand_expr({ $k => { $_ => $v->{$_} } }),
+      return $self->_expand_andor(-and => [
+        map +{ $k => { $_ => $v->{$_} } },
           sort keys %$v
-      ] };
+      ]);
     }
     return undef unless keys %$v;
     my ($vk, $vv) = %$v;
