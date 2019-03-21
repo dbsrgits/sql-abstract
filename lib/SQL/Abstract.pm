@@ -988,9 +988,8 @@ sub _render_literal {
 
 our $RENDER_OP = {
   (map +($_ => do {
-    my $op = $_;
     sub {
-      my ($self, $args) = @_;
+      my ($self, $op, $args) = @_;
       my ($left, $low, $high) = @$args;
       my ($rhsql, @rhbind) = do {
         if (@$args == 2) {
@@ -1011,9 +1010,8 @@ our $RENDER_OP = {
     }
   }), 'between', 'not between'),
   (map +($_ => do {
-    my $op = $_;
     sub {
-      my ($self, $args) = @_;
+      my ($self, $op, $args) = @_;
       my ($lhs, $rhs) = @$args;
       my @in_bind;
       my @in_sql = map {
@@ -1030,6 +1028,9 @@ our $RENDER_OP = {
       );
     }
   }), 'in', 'not in'),
+  (map +($_ => '_render_unop_postfix'),
+    'is null', 'is not null', 'asc', 'desc',
+  ),
 };
 
 my %unop_postfix = map +($_ => 1),
@@ -1041,7 +1042,7 @@ sub _render_op {
   my ($self, $v) = @_;
   my ($op, @args) = @$v;
   if (my $r = $self->{render_op}{$op}) {
-    return $self->$r(\@args);
+    return $self->$r($op, \@args);
   }
   my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}};
   if ($us and @args > 1) {
@@ -1078,6 +1079,15 @@ sub _render_op {
      );
   }
   die "unhandled";
+}
+
+sub _render_unop_postfix {
+  my ($self, $op, $v) = @_;
+  my ($arg, @argh) = @$v;
+  puke "Argh" if @argh;
+  my ($expr_sql, @bind) = $self->render_aqt($arg);
+  my $op_sql = $self->_sqlcase($op);
+  return ($expr_sql.' '.$op_sql, @bind);
 }
 
 # Some databases (SQLite) treat col IN (1, 2) different from
