@@ -200,6 +200,14 @@ sub new {
     'not between' => '_expand_between',
     'in' => '_expand_in',
     'not in' => '_expand_in',
+    'ident' => sub {
+      my ($self, $op, $arg, $k) = @_;
+      return +{ -op => [
+        $self->{cmp},
+        $self->_expand_ident(-ident => $k),
+        $self->_expand_expr({ '-'.$op => $arg }),
+      ] };
+    },
   };
 
   $opt{render} = {
@@ -685,13 +693,6 @@ sub _expand_expr_hashpair {
     }
     if (my $x = $self->{expand_op}{$op}) {
       return $self->$x($op, $vv, $k);
-    }
-    if ($op eq 'ident') {
-      return +{ -op => [
-        $self->{cmp},
-        $self->_expand_ident(-ident => $k),
-        $self->_expand_expr({ -ident => $vv }),
-      ] };
     }
     if ($op eq 'value') {
       return $self->_expand_expr({ $k, undef }) unless defined($vv);
