@@ -1027,6 +1027,7 @@ our $RENDER_OP = {
   (map +($_ => '_render_unop_postfix'),
     'is null', 'is not null', 'asc', 'desc',
   ),
+  (not => '_render_op_not'),
   (map +($_ => sub {
     my ($self, $op, $args) = @_;
     my @parts = grep length($_->[0]), map [ $self->render_aqt($_) ], @$args;
@@ -1061,10 +1062,7 @@ sub _render_op {
     return $self->${\($us->{handler})}($op, $args[0]);
   }
   if (@args == 1) {
-    my ($expr_sql, @bind) = $self->render_aqt($args[0]);
-    my $op_sql = $self->_sqlcase($op);
-    my $final_sql = "${op_sql} ${expr_sql}";
-    return (($op eq 'not' || $us ? '('.$final_sql.')' : $final_sql), @bind);
+    return $self->_render_unop_prefix($op, \@args);
   } else {
      my @parts = grep length($_->[0]), map [ $self->render_aqt($_) ], @args;
      return '' unless @parts;
@@ -1078,6 +1076,19 @@ sub _render_op {
      );
   }
   die "unhandled";
+}
+
+sub _render_op_not {
+  my ($self, $op, $v) = @_;
+  my ($sql, @bind) = $self->_render_unop_prefix($op, $v);
+  return "(${sql})", @bind;
+}
+
+sub _render_unop_prefix {
+  my ($self, $op, $v) = @_;
+  my ($expr_sql, @bind) = $self->render_aqt($v->[0]);
+  my $op_sql = $self->_sqlcase($op);
+  return ("${op_sql} ${expr_sql}", @bind);
 }
 
 sub _render_unop_postfix {
