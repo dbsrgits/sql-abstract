@@ -200,14 +200,14 @@ sub new {
     'not between' => '_expand_between',
     'in' => '_expand_in',
     'not in' => '_expand_in',
-    'ident' => sub {
+    (map +($_ => sub {
       my ($self, $op, $arg, $k) = @_;
       return +{ -op => [
         $self->{cmp},
         $self->_expand_ident(-ident => $k),
         $self->_expand_expr({ '-'.$op => $arg }),
       ] };
-    },
+    }), qw(ident value)),
   };
 
   $opt{render} = {
@@ -692,15 +692,11 @@ sub _expand_expr_hashpair {
           . "You probably wanted ...-and => [ -$op => COND1, -$op => COND2 ... ]";
     }
     if (my $x = $self->{expand_op}{$op}) {
+      local our $Cur_Col_Meta = $k;
       return $self->$x($op, $vv, $k);
     }
-    if ($op eq 'value') {
+    if ($op eq 'value' and not defined($vv)) {
       return $self->_expand_expr({ $k, undef }) unless defined($vv);
-      return +{ -op => [
-        $self->{cmp},
-        $self->_expand_ident(-ident => $k),
-        { -bind => [ $k, $vv ] }
-      ] };
     }
     if ($op =~ /^is(?: not)?$/) {
       puke "$op can only take undef as argument"
