@@ -697,13 +697,10 @@ sub _expand_expr_hashpair {
       return +{ -op => [ $op.' null', $self->_expand_ident(-ident => $k) ] };
     }
     if ($op =~ /^(and|or)$/) {
-      if (ref($vv) eq 'HASH') {
-        return +{ -op => [
-          $op,
-          map $self->_expand_expr({ $k, { $_ => $vv->{$_} } }),
-            sort keys %$vv
-        ] };
-      }
+      return $self->_expand_andor('-'.$op, [
+        map +{ $k, { $_ => $vv->{$_} } },
+          sort keys %$vv
+      ]);
     }
     if (my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}}) {
       return { -op => [ $op, $self->_expand_ident(-ident => $k), $vv ] };
