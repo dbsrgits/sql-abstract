@@ -687,13 +687,10 @@ sub _expand_expr_hashpair {
       return $self->$x($op, $vv, $k);
     }
     if ($op eq 'ident') {
-      if (! defined $vv or (ref($vv) and ref($vv) eq 'ARRAY')) {
-        puke "-$op requires a single plain scalar argument (a quotable identifier) or an arrayref of identifier parts";
-      }
       return +{ -op => [
         $self->{cmp},
         $self->_expand_ident(-ident => $k),
-        $self->_expand_ident(-ident => $vv),
+        $self->_expand_expr({ -ident => $vv }),
       ] };
     }
     if ($op eq 'value') {
@@ -818,7 +815,10 @@ sub _expand_expr_hashpair {
 }
 
 sub _expand_ident {
-  my ($self, undef, $body) = @_;
+  my ($self, $op, $body) = @_;
+  unless (defined($body) or (ref($body) and ref($body) eq 'ARRAY')) {
+    puke "$op requires a single plain scalar argument (a quotable identifier) or an arrayref of identifier parts";
+  }
   my @parts = map split(/\Q${\($self->{name_sep}||'.')}\E/, $_),
                 ref($body) ? @$body : $body;
   return { -ident => $parts[-1] } if $self->{_dequalify_idents};
