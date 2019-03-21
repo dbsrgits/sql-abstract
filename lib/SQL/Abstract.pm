@@ -198,6 +198,8 @@ sub new {
   $opt{expand_op} = {
     'between' => '_expand_between',
     'not between' => '_expand_between',
+    'in' => '_expand_in',
+    'not in' => '_expand_in',
   };
 
   $opt{render} = {
@@ -685,35 +687,6 @@ sub _expand_expr_hashpair {
     if (my $x = $self->{expand_op}{$op}) {
       return $self->$x($op, $vv, $k);
     }
-    if ($op =~ /^(?:not )?in$/) {
-      if (my $literal = is_literal_value($vv)) {
-        my ($sql, @bind) = @$literal;
-        my $opened_sql = $self->_open_outer_paren($sql);
-        return +{ -op => [
-          $op, $self->_expand_ident(-ident => $k),
-          [ { -literal => [ $opened_sql, @bind ] } ]
-        ] };
-      }
-      my $undef_err =
-        'SQL::Abstract before v1.75 used to generate incorrect SQL when the '
-      . "-${\uc($op)} operator was given an undef-containing list: !!!AUDIT YOUR CODE "
-      . 'AND DATA!!! (the upcoming Data::Query-based version of SQL::Abstract '
-      . 'will emit the logically correct SQL instead of raising this exception)'
-      ;
-      puke("Argument passed to the '${\uc($op)}' operator can not be undefined")
-        if !defined($vv);
-      my @rhs = map $self->_expand_expr($_),
-                  map { ref($_) ? $_ : { -bind => [ $k, $_ ] } }
-                  map { defined($_) ? $_: puke($undef_err) }
-                    (ref($vv) eq 'ARRAY' ? @$vv : $vv);
-      return $self->${\($op =~ /^not/ ? 'sqltrue' : 'sqlfalse')} unless @rhs;
-
-      return +{ -op => [
-        $op,
-        $self->_expand_ident(-ident => $k),
-        \@rhs
-      ] };
-    }
     if ($op eq 'ident') {
       if (! defined $vv or (ref($vv) and ref($vv) eq 'ARRAY')) {
         puke "-$op requires a single plain scalar argument (a quotable identifier) or an arrayref of identifier parts";
@@ -936,6 +909,37 @@ sub _expand_between {
     $self->_expand_ident(-ident => $k),
     @rhs
   ] }
+}
+
+sub _expand_in {
+  my ($self, $op, $vv, $k) = @_;
+  if (my $literal = is_literal_value($vv)) {
+    my ($sql, @bind) = @$literal;
+    my $opened_sql = $self->_open_outer_paren($sql);
+    return +{ -op => [
+      $op, $self->_expand_ident(-ident => $k),
+      [ { -literal => [ $opened_sql, @bind ] } ]
+    ] };
+  }
+  my $undef_err =
+    'SQL::Abstract before v1.75 used to generate incorrect SQL when the '
+  . "-${\uc($op)} operator was given an undef-containing list: !!!AUDIT YOUR CODE "
+  . 'AND DATA!!! (the upcoming Data::Query-based version of SQL::Abstract '
+  . 'will emit the logically correct SQL instead of raising this exception)'
+  ;
+  puke("Argument passed to the '${\uc($op)}' operator can not be undefined")
+    if !defined($vv);
+  my @rhs = map $self->_expand_expr($_),
+              map { ref($_) ? $_ : { -bind => [ $k, $_ ] } }
+              map { defined($_) ? $_: puke($undef_err) }
+                (ref($vv) eq 'ARRAY' ? @$vv : $vv);
+  return $self->${\($op =~ /^not/ ? 'sqltrue' : 'sqlfalse')} unless @rhs;
+
+  return +{ -op => [
+    $op,
+    $self->_expand_ident(-ident => $k),
+    \@rhs
+  ] };
 }
 
 sub _recurse_where {
