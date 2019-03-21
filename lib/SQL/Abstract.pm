@@ -193,6 +193,7 @@ sub new {
     -bool => '_expand_bool',
     -and => '_expand_andor',
     -or => '_expand_andor',
+    -nest => '_expand_nest',
   };
 
   $opt{expand_op} = {
@@ -208,6 +209,7 @@ sub new {
         $self->_expand_expr({ '-'.$op => $arg }),
       ] };
     }), qw(ident value)),
+    'nest' => '_expand_nest',
   };
 
   $opt{render} = {
@@ -597,20 +599,6 @@ sub _expand_expr_hashpair {
   }
   if ($k =~ /^-/) {
     $self->_assert_pass_injection_guard($k =~ /^-(.*)$/s);
-    if ($k eq '-nest') {
-      # DBIx::Class requires a nest warning to be emitted once but the private
-      # method it overrode to do so no longer exists
-      if ($self->{is_dbic_sqlmaker}) {
-        unless (our $Nest_Warned) {
-          belch(
-            "-nest in search conditions is deprecated, you most probably wanted:\n"
-            .q|{..., -and => [ \%cond0, \@cond1, \'cond2', \[ 'cond3', [ col => bind ] ], etc. ], ... }|
-          );
-          $Nest_Warned = 1;
-        }
-      }
-      return $self->_expand_expr($v);
-    }
     if (my ($rest) = $k =~/^-not[_ ](.*)$/) {
       return +{ -op => [
         'not',
@@ -935,6 +923,22 @@ sub _expand_in {
     $self->_expand_ident(-ident => $k),
     \@rhs
   ] };
+}
+
+sub _expand_nest {
+  my ($self, $op, $v) = @_;
+  # DBIx::Class requires a nest warning to be emitted once but the private
+  # method it overrode to do so no longer exists
+  if ($self->{is_dbic_sqlmaker}) {
+    unless (our $Nest_Warned) {
+      belch(
+        "-nest in search conditions is deprecated, you most probably wanted:\n"
+        .q|{..., -and => [ \%cond0, \@cond1, \'cond2', \[ 'cond3', [ col => bind ] ], etc. ], ... }|
+      );
+      $Nest_Warned = 1;
+    }
+  }
+  return $self->_expand_expr($v);
 }
 
 sub _recurse_where {
