@@ -605,7 +605,6 @@ sub _expand_expr_hashpair {
     }
     puke "Supplying an empty left hand side argument is not supported";
   }
-  $self->_assert_pass_injection_guard($k =~ /^-(.*)$/s) if $k =~ /^-/;
   if ($k =~ /^-/) {
     return $self->_expand_expr_hashpair_op($k, $v);
   }
@@ -756,29 +755,27 @@ sub _expand_expr_hashpair {
 
 sub _expand_expr_hashpair_op {
   my ($self, $k, $v) = @_;
-  if (my ($rest) = $k =~/^-not[_ ](.*)$/) {
+  my $op = $k;
+  $op =~ s/^-// if length($op) > 1;
+  $self->_assert_pass_injection_guard($op);
+  if (my ($rest) = $op =~/^not[_ ](.*)$/) {
     return +{ -op => [
       'not',
       $self->_expand_expr({ "-${rest}", $v })
-    ] };
+  ] };
   }
-  {
-    my $op = $k;
-    $op =~ s/^-// if length($op) > 1;
-
-    # top level special ops are illegal in general
-    # note that, arguably, if it makes no sense at top level, it also
-    # makes no sense on the other side of an = sign or similar but DBIC
-    # gets disappointingly upset if I disallow it
-    if (
-      (our $Expand_Depth) == 1
-      and List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}}
-    ) {
-      puke "Illegal use of top-level '-$op'"
-    }
-    if (my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{unary_ops}}) {
-      return { -op => [ $op, $v ] };
-    }
+  # top level special ops are illegal in general
+  # note that, arguably, if it makes no sense at top level, it also
+  # makes no sense on the other side of an = sign or similar but DBIC
+  # gets disappointingly upset if I disallow it
+  if (
+    (our $Expand_Depth) == 1
+    and List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}}
+  ) {
+    puke "Illegal use of top-level '-$op'"
+  }
+  if (my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{unary_ops}}) {
+    return { -op => [ $op, $v ] };
   }
   if ($self->{render}{$k}) {
     return { $k => $v };
@@ -795,7 +792,7 @@ sub _expand_expr_hashpair_op {
     return +{ -func => [ $func, $self->_expand_expr($v) ] };
   }
   if (!ref($v) or is_literal_value($v)) {
-    return +{ -op => [ $k =~ /^-(.*)$/, $self->_expand_expr($v) ] };
+    return +{ -op => [ $op, $self->_expand_expr($v) ] };
   }
   die "notreached";
 }
