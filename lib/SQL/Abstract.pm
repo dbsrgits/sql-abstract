@@ -210,6 +210,8 @@ sub new {
       ] };
     }), qw(ident value)),
     'nest' => '_expand_nest',
+    (map +($_ => '_expand_andor'),
+      qw(and or)),
   };
 
   $opt{render} = {
@@ -695,12 +697,6 @@ sub _expand_expr_hashpair {
            );
       return +{ -op => [ $op.' null', $self->_expand_ident(-ident => $k) ] };
     }
-    if ($op =~ /^(and|or)$/) {
-      return $self->_expand_andor('-'.$op, [
-        map +{ $k, { $_ => $vv->{$_} } },
-          sort keys %$vv
-      ]);
-    }
     if (my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}}) {
       return { -op => [ $op, $self->_expand_ident(-ident => $k), $vv ] };
     }
@@ -826,8 +822,12 @@ sub _expand_bool {
 }
 
 sub _expand_andor {
-  my ($self, $k, $v) = @_;
-  my ($logop) = $k =~ /^-(.*)$/;
+  my ($self, $logic, $v, $k) = @_;
+  if (defined $k) {
+    $v = [ map +{ $k, { $_ => $v->{$_} } },
+             sort keys %$v ];
+  }
+  my ($logop) = $logic =~ /^-?(.*)$/;
   if (ref($v) eq 'HASH') {
     return +{ -op => [
       $logop,
