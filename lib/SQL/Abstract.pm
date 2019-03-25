@@ -831,7 +831,7 @@ sub _expand_andor {
   if (ref($v) eq 'HASH') {
     return +{ -op => [
       $logop,
-      map $self->_expand_expr({ $_ => $v->{$_} }, $logop),
+      map $self->_expand_expr({ $_ => $v->{$_} }),
         sort keys %$v
     ] };
   }
