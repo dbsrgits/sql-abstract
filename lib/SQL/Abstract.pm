@@ -572,8 +572,8 @@ sub _expand_expr {
     return $self->_expand_expr_hashpair($key, $value);
   }
   if (ref($expr) eq 'ARRAY') {
-    my $logic = lc($self->{logic});
-    return $self->_expand_andor("-${logic}", $expr);
+    my $logic = '-'.lc($self->{logic});
+    return $self->_expand_andor($logic, $expr);
   }
   if (my $literal = is_literal_value($expr)) {
     return +{ -literal => $literal };
@@ -588,7 +588,7 @@ sub _expand_expr {
 }
 
 sub _expand_expr_hashpair {
-  my ($self, $k, $v, $logic) = @_;
+  my ($self, $k, $v) = @_;
   unless (defined($k) and length($k)) {
     if (defined($k) and my $literal = is_literal_value($v)) {
       belch 'Hash-pairs consisting of an empty string with a literal are deprecated, and will be removed in 2.0: use -and => [ $literal ] instead';
@@ -601,7 +601,7 @@ sub _expand_expr_hashpair {
     if (my ($rest) = $k =~/^-not[_ ](.*)$/) {
       return +{ -op => [
         'not',
-        $self->_expand_expr({ "-${rest}", $v }, $logic)
+        $self->_expand_expr({ "-${rest}", $v })
       ] };
     }
     {
@@ -769,13 +769,13 @@ sub _expand_expr_hashpair {
   if (ref($v) eq 'ARRAY') {
     return $self->sqlfalse unless @$v;
     $self->_debug("ARRAY($k) means distribute over elements");
-    my $this_logic = lc(
+    my $logic = lc(
       $v->[0] =~ /^-(and|or)$/i
         ? shift(@{$v = [ @$v ]})
-        : '-'.($self->{logic} || 'or')
+        : '-'.lc($self->{logic} || 'OR')
     );
     return $self->_expand_andor(
-      $this_logic => [ map +{ $k => $_ }, @$v ]
+      $logic => [ map +{ $k => $_ }, @$v ]
     );
   }
   if (my $literal = is_literal_value($v)) {
@@ -827,16 +827,16 @@ sub _expand_bool {
 
 sub _expand_andor {
   my ($self, $k, $v) = @_;
-  my ($logic) = $k =~ /^-(.*)$/;
+  my ($logop) = $k =~ /^-(.*)$/;
   if (ref($v) eq 'HASH') {
     return +{ -op => [
-      $logic,
-      map $self->_expand_expr({ $_ => $v->{$_} }, $logic),
+      $logop,
+      map $self->_expand_expr({ $_ => $v->{$_} }, $logop),
         sort keys %$v
     ] };
   }
   if (ref($v) eq 'ARRAY') {
-    $logic eq 'and' or $logic eq 'or' or puke "unknown logic: $logic";
+    $logop eq 'and' or $logop eq 'or' or puke "unknown logic: $logop";
 
     my @expr = grep {
       (ref($_) eq 'ARRAY' and @$_)
@@ -866,7 +866,7 @@ sub _expand_andor {
     }
     # ???
     # return $res[0] if @res == 1;
-    return { -op => [ $logic, @res ] };
+    return { -op => [ $logop, @res ] };
   }
   die "notreached";
 }
