@@ -559,8 +559,7 @@ sub _expand_expr {
   if (ref($expr) eq 'HASH') {
     return undef unless my $kc = keys %$expr;
     if ($kc > 1) {
-      $logic ||= 'and';
-      return $self->_expand_andor("-${logic}", $expr);
+      return $self->_expand_andor(-and => $expr);
     }
     my ($key, $value) = %$expr;
     if ($key =~ /^-/ and $key =~ s/ [_\s]? \d+ $//x ) {
