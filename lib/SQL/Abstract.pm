@@ -626,16 +626,14 @@ sub _expand_expr_hashpair_ident {
   my $ik = $self->_expand_ident(-ident => $k);
   if (!ref($v) or Scalar::Util::blessed($v)) {
     my $d = our $Default_Scalar_To;
-    return +{
-      -op => [
-        $self->{cmp},
-        $ik,
-        ($d
-          ? $self->_expand_expr($d => $v)
-          : { -bind => [ $k, $v ] }
-        )
-      ]
-    };
+    local our $Cur_Col_Meta = $k;
+    return $self->_expand_expr_hashpair_ident(
+      $k,
+      ($d
+        ? $self->_expand_expr($d => $v)
+        : { -value => $v }
+      )
+    );
   }
   if (ref($v) eq 'HASH') {
     if (keys %$v > 1) {
