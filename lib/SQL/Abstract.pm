@@ -187,8 +187,6 @@ sub new {
   $opt{expand_unary} = {};
 
   $opt{expand} = {
-    -ident => '_expand_ident',
-    -value => '_expand_value',
     -not => '_expand_not',
     -bool => '_expand_bool',
     -and => '_expand_op_andor',
@@ -201,18 +199,27 @@ sub new {
     'not between' => '_expand_between',
     'in' => '_expand_in',
     'not in' => '_expand_in',
-    (map +($_ => sub {
-      my ($self, $op, $arg, $k) = @_;
-      return +{ -op => [
-        $self->{cmp},
-        $self->_expand_ident(-ident => $k),
-        $self->_expand_expr({ '-'.$op => $arg }),
-      ] };
-    }), qw(ident value)),
     'nest' => '_expand_nest',
     (map +($_ => '_expand_op_andor'),
       qw(and or)),
   };
+
+  # placeholder for _expand_unop system
+  {
+    my %unops = (-ident => '_expand_ident', -value => '_expand_value');
+    foreach my $name (keys %unops) {
+      $opt{expand}{$name} = $unops{$name};
+      my ($op) = $name =~ /^-(.*)$/;
+      $opt{expand_op}{$op} = sub {
+        my ($self, $op, $arg, $k) = @_;
+        return +{ -op => [
+          $self->{cmp},
+          $self->_expand_ident(-ident => $k),
+          $self->_expand_expr({ '-'.$op => $arg }),
+        ] };
+      };
+    }
+  }
 
   $opt{render} = {
     (map +("-$_", "_render_$_"), qw(op func bind ident literal list)),
