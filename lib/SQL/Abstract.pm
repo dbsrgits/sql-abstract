@@ -608,6 +608,11 @@ sub _expand_expr_hashpair {
   if ($k =~ /^-/) {
     return $self->_expand_expr_hashpair_op($k, $v);
   }
+  return $self->_expand_expr_hashpair_ident($k, $v);
+}
+
+sub _expand_expr_hashpair_ident {
+  my ($self, $k, $v) = @_;
   if (
     !defined($v)
     or (
