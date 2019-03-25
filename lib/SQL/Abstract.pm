@@ -191,8 +191,8 @@ sub new {
     -value => '_expand_value',
     -not => '_expand_not',
     -bool => '_expand_bool',
-    -and => '_expand_andor',
-    -or => '_expand_andor',
+    -and => '_expand_op_andor',
+    -or => '_expand_op_andor',
     -nest => '_expand_nest',
   };
 
@@ -210,7 +210,7 @@ sub new {
       ] };
     }), qw(ident value)),
     'nest' => '_expand_nest',
-    (map +($_ => '_expand_andor'),
+    (map +($_ => '_expand_op_andor'),
       qw(and or)),
   };
 
@@ -561,7 +561,7 @@ sub _expand_expr {
   if (ref($expr) eq 'HASH') {
     return undef unless my $kc = keys %$expr;
     if ($kc > 1) {
-      return $self->_expand_andor(-and => $expr);
+      return $self->_expand_op_andor(-and => $expr);
     }
     my ($key, $value) = %$expr;
     if ($key =~ /^-/ and $key =~ s/ [_\s]? \d+ $//x ) {
@@ -575,7 +575,7 @@ sub _expand_expr {
   }
   if (ref($expr) eq 'ARRAY') {
     my $logic = '-'.lc($self->{logic});
-    return $self->_expand_andor($logic, $expr);
+    return $self->_expand_op_andor($logic, $expr);
   }
   if (my $literal = is_literal_value($expr)) {
     return +{ -literal => $literal };
@@ -667,7 +667,7 @@ sub _expand_expr_hashpair {
   }
   if (ref($v) eq 'HASH') {
     if (keys %$v > 1) {
-      return $self->_expand_andor(-and => [
+      return $self->_expand_op_andor(-and => [
         map +{ $k => { $_ => $v->{$_} } },
           sort keys %$v
       ]);
@@ -733,7 +733,7 @@ sub _expand_expr_hashpair {
         : $op =~ $self->{not_like_op}   ? belch("Supplying an empty arrayref to '@{[ uc $op]}' is deprecated") && $self->sqltrue
         : puke "operator '$op' applied on an empty array (field '$k')";
       }
-      return $self->_expand_andor($logic => [
+      return $self->_expand_op_andor($logic => [
         map +{ $k => { $vk => $_ } },
           @values
       ]);
@@ -770,7 +770,7 @@ sub _expand_expr_hashpair {
         ? shift(@{$v = [ @$v ]})
         : '-'.lc($self->{logic} || 'OR')
     );
-    return $self->_expand_andor(
+    return $self->_expand_op_andor(
       $logic => [ map +{ $k => $_ }, @$v ]
     );
   }
@@ -821,7 +821,7 @@ sub _expand_bool {
   return $self->_expand_ident(-ident => $v);
 }
 
-sub _expand_andor {
+sub _expand_op_andor {
   my ($self, $logic, $v, $k) = @_;
   if (defined $k) {
     $v = [ map +{ $k, { $_ => $v->{$_} } },
