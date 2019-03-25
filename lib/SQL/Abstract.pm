@@ -572,7 +572,7 @@ sub _expand_expr {
     return $self->_expand_expr_hashpair($key, $value, $logic);
   }
   if (ref($expr) eq 'ARRAY') {
-    my $logic = lc($logic || $self->{logic});
+    my $logic = lc($self->{logic});
     return $self->_expand_andor("-${logic}", $expr);
   }
   if (my $literal = is_literal_value($expr)) {
