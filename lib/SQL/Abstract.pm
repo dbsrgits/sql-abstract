@@ -553,7 +553,7 @@ sub render_expr {
 }
 
 sub _expand_expr {
-  my ($self, $expr, $logic) = @_;
+  my ($self, $expr) = @_;
   our $Expand_Depth ||= 0; local $Expand_Depth = $Expand_Depth + 1;
   return undef unless defined($expr);
   if (ref($expr) eq 'HASH') {
@@ -569,7 +569,7 @@ sub _expand_expr {
     if (my $exp = $self->{expand}{$key}) {
       return $self->$exp($key, $value);
     }
-    return $self->_expand_expr_hashpair($key, $value, $logic);
+    return $self->_expand_expr_hashpair($key, $value);
   }
   if (ref($expr) eq 'ARRAY') {
     my $logic = lc($self->{logic});
