@@ -648,8 +648,7 @@ sub _expand_expr_hashpair_ident {
     my $op = join ' ', split '_', (map lc, $vk =~ /^-?(.*)$/)[0];
     $self->_assert_pass_injection_guard($op);
     if ($op =~ s/ [_\s]? \d+ $//x ) {
-      belch 'Use of [and|or|nest]_N modifiers is deprecated and will be removed in SQLA v2.0. '
-          . "You probably wanted ...-and => [ -$op => COND1, -$op => COND2 ... ]";
+      return $self->_expand_expr($k, $v);
     }
     if (my $x = $self->{expand_op}{$op}) {
       local our $Cur_Col_Meta = $k;
