@@ -387,13 +387,15 @@ for my $case (@and_or_tests) {
     my $where_copy = dclone($case->{where});
 
     warnings_are {
-      my ($stmt, @bind) = $sql->where($case->{where});
-      is_same_sql_bind(
-        $stmt,
-        \@bind,
-        $case->{stmt},
-        $case->{bind},
-      ) || (diag_where ( $case->{where} ), diag dumper ([ EXP => $sql->_expand_expr($case->{where}) ]));
+      lives_ok {
+        my ($stmt, @bind) = $sql->where($case->{where});
+        is_same_sql_bind(
+          $stmt,
+          \@bind,
+          $case->{stmt},
+          $case->{bind},
+        ) || (diag_where ( $case->{where} ), diag dumper ([ EXP => $sql->_expand_expr($case->{where}) ]));
+      } || (diag_where ( $case->{where} ), diag dumper ([ EXP => $sql->_expand_expr($case->{where}) ]));
     } [], 'No warnings within and-or tests';
 
     is_deeply ($case->{where}, $where_copy, 'Where conditions unchanged');
