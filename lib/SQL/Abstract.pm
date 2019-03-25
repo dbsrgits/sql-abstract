@@ -691,9 +691,6 @@ sub _expand_expr_hashpair {
       local our $Cur_Col_Meta = $k;
       return $self->$x($op, $vv, $k);
     }
-    if ($op eq 'value' and not defined($vv)) {
-      return $self->_expand_expr({ $k, undef }) unless defined($vv);
-    }
     if ($op =~ /^is(?: not)?$/) {
       puke "$op can only take undef as argument"
         if defined($vv)
