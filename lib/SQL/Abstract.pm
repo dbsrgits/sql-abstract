@@ -1046,25 +1046,27 @@ sub _render_op_between {
   );
 }
 
+sub _render_op_in {
+  my ($self, $op, $args) = @_;
+  my ($lhs, $rhs) = @$args;
+  my @in_bind;
+  my @in_sql = map {
+    my ($sql, @bind) = $self->render_aqt($_);
+    push @in_bind, @bind;
+    $sql;
+  } @$rhs;
+  my ($lhsql, @lbind) = $self->render_aqt($lhs);
+  return (
+    $lhsql.' '.$self->_sqlcase($op).' ( '
+    .join(', ', @in_sql)
+    .' )',
+    @lbind, @in_bind
+  );
+}
+
 our $RENDER_OP = {
   (map +($_ => '_render_op_between'), 'between', 'not between'),
-  (map +($_ => sub {
-    my ($self, $op, $args) = @_;
-    my ($lhs, $rhs) = @$args;
-    my @in_bind;
-    my @in_sql = map {
-      my ($sql, @bind) = $self->render_aqt($_);
-      push @in_bind, @bind;
-      $sql;
-    } @$rhs;
-    my ($lhsql, @lbind) = $self->render_aqt($lhs);
-    return (
-      $lhsql.' '.$self->_sqlcase($op).' ( '
-      .join(', ', @in_sql)
-      .' )',
-      @lbind, @in_bind
-    );
-  }), 'in', 'not in'),
+  (map +($_ => '_render_op_in'), 'in', 'not in'),
   (map +($_ => '_render_unop_postfix'),
     'is null', 'is not null', 'asc', 'desc',
   ),
