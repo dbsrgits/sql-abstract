@@ -1129,7 +1129,7 @@ sub _render_op {
   } else {
     return $self->_render_op_multop($op, \@args);
   }
-  die "unhandled";
+  die "notreached";
 }
 
 sub _render_op_not {
