@@ -201,6 +201,7 @@ sub new {
     -and => '_expand_op_andor',
     -or => '_expand_op_andor',
     -nest => '_expand_nest',
+    -bind => sub { shift; +{ @_ } },
   };
 
   $opt{expand_op} = {
@@ -603,10 +604,7 @@ sub _expand_expr {
     return +{ -literal => $literal };
   }
   if (!ref($expr) or Scalar::Util::blessed($expr)) {
-    if (my $d = our $Default_Scalar_To) {
-      return $self->_expand_expr({ $d => $expr });
-    }
-    return $self->_expand_value(-value => $expr);
+    return $self->_expand_expr_scalar($expr);
   }
   die "notreached";
 }
@@ -629,6 +627,8 @@ sub _expand_expr_hashpair {
 sub _expand_expr_hashpair_ident {
   my ($self, $k, $v) = @_;
 
+  local our $Cur_Col_Meta = $k;
+
   # hash with multiple or no elements is andor
 
   if (ref($v) eq 'HASH' and keys %$v != 1) {
@@ -644,15 +644,7 @@ sub _expand_expr_hashpair_ident {
   # scalars and objects get expanded as whatever requested or values
 
   if (!ref($v) or Scalar::Util::blessed($v)) {
-    my $d = our $Default_Scalar_To;
-    local our $Cur_Col_Meta = $k;
-    return $self->_expand_expr_hashpair_ident(
-      $k,
-      ($d
-        ? $self->_expand_expr($d => $v)
-        : { -value => $v }
-      )
-    );
+    return $self->_expand_expr_hashpair_scalar($k, $v);
   }
   if (ref($v) eq 'HASH') {
     return $self->_expand_expr_hashtriple($k, %$v);
@@ -683,6 +675,23 @@ sub _expand_expr_hashpair_ident {
     return +{ -literal => [ $self->_quote($k).' '.$sql, @bind ] };
   }
   die "notreached";
+}
+
+sub _expand_expr_scalar {
+  my ($self, $expr) = @_;
+
+  if (my $d = our $Default_Scalar_To) {
+    return $self->_expand_expr({ $d => $expr });
+  }
+  return $self->_expand_value(-value => $expr);
+}
+
+sub _expand_expr_hashpair_scalar {
+  my ($self, $k, $v) = @_;
+
+  return $self->_expand_expr_hashpair_cmp(
+    $k, $self->_expand_expr_scalar($v),
+  );
 }
 
 sub _expand_expr_hashpair_op {
