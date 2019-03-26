@@ -717,7 +717,8 @@ sub _expand_expr_hashpair_ident {
       : $op =~ $self->{inequality_op} ? 'is not'
       : $op =~ $self->{not_like_op}   ? belch("Supplying an undefined argument to '@{[ uc $op]}' is deprecated") && 'is not'
       : puke "unexpected operator '$op' with undef operand";
-      return +{ -op => [ $is.' null', $ik ] };
+
+      return $self->_expand_expr_hashpair($k => { $is, undef });
     }
     local our $Cur_Col_Meta = $k;
     return +{ -op => [
