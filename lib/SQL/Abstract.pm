@@ -226,7 +226,15 @@ sub new {
     %{$opt{render}||{}}
   };
 
-  $opt{render_op} = our $RENDER_OP;
+  $opt{render_op} = {
+    (map +($_ => '_render_op_between'), 'between', 'not between'),
+    (map +($_ => '_render_op_in'), 'in', 'not in'),
+    (map +($_ => '_render_unop_postfix'),
+      'is null', 'is not null', 'asc', 'desc',
+    ),
+    (not => '_render_op_not'),
+    (map +($_ => '_render_op_andor'), qw(and or)),
+  };
 
   return bless \%opt, $class;
 }
@@ -1078,16 +1086,6 @@ sub _render_op_andor {
     map @{$_}[1..$#$_], @parts
   );
 }
-
-our $RENDER_OP = {
-  (map +($_ => '_render_op_between'), 'between', 'not between'),
-  (map +($_ => '_render_op_in'), 'in', 'not in'),
-  (map +($_ => '_render_unop_postfix'),
-    'is null', 'is not null', 'asc', 'desc',
-  ),
-  (not => '_render_op_not'),
-  (map +($_ => '_render_op_andor'), qw(and or)),
-};
 
 sub _render_op {
   my ($self, $v) = @_;
