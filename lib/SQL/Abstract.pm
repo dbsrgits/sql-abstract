@@ -701,19 +701,23 @@ sub _expand_expr_hashpair_op {
   ] };
   }
 
-  # the old special op system requires illegality for top-level use
 
-  if (
-    (our $Expand_Depth) == 1
-    and List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}}
-  ) {
-    puke "Illegal use of top-level '-$op'"
-  }
+  { # Old SQLA compat
 
-  # the old unary op system means we should touch nothing and let it work
+    # the old special op system requires illegality for top-level use
 
-  if (my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{unary_ops}}) {
-    return { -op => [ $op, $v ] };
+    if (
+      (our $Expand_Depth) == 1
+      and List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}}
+    ) {
+      puke "Illegal use of top-level '-$op'"
+    }
+
+    # the old unary op system means we should touch nothing and let it work
+
+    if (my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{unary_ops}}) {
+      return { -op => [ $op, $v ] };
+    }
   }
 
   # an explicit node type is currently assumed to be expanded (this is almost
@@ -731,8 +735,10 @@ sub _expand_expr_hashpair_op {
     and (keys %$v)[0] =~ /^-/
   ) {
     my ($func) = $k =~ /^-(.*)$/;
-    if (List::Util::first { $func =~ $_->{regex} } @{$self->{special_ops}}) {
-      return +{ -op => [ $func, $self->_expand_expr($v) ] };
+    { # Old SQLA compat
+      if (List::Util::first { $func =~ $_->{regex} } @{$self->{special_ops}}) {
+        return +{ -op => [ $func, $self->_expand_expr($v) ] };
+      }
     }
     return +{ -func => [ $func, $self->_expand_expr($v) ] };
   }
@@ -765,15 +771,17 @@ sub _expand_expr_hashtriple {
     local our $Cur_Col_Meta = $k;
     return $self->$x($op, $vv, $k);
   }
-  if (my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}}) {
-    return { -op => [ $op, $ik, $vv ] };
-  }
-  if (my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{unary_ops}}) {
-    return { -op => [
-      $self->{cmp},
-      $ik,
-      { -op => [ $op, $vv ] }
-    ] };
+  { # Old SQLA compat
+    if (my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}}) {
+      return { -op => [ $op, $ik, $vv ] };
+    }
+    if (my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{unary_ops}}) {
+      return { -op => [
+        $self->{cmp},
+        $ik,
+        { -op => [ $op, $vv ] }
+      ] };
+    }
   }
   if (ref($vv) eq 'ARRAY') {
     my @raw = @$vv;
@@ -1128,16 +1136,21 @@ sub _render_op {
   if (my $r = $self->{render_op}{$op}) {
     return $self->$r($op, \@args);
   }
-  my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}};
-  if ($us and @args > 1) {
-    puke "Special op '${op}' requires first value to be identifier"
-      unless my ($ident) = map $_->{-ident}, grep ref($_) eq 'HASH', $args[0];
-    my $k = join(($self->{name_sep}||'.'), @$ident);
-    local our $Expand_Depth = 1;
-    return $self->${\($us->{handler})}($k, $op, $args[1]);
-  }
-  if (my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{unary_ops}}) {
-    return $self->${\($us->{handler})}($op, $args[0]);
+
+  { # Old SQLA compat
+
+    my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}};
+    if ($us and @args > 1) {
+      puke "Special op '${op}' requires first value to be identifier"
+        unless my ($ident) = map $_->{-ident}, grep ref($_) eq 'HASH', $args[0];
+      my $k = join(($self->{name_sep}||'.'), @$ident);
+      local our $Expand_Depth = 1;
+      return $self->${\($us->{handler})}($k, $op, $args[1]);
+    }
+    if (my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{unary_ops}}) {
+      return $self->${\($us->{handler})}($op, $args[0]);
+    }
+
   }
   if (@args == 1) {
     return $self->_render_unop_prefix($op, \@args);
