@@ -1064,6 +1064,21 @@ sub _render_op_in {
   );
 }
 
+sub _render_op_andor {
+  my ($self, $op, $args) = @_;
+  my @parts = grep length($_->[0]), map [ $self->render_aqt($_) ], @$args;
+  return '' unless @parts;
+  return @{$parts[0]} if @parts == 1;
+  my ($final_sql) = join(
+    ' '.$self->_sqlcase($op).' ',
+    map $_->[0], @parts
+  );
+  return (
+    '('.$final_sql.')',
+    map @{$_}[1..$#$_], @parts
+  );
+}
+
 our $RENDER_OP = {
   (map +($_ => '_render_op_between'), 'between', 'not between'),
   (map +($_ => '_render_op_in'), 'in', 'not in'),
@@ -1071,20 +1086,7 @@ our $RENDER_OP = {
     'is null', 'is not null', 'asc', 'desc',
   ),
   (not => '_render_op_not'),
-  (map +($_ => sub {
-    my ($self, $op, $args) = @_;
-    my @parts = grep length($_->[0]), map [ $self->render_aqt($_) ], @$args;
-    return '' unless @parts;
-    return @{$parts[0]} if @parts == 1;
-    my ($final_sql) = join(
-      ' '.$self->_sqlcase($op).' ',
-      map $_->[0], @parts
-    );
-    return (
-      '('.$final_sql.')',
-      map @{$_}[1..$#$_], @parts
-    );
-  }), qw(and or)),
+  (map +($_ => '_render_op_andor'), qw(and or)),
 };
 
 sub _render_op {
