@@ -641,8 +641,6 @@ sub _expand_expr_hashpair_ident {
     return $self->_expand_expr({ $k => { $self->{cmp} => undef } });
   }
 
-  my $ik = $self->_expand_ident(-ident => $k);
-
   # scalars and objects get expanded as whatever requested or values
 
   if (!ref($v) or Scalar::Util::blessed($v)) {
@@ -657,77 +655,7 @@ sub _expand_expr_hashpair_ident {
     );
   }
   if (ref($v) eq 'HASH') {
-    my ($vk, $vv) = %$v;
-    my $op = join ' ', split '_', (map lc, $vk =~ /^-?(.*)$/)[0];
-    $self->_assert_pass_injection_guard($op);
-    if ($op =~ s/ [_\s]? \d+ $//x ) {
-      return $self->_expand_expr($k, $v);
-    }
-    if (my $x = $self->{expand_op}{$op}) {
-      local our $Cur_Col_Meta = $k;
-      return $self->$x($op, $vv, $k);
-    }
-    if (my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}}) {
-      return { -op => [ $op, $ik, $vv ] };
-    }
-    if (my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{unary_ops}}) {
-      return { -op => [
-        $self->{cmp},
-        $ik,
-        { -op => [ $op, $vv ] }
-      ] };
-    }
-    if (ref($vv) eq 'ARRAY') {
-      my @raw = @$vv;
-      my $logic = (defined($raw[0]) and $raw[0] =~ /^-(and|or)$/i)
-        ? shift @raw : '-or';
-      my @values = map +{ $vk => $_ }, @raw;
-      if (
-        $op =~ $self->{inequality_op}
-        or $op =~ $self->{not_like_op}
-      ) {
-        if (lc($logic) eq '-or' and @values > 1) {
-          belch "A multi-element arrayref as an argument to the inequality op '${\uc($op)}' "
-              . 'is technically equivalent to an always-true 1=1 (you probably wanted '
-              . "to say ...{ \$inequality_op => [ -and => \@values ] }... instead)"
-          ;
-        }
-      }
-      unless (@values) {
-        # try to DWIM on equality operators
-        return
-          $op =~ $self->{equality_op}   ? $self->sqlfalse
-        : $op =~ $self->{like_op}       ? belch("Supplying an empty arrayref to '@{[ uc $op]}' is deprecated") && $self->sqlfalse
-        : $op =~ $self->{inequality_op} ? $self->sqltrue
-        : $op =~ $self->{not_like_op}   ? belch("Supplying an empty arrayref to '@{[ uc $op]}' is deprecated") && $self->sqltrue
-        : puke "operator '$op' applied on an empty array (field '$k')";
-      }
-      return $self->_expand_op_andor($logic => \@values, $k);
-    }
-    if (
-      !defined($vv)
-      or (
-        ref($vv) eq 'HASH'
-        and exists $vv->{-value}
-        and not defined $vv->{-value}
-      )
-    ) {
-      my $is =
-        $op =~ /^not$/i               ? 'is not'  # legacy
-      : $op =~ $self->{equality_op}   ? 'is'
-      : $op =~ $self->{like_op}       ? belch("Supplying an undefined argument to '@{[ uc $op]}' is deprecated") && 'is'
-      : $op =~ $self->{inequality_op} ? 'is not'
-      : $op =~ $self->{not_like_op}   ? belch("Supplying an undefined argument to '@{[ uc $op]}' is deprecated") && 'is not'
-      : puke "unexpected operator '$op' with undef operand";
-
-      return $self->_expand_expr_hashpair($k => { $is, undef });
-    }
-    local our $Cur_Col_Meta = $k;
-    return +{ -op => [
-      $op,
-      $ik,
-      $self->_expand_expr($vv)
-    ] };
+    return $self->_expand_expr_hashtriple($k, %$v);
   }
   if (ref($v) eq 'ARRAY') {
     return $self->sqlfalse unless @$v;
@@ -816,6 +744,83 @@ sub _expand_expr_hashpair_op {
   }
 
   die "notreached";
+}
+
+sub _expand_expr_hashtriple {
+  my ($self, $k, $vk, $vv) = @_;
+
+  my $ik = $self->_expand_ident(-ident => $k);
+
+  my $op = join ' ', split '_', (map lc, $vk =~ /^-?(.*)$/)[0];
+  $self->_assert_pass_injection_guard($op);
+  if ($op =~ s/ [_\s]? \d+ $//x ) {
+    return $self->_expand_expr($k, { $vk, $vv });
+  }
+  if (my $x = $self->{expand_op}{$op}) {
+    local our $Cur_Col_Meta = $k;
+    return $self->$x($op, $vv, $k);
+  }
+  if (my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}}) {
+    return { -op => [ $op, $ik, $vv ] };
+  }
+  if (my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{unary_ops}}) {
+    return { -op => [
+      $self->{cmp},
+      $ik,
+      { -op => [ $op, $vv ] }
+    ] };
+  }
+  if (ref($vv) eq 'ARRAY') {
+    my @raw = @$vv;
+    my $logic = (defined($raw[0]) and $raw[0] =~ /^-(and|or)$/i)
+      ? shift @raw : '-or';
+    my @values = map +{ $vk => $_ }, @raw;
+    if (
+      $op =~ $self->{inequality_op}
+      or $op =~ $self->{not_like_op}
+    ) {
+      if (lc($logic) eq '-or' and @values > 1) {
+        belch "A multi-element arrayref as an argument to the inequality op '${\uc($op)}' "
+            . 'is technically equivalent to an always-true 1=1 (you probably wanted '
+            . "to say ...{ \$inequality_op => [ -and => \@values ] }... instead)"
+        ;
+      }
+    }
+    unless (@values) {
+      # try to DWIM on equality operators
+      return
+        $op =~ $self->{equality_op}   ? $self->sqlfalse
+      : $op =~ $self->{like_op}       ? belch("Supplying an empty arrayref to '@{[ uc $op]}' is deprecated") && $self->sqlfalse
+      : $op =~ $self->{inequality_op} ? $self->sqltrue
+      : $op =~ $self->{not_like_op}   ? belch("Supplying an empty arrayref to '@{[ uc $op]}' is deprecated") && $self->sqltrue
+      : puke "operator '$op' applied on an empty array (field '$k')";
+    }
+    return $self->_expand_op_andor($logic => \@values, $k);
+  }
+  if (
+    !defined($vv)
+    or (
+      ref($vv) eq 'HASH'
+      and exists $vv->{-value}
+      and not defined $vv->{-value}
+    )
+  ) {
+    my $is =
+      $op =~ /^not$/i               ? 'is not'  # legacy
+    : $op =~ $self->{equality_op}   ? 'is'
+    : $op =~ $self->{like_op}       ? belch("Supplying an undefined argument to '@{[ uc $op]}' is deprecated") && 'is'
+    : $op =~ $self->{inequality_op} ? 'is not'
+    : $op =~ $self->{not_like_op}   ? belch("Supplying an undefined argument to '@{[ uc $op]}' is deprecated") && 'is not'
+    : puke "unexpected operator '$op' with undef operand";
+
+    return $self->_expand_expr_hashpair($k => { $is, undef });
+  }
+  local our $Cur_Col_Meta = $k;
+  return +{ -op => [
+    $op,
+    $ik,
+    $self->_expand_expr($vv)
+  ] };
 }
 
 sub _expand_ident {
