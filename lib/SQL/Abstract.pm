@@ -788,12 +788,10 @@ sub _expand_expr_hashtriple {
     }
     unless (@values) {
       # try to DWIM on equality operators
-      return
-        $op =~ $self->{equality_op}   ? $self->sqlfalse
-      : $op =~ $self->{like_op}       ? belch("Supplying an empty arrayref to '@{[ uc $op]}' is deprecated") && $self->sqlfalse
-      : $op =~ $self->{inequality_op} ? $self->sqltrue
-      : $op =~ $self->{not_like_op}   ? belch("Supplying an empty arrayref to '@{[ uc $op]}' is deprecated") && $self->sqltrue
-      : puke "operator '$op' applied on an empty array (field '$k')";
+      return ($self->_dwim_op_to_is($op,
+        "Supplying an empty arrayref to '%s' is deprecated",
+        "operator '%s' applied on an empty array (field '$k')"
+      ) ? $self->sqlfalse : $self->sqltrue);
     }
     return $self->_expand_op_andor($logic => \@values, $k);
   }
@@ -805,10 +803,10 @@ sub _expand_expr_hashtriple {
       and not defined $vv->{-value}
     )
   ) {
-    my $is = $self->_dwim_op_to_is($op,
+    my $is = ($self->_dwim_op_to_is($op,
       "Supplying an undefined argument to '%s' is deprecated",
       "unexpected operator '%s' with undef operand",
-    );
+    ) ? 'is' : 'is not');
 
     return $self->_expand_expr_hashpair($k => { $is, undef });
   }
@@ -823,21 +821,21 @@ sub _expand_expr_hashtriple {
 sub _dwim_op_to_is {
   my ($self, $op, $empty, $fail) = @_;
   if ($op =~ /^not$/i) {
-    return 'is not';
+    return 0;
   }
   if ($op =~ $self->{equality_op}) {
-    return 'is';
+    return 1;
   }
   if ($op =~ $self->{like_op}) {
     belch(sprintf $empty, uc($op));
-    return 'is';
+    return 1;
   }
   if ($op =~ $self->{inequality_op}) {
-    return 'is not';
+    return 0;
   }
   if ($op =~ $self->{not_like_op}) {
     belch(sprintf $empty, uc($op));
-    return 'is not';
+    return 0;
   }
   puke(sprintf $fail, $op);
 }
