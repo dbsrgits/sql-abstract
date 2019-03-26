@@ -212,11 +212,9 @@ sub new {
       my ($op) = $name =~ /^-(.*)$/;
       $opt{expand_op}{$op} = sub {
         my ($self, $op, $arg, $k) = @_;
-        return +{ -op => [
-          $self->{cmp},
-          $self->_expand_ident(-ident => $k),
-          $self->_expand_expr({ '-'.$op => $arg }),
-        ] };
+        return $self->_expand_expr_hashtriple(
+          $k, $self->{cmp}, { "-${op}" => $arg }
+        );
       };
     }
   }
