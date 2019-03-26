@@ -68,6 +68,15 @@ sub is_literal_value ($) {
   : undef;
 }
 
+sub is_undef_value ($) {
+  !defined($_[0])
+  or (
+    ref($_[0]) eq 'HASH'
+    and exists $_[0]->{-value}
+    and not defined $_[0]->{-value}
+  );
+}
+
 # FIXME XSify - this can be done so much more efficiently
 sub is_plain_value ($) {
   no strict 'refs';
@@ -628,14 +637,7 @@ sub _expand_expr_hashpair_ident {
 
   # undef needs to be re-sent with cmp to achieve IS/IS NOT NULL
 
-  if (
-    !defined($v)
-    or (
-      ref($v) eq 'HASH'
-      and exists $v->{-value}
-      and not defined $v->{-value}
-    )
-  ) {
+  if (is_undef_value($v)) {
     return $self->_expand_expr_hashpair_cmp($k => undef);
   }
 
@@ -798,14 +800,7 @@ sub _expand_expr_hashtriple {
     }
     return $self->_expand_op_andor($logic => \@values, $k);
   }
-  if (
-    !defined($vv)
-    or (
-      ref($vv) eq 'HASH'
-      and exists $vv->{-value}
-      and not defined $vv->{-value}
-    )
-  ) {
+  if (is_undef_value($vv)) {
     my $is = ($self->_dwim_op_to_is($op,
       "Supplying an undefined argument to '%s' is deprecated",
       "unexpected operator '%s' with undef operand",
