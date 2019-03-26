@@ -200,8 +200,8 @@ sub new {
     'in' => '_expand_in',
     'not in' => '_expand_in',
     'nest' => '_expand_nest',
-    (map +($_ => '_expand_op_andor'),
-      qw(and or)),
+    (map +($_ => '_expand_op_andor'), ('and', 'or')),
+    (map +($_ => '_expand_op_is'), ('is', 'is not')),
   };
 
   # placeholder for _expand_unop system
@@ -907,6 +907,18 @@ sub _expand_op_andor {
     return { -op => [ $logop, @res ] };
   }
   die "notreached";
+}
+
+sub _expand_op_is {
+  my ($self, $op, $vv, $k) = @_;
+  puke "$op can only take undef as argument"
+    if defined($vv)
+       and not (
+         ref($vv) eq 'HASH'
+         and exists($vv->{-value})
+         and !defined($vv->{-value})
+       );
+  return +{ -op => [ $op.' null', $self->_expand_ident(-ident => $k) ] };
 }
 
 sub _expand_between {
