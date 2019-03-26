@@ -700,9 +700,9 @@ sub _expand_expr_hashpair_ident {
         : puke "operator '$op' applied on an empty array (field '$k')";
       }
       return $self->_expand_op_andor($logic => [
-        map +{ $k => { $vk => $_ } },
+        map +{ $vk => $_ },
           @values
-      ]);
+      ], $k);
     }
     if (
       !defined($vv)
@@ -834,8 +834,11 @@ sub _expand_bool {
 sub _expand_op_andor {
   my ($self, $logic, $v, $k) = @_;
   if (defined $k) {
-    $v = [ map +{ $k, { $_ => $v->{$_} } },
-             sort keys %$v ];
+    $v = [ map +{ $k, $_ },
+             (ref($v) eq 'HASH')
+              ? (map +{ $_ => $v->{$_} }, sort keys %$v)
+              : @$v,
+         ];
   }
   my ($logop) = $logic =~ /^-?(.*)$/;
   if (ref($v) eq 'HASH') {
