@@ -38,7 +38,6 @@ our $AUTOLOAD;
 # See section WHERE: BUILTIN SPECIAL OPERATORS below for implementation
 my @BUILTIN_SPECIAL_OPS = (
   {regex => qr/^ (?: not \s )? between $/ix, handler => sub { die "NOPE" }},
-  {regex => qr/^ (?: not \s )? in      $/ix, handler => sub { die "NOPE" }},
   {regex => qr/^ is (?: \s+ not )?     $/ix, handler => sub { die "NOPE" }},
 );
 
@@ -171,7 +170,7 @@ sub new {
 
   if ($class->isa('DBIx::Class::SQLMaker')) {
     push @{$opt{special_ops}}, our $DBIC_Compat_Op ||= {
-      regex => qr/^(?:ident|value)$/i, handler => sub { die "NOPE" }
+      regex => qr/^(?:ident|value|(?:not\s)?in)$/i, handler => sub { die "NOPE" }
     };
     $opt{is_dbic_sqlmaker} = 1;
   }
