@@ -638,7 +638,7 @@ sub _expand_expr_hashpair_ident {
       and not defined $v->{-value}
     )
   ) {
-    return $self->_expand_expr({ $k => { $self->{cmp} => undef } });
+    return $self->_expand_expr_hashtriple($k => $self->{cmp} => undef);
   }
 
   # scalars and objects get expanded as whatever requested or values
