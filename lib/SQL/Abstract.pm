@@ -644,10 +644,7 @@ sub _expand_expr_hashpair_ident {
   }
   if (ref($v) eq 'HASH') {
     if (keys %$v > 1) {
-      return $self->_expand_op_andor(-and => [
-        map +{ $_ => $v->{$_} },
-          sort keys %$v
-      ], $k);
+      return $self->_expand_op_andor(-and => $v, $k);
     }
     return undef unless keys %$v;
     my ($vk, $vv) = %$v;
