@@ -1025,27 +1025,29 @@ sub _render_literal {
   return @$literal;
 }
 
+sub _render_op_between {
+  my ($self, $op, $args) = @_;
+  my ($left, $low, $high) = @$args;
+  my ($rhsql, @rhbind) = do {
+    if (@$args == 2) {
+      puke "Single arg to between must be a literal"
+        unless $low->{-literal};
+      @{$low->{-literal}}
+    } else {
+      my ($l, $h) = map [ $self->render_aqt($_) ], $low, $high;
+      (join(' ', $l->[0], $self->_sqlcase('and'), $h->[0]),
+       @{$l}[1..$#$l], @{$h}[1..$#$h])
+    }
+  };
+  my ($lhsql, @lhbind) = $self->render_aqt($left);
+  return (
+    join(' ', '(', $lhsql, $self->_sqlcase($op), $rhsql, ')'),
+    @lhbind, @rhbind
+  );
+}
+
 our $RENDER_OP = {
-  (map +($_ => sub {
-    my ($self, $op, $args) = @_;
-    my ($left, $low, $high) = @$args;
-    my ($rhsql, @rhbind) = do {
-      if (@$args == 2) {
-        puke "Single arg to between must be a literal"
-          unless $low->{-literal};
-        @{$low->{-literal}}
-      } else {
-        my ($l, $h) = map [ $self->render_aqt($_) ], $low, $high;
-        (join(' ', $l->[0], $self->_sqlcase('and'), $h->[0]),
-         @{$l}[1..$#$l], @{$h}[1..$#$h])
-      }
-    };
-    my ($lhsql, @lhbind) = $self->render_aqt($left);
-    return (
-      join(' ', '(', $lhsql, $self->_sqlcase($op), $rhsql, ')'),
-      @lhbind, @rhbind
-    );
-  }), 'between', 'not between'),
+  (map +($_ => '_render_op_between'), 'between', 'not between'),
   (map +($_ => sub {
     my ($self, $op, $args) = @_;
     my ($lhs, $rhs) = @$args;
