@@ -678,11 +678,10 @@ sub _expand_expr_hashpair_ident {
       ] };
     }
     if (ref($vv) eq 'ARRAY') {
-      my ($logic, @values) = (
-        (defined($vv->[0]) and $vv->[0] =~ /^-(and|or)$/i)
-          ? @$vv
-          : (-or => @$vv)
-      );
+      my @raw = @$vv;
+      my $logic = (defined($raw[0]) and $raw[0] =~ /^-(and|or)$/i)
+        ? shift @raw : '-or';
+      my @values = map +{ $vk => $_ }, @raw;
       if (
         $op =~ $self->{inequality_op}
         or $op =~ $self->{not_like_op}
@@ -703,10 +702,7 @@ sub _expand_expr_hashpair_ident {
         : $op =~ $self->{not_like_op}   ? belch("Supplying an empty arrayref to '@{[ uc $op]}' is deprecated") && $self->sqltrue
         : puke "operator '$op' applied on an empty array (field '$k')";
       }
-      return $self->_expand_op_andor($logic => [
-        map +{ $vk => $_ },
-          @values
-      ], $k);
+      return $self->_expand_op_andor($logic => \@values, $k);
     }
     if (
       !defined($vv)
