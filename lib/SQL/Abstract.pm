@@ -1067,6 +1067,37 @@ sub _render_literal {
   return @$literal;
 }
 
+sub _render_op {
+  my ($self, $v) = @_;
+  my ($op, @args) = @$v;
+  if (my $r = $self->{render_op}{$op}) {
+    return $self->$r($op, \@args);
+  }
+
+  { # Old SQLA compat
+
+    my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}};
+    if ($us and @args > 1) {
+      puke "Special op '${op}' requires first value to be identifier"
+        unless my ($ident) = map $_->{-ident}, grep ref($_) eq 'HASH', $args[0];
+      my $k = join(($self->{name_sep}||'.'), @$ident);
+      local our $Expand_Depth = 1;
+      return $self->${\($us->{handler})}($k, $op, $args[1]);
+    }
+    if (my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{unary_ops}}) {
+      return $self->${\($us->{handler})}($op, $args[0]);
+    }
+
+  }
+  if (@args == 1) {
+    return $self->_render_unop_prefix($op, \@args);
+  } else {
+    return $self->_render_op_multop($op, \@args);
+  }
+  die "notreached";
+}
+
+
 sub _render_op_between {
   my ($self, $op, $args) = @_;
   my ($left, $low, $high) = @$args;
@@ -1129,37 +1160,6 @@ sub _render_op_multop {
     map @{$_}[1..$#$_], @parts
   );
 }
-
-sub _render_op {
-  my ($self, $v) = @_;
-  my ($op, @args) = @$v;
-  if (my $r = $self->{render_op}{$op}) {
-    return $self->$r($op, \@args);
-  }
-
-  { # Old SQLA compat
-
-    my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}};
-    if ($us and @args > 1) {
-      puke "Special op '${op}' requires first value to be identifier"
-        unless my ($ident) = map $_->{-ident}, grep ref($_) eq 'HASH', $args[0];
-      my $k = join(($self->{name_sep}||'.'), @$ident);
-      local our $Expand_Depth = 1;
-      return $self->${\($us->{handler})}($k, $op, $args[1]);
-    }
-    if (my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{unary_ops}}) {
-      return $self->${\($us->{handler})}($op, $args[0]);
-    }
-
-  }
-  if (@args == 1) {
-    return $self->_render_unop_prefix($op, \@args);
-  } else {
-    return $self->_render_op_multop($op, \@args);
-  }
-  die "notreached";
-}
-
 sub _render_op_not {
   my ($self, $op, $v) = @_;
   my ($sql, @bind) = $self->_render_unop_prefix($op, $v);
