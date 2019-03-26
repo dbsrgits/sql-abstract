@@ -1077,12 +1077,21 @@ sub _render_op_andor {
   my @parts = grep length($_->[0]), map [ $self->render_aqt($_) ], @$args;
   return '' unless @parts;
   return @{$parts[0]} if @parts == 1;
+  my ($sql, @bind) = $self->_render_op_multop($op, $args);
+  return '( '.$sql.' )', @bind;
+}
+
+sub _render_op_multop {
+  my ($self, $op, $args) = @_;
+  my @parts = grep length($_->[0]), map [ $self->render_aqt($_) ], @$args;
+  return '' unless @parts;
+  return @{$parts[0]} if @parts == 1;
   my ($final_sql) = join(
     ' '.$self->_sqlcase($op).' ',
     map $_->[0], @parts
   );
   return (
-    '('.$final_sql.')',
+    $final_sql,
     map @{$_}[1..$#$_], @parts
   );
 }
@@ -1107,16 +1116,7 @@ sub _render_op {
   if (@args == 1) {
     return $self->_render_unop_prefix($op, \@args);
   } else {
-     my @parts = grep length($_->[0]), map [ $self->render_aqt($_) ], @args;
-     return '' unless @parts;
-     my ($final_sql) = join(
-       ' '.$self->_sqlcase($op).' ',
-       map $_->[0], @parts
-     );
-     return (
-       $final_sql,
-       map @{$_}[1..$#$_], @parts
-     );
+    return $self->_render_op_multop($op, \@args);
   }
   die "unhandled";
 }
