@@ -665,16 +665,6 @@ sub _expand_expr_hashpair_ident {
       local our $Cur_Col_Meta = $k;
       return $self->$x($op, $vv, $k);
     }
-    if ($op =~ /^is(?: not)?$/) {
-      puke "$op can only take undef as argument"
-        if defined($vv)
-           and not (
-             ref($vv) eq 'HASH'
-             and exists($vv->{-value})
-             and !defined($vv->{-value})
-           );
-      return +{ -op => [ $op.' null', $ik ] };
-    }
     if (my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}}) {
       return { -op => [ $op, $ik, $vv ] };
     }
