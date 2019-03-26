@@ -646,9 +646,15 @@ sub _expand_expr_hashpair_ident {
   if (!ref($v) or Scalar::Util::blessed($v)) {
     return $self->_expand_expr_hashpair_scalar($k, $v);
   }
+
+  # single key hashref is a hashtriple
+
   if (ref($v) eq 'HASH') {
     return $self->_expand_expr_hashtriple($k, %$v);
   }
+
+  # arrayref needs re-engineering over the elements
+
   if (ref($v) eq 'ARRAY') {
     return $self->sqlfalse unless @$v;
     $self->_debug("ARRAY($k) means distribute over elements");
@@ -661,6 +667,7 @@ sub _expand_expr_hashpair_ident {
       $logic => $v, $k
     );
   }
+
   if (my $literal = is_literal_value($v)) {
     unless (length $k) {
       belch 'Hash-pairs consisting of an empty string with a literal are deprecated, and will be removed in 2.0: use -and => [ $literal ] instead';
