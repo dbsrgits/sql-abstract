@@ -622,6 +622,12 @@ sub _expand_expr_hashpair {
 sub _expand_expr_hashpair_ident {
   my ($self, $k, $v) = @_;
 
+  # hash with multiple or no elements is andor
+
+  if (ref($v) eq 'HASH' and keys %$v != 1) {
+    return $self->_expand_op_andor(-and => $v, $k);
+  }
+
   # undef needs to be re-sent with cmp to achieve IS/IS NOT NULL
 
   if (
@@ -651,10 +657,6 @@ sub _expand_expr_hashpair_ident {
     );
   }
   if (ref($v) eq 'HASH') {
-    if (keys %$v > 1) {
-      return $self->_expand_op_andor(-and => $v, $k);
-    }
-    return undef unless keys %$v;
     my ($vk, $vv) = %$v;
     my $op = join ' ', split '_', (map lc, $vk =~ /^-?(.*)$/)[0];
     $self->_assert_pass_injection_guard($op);
@@ -858,6 +860,7 @@ sub _expand_op_andor {
   }
   my ($logop) = $logic =~ /^-?(.*)$/;
   if (ref($v) eq 'HASH') {
+    return undef unless keys %$v;
     return +{ -op => [
       $logop,
       map $self->_expand_expr({ $_ => $v->{$_} }),
