@@ -613,6 +613,9 @@ sub _expand_expr_hashpair {
 
 sub _expand_expr_hashpair_ident {
   my ($self, $k, $v) = @_;
+
+  # undef needs to be re-sent with cmp to achieve IS/IS NOT NULL
+
   if (
     !defined($v)
     or (
@@ -623,7 +626,11 @@ sub _expand_expr_hashpair_ident {
   ) {
     return $self->_expand_expr({ $k => { $self->{cmp} => undef } });
   }
+
   my $ik = $self->_expand_ident(-ident => $k);
+
+  # scalars and objects get expanded as whatever requested or values
+
   if (!ref($v) or Scalar::Util::blessed($v)) {
     my $d = our $Default_Scalar_To;
     local our $Cur_Col_Meta = $k;
@@ -758,31 +765,44 @@ sub _expand_expr_hashpair_ident {
 
 sub _expand_expr_hashpair_op {
   my ($self, $k, $v) = @_;
+
   my $op = $k;
   $op =~ s/^-// if length($op) > 1;
   $self->_assert_pass_injection_guard($op);
+
+  # Ops prefixed with -not_ get converted
+
   if (my ($rest) = $op =~/^not[_ ](.*)$/) {
     return +{ -op => [
       'not',
       $self->_expand_expr({ "-${rest}", $v })
   ] };
   }
-  # top level special ops are illegal in general
-  # note that, arguably, if it makes no sense at top level, it also
-  # makes no sense on the other side of an = sign or similar but DBIC
-  # gets disappointingly upset if I disallow it
+
+  # the old special op system requires illegality for top-level use
+
   if (
     (our $Expand_Depth) == 1
     and List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}}
   ) {
     puke "Illegal use of top-level '-$op'"
   }
+
+  # the old unary op system means we should touch nothing and let it work
+
   if (my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{unary_ops}}) {
     return { -op => [ $op, $v ] };
   }
+
+  # an explicit node type is currently assumed to be expanded (this is almost
+  # certainly wrong and there should be expansion anyway)
+
   if ($self->{render}{$k}) {
     return { $k => $v };
   }
+
+  # hashref RHS values get expanded and used as op/func args
+
   if (
     ref($v) eq 'HASH'
     and keys %$v == 1
@@ -794,9 +814,13 @@ sub _expand_expr_hashpair_op {
     }
     return +{ -func => [ $func, $self->_expand_expr($v) ] };
   }
+
+  # scalars and literals get simply expanded
+
   if (!ref($v) or is_literal_value($v)) {
     return +{ -op => [ $op, $self->_expand_expr($v) ] };
   }
+
   die "notreached";
 }
 
