@@ -645,9 +645,9 @@ sub _expand_expr_hashpair_ident {
   if (ref($v) eq 'HASH') {
     if (keys %$v > 1) {
       return $self->_expand_op_andor(-and => [
-        map +{ $k => { $_ => $v->{$_} } },
+        map +{ $_ => $v->{$_} },
           sort keys %$v
-      ]);
+      ], $k);
     }
     return undef unless keys %$v;
     my ($vk, $vv) = %$v;
@@ -744,7 +744,7 @@ sub _expand_expr_hashpair_ident {
         : '-'.lc($self->{logic} || 'OR')
     );
     return $self->_expand_op_andor(
-      $logic => [ map +{ $k => $_ }, @$v ]
+      $logic => $v, $k
     );
   }
   if (my $literal = is_literal_value($v)) {
