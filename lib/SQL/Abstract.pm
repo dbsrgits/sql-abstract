@@ -805,13 +805,10 @@ sub _expand_expr_hashtriple {
       and not defined $vv->{-value}
     )
   ) {
-    my $is =
-      $op =~ /^not$/i               ? 'is not'  # legacy
-    : $op =~ $self->{equality_op}   ? 'is'
-    : $op =~ $self->{like_op}       ? belch("Supplying an undefined argument to '@{[ uc $op]}' is deprecated") && 'is'
-    : $op =~ $self->{inequality_op} ? 'is not'
-    : $op =~ $self->{not_like_op}   ? belch("Supplying an undefined argument to '@{[ uc $op]}' is deprecated") && 'is not'
-    : puke "unexpected operator '$op' with undef operand";
+    my $is = $self->_dwim_op_to_is($op,
+      "Supplying an undefined argument to '%s' is deprecated",
+      "unexpected operator '%s' with undef operand",
+    );
 
     return $self->_expand_expr_hashpair($k => { $is, undef });
   }
@@ -821,6 +818,28 @@ sub _expand_expr_hashtriple {
     $ik,
     $self->_expand_expr($vv)
   ] };
+}
+
+sub _dwim_op_to_is {
+  my ($self, $op, $empty, $fail) = @_;
+  if ($op =~ /^not$/i) {
+    return 'is not';
+  }
+  if ($op =~ $self->{equality_op}) {
+    return 'is';
+  }
+  if ($op =~ $self->{like_op}) {
+    belch(sprintf $empty, uc($op));
+    return 'is';
+  }
+  if ($op =~ $self->{inequality_op}) {
+    return 'is not';
+  }
+  if ($op =~ $self->{not_like_op}) {
+    belch(sprintf $empty, uc($op));
+    return 'is not';
+  }
+  puke(sprintf $fail, $op);
 }
 
 sub _expand_ident {
