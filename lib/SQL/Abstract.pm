@@ -212,8 +212,8 @@ sub new {
       my ($op) = $name =~ /^-(.*)$/;
       $opt{expand_op}{$op} = sub {
         my ($self, $op, $arg, $k) = @_;
-        return $self->_expand_expr_hashtriple(
-          $k, $self->{cmp}, { "-${op}" => $arg }
+        return $self->_expand_expr_hashpair_cmp(
+          $k, { "-${op}" => $arg }
         );
       };
     }
@@ -636,7 +636,7 @@ sub _expand_expr_hashpair_ident {
       and not defined $v->{-value}
     )
   ) {
-    return $self->_expand_expr_hashtriple($k => $self->{cmp} => undef);
+    return $self->_expand_expr_hashpair_cmp($k => undef);
   }
 
   # scalars and objects get expanded as whatever requested or values
@@ -742,6 +742,11 @@ sub _expand_expr_hashpair_op {
   }
 
   die "notreached";
+}
+
+sub _expand_expr_hashpair_cmp {
+  my ($self, $k, $v) = @_;
+  $self->_expand_expr_hashtriple($k, $self->{cmp}, $v);
 }
 
 sub _expand_expr_hashtriple {
