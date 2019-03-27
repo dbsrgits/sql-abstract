@@ -296,7 +296,7 @@ sub _returning {
   my $f = $options->{returning};
 
   my ($sql, @bind) = $self->render_aqt(
-    $self->_expand_maybe_list_expr($f, undef, -ident)
+    $self->_expand_maybe_list_expr($f, -ident)
   );
   return wantarray
     ? $self->_sqlcase(' returning ') . $sql
@@ -498,7 +498,7 @@ sub _select_fields {
   my ($self, $fields) = @_;
   return $fields unless ref($fields);
   return $self->render_aqt(
-    $self->_expand_maybe_list_expr($fields, undef, '-ident')
+    $self->_expand_maybe_list_expr($fields, '-ident')
   );
 }
 
@@ -1335,7 +1335,7 @@ sub _table  {
   my $self = shift;
   my $from = shift;
   ($self->render_aqt(
-    $self->_expand_maybe_list_expr($from, undef, -ident)
+    $self->_expand_maybe_list_expr($from, -ident)
   ))[0];
 }
 
@@ -1345,7 +1345,7 @@ sub _table  {
 #======================================================================
 
 sub _expand_maybe_list_expr {
-  my ($self, $expr, $logic, $default) = @_;
+  my ($self, $expr, $default) = @_;
   my $e = do {
     if (ref($expr) eq 'ARRAY') {
       return { -list => [
