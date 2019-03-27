@@ -1278,7 +1278,9 @@ sub _expand_order_by {
               ),
                 map $self->expand_expr($_, -ident),
                 map ref($_) eq 'ARRAY' ? @$_ : $_, @to_expand;
-    return (@exp > 1 ? { -op => [ ',', @exp ] } : $exp[0]);
+    return undef unless @exp;
+    return undef if @exp == 1 and not defined($exp[0]);
+    return +{ -op => [ ',', @exp ] };
   };
 
   local @{$self->{expand}}{qw(-asc -desc)} = (($expander) x 2);
