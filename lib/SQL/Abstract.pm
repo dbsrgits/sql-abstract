@@ -703,7 +703,7 @@ sub _expand_expr_hashpair_op {
   my ($self, $k, $v) = @_;
 
   my $op = $k;
-  $op =~ s/^-// if length($op) > 1;
+  $op =~ s/^-(?=\w)//;
   $self->_assert_pass_injection_guard($op);
 
   # Ops prefixed with -not_ get converted
