@@ -555,6 +555,8 @@ sub where {
   return wantarray ? ($sql, @bind) : $sql;
 }
 
+{ our $Default_Scalar_To = -value }
+
 sub expand_expr {
   my ($self, $expr, $default_scalar_to) = @_;
   local our $Default_Scalar_To = $default_scalar_to if $default_scalar_to;
@@ -686,10 +688,7 @@ sub _expand_expr_hashpair_ident {
 sub _expand_expr_scalar {
   my ($self, $expr) = @_;
 
-  if (my $d = our $Default_Scalar_To) {
-    return $self->_expand_expr({ $d => $expr });
-  }
-  return $self->_expand_value(-value => $expr);
+  return $self->_expand_expr({ (our $Default_Scalar_To) => $expr });
 }
 
 sub _expand_expr_hashpair_scalar {
