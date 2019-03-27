@@ -204,6 +204,10 @@ sub new {
     -bind => sub { shift; +{ @_ } },
     -in => '_expand_in',
     -not_in => '_expand_in',
+    -list => sub {
+      my ($self, $node, $args) = @_;
+      +{ $node => [ map $self->expand_expr($_), @$args ] };
+    },
   };
 
   $opt{expand_op} = {
@@ -244,7 +248,7 @@ sub new {
     ),
     (not => '_render_op_not'),
     (map +($_ => '_render_op_andor'), qw(and or)),
-    ',' => '_render_op_multop',
+    ',' => sub { shift->_render_op_multop(@_, 1) },
   };
 
   return bless \%opt, $class;
@@ -1003,7 +1007,7 @@ sub _expand_in {
     my ($sql, @bind) = @$literal;
     my $opened_sql = $self->_open_outer_paren($sql);
     return +{ -op => [
-      $op, $self->_expand_ident(-ident => $k),
+      $op, $self->expand_expr($k, -ident),
       [ { -literal => [ $opened_sql, @bind ] } ]
     ] };
   }
@@ -1022,7 +1026,7 @@ sub _expand_in {
 
   return +{ -op => [
     $op,
-    $self->_expand_ident(-ident => $k),
+    $self->expand_expr($k, -ident),
     \@rhs
   ] };
 }
@@ -1074,8 +1078,8 @@ sub _render_ident {
 
 sub _render_list {
   my ($self, $list) = @_;
-  my @parts = grep length($_->[0]), map [ $self->render_aqt($_) ], @$list;
-  return join(', ', map $_->[0], @parts), map @{$_}[1..$#$_], @parts;
+  my ($sql, @bind) = $self->_render_op([ ',', @$list ]);
+  return "($sql)", @bind;  
 }
 
 sub _render_func {
@@ -1187,12 +1191,12 @@ sub _render_op_andor {
 }
 
 sub _render_op_multop {
-  my ($self, $op, $args) = @_;
+  my ($self, $op, $args, $strip_left) = @_;
   my @parts = grep length($_->[0]), map [ $self->render_aqt($_) ], @$args;
   return '' unless @parts;
   return @{$parts[0]} if @parts == 1;
   my ($final_sql) = join(
-    ' '.$self->_sqlcase(join ' ', split '_', $op).' ',
+    ($strip_left ? '' : ' ').$self->_sqlcase(join ' ', split '_', $op).' ',
     map $_->[0], @parts
   );
   return (
@@ -1346,17 +1350,10 @@ sub _table  {
 
 sub _expand_maybe_list_expr {
   my ($self, $expr, $default) = @_;
-  my $e = do {
-    if (ref($expr) eq 'ARRAY') {
-      return { -list => [
-        map $self->expand_expr($_, $default), @$expr
-      ] } if @$expr > 1;
-      $expr->[0]
-    } else {
-      $expr
-    }
-  };
-  return $self->expand_expr($e, $default);
+  return +{ -op => [ ',',
+    map $self->expand_expr($_, $default),
+      ref($expr) eq 'ARRAY' ? @$expr : $expr
+  ] };
 }
 
 # highly optimized, as it's called way too often
