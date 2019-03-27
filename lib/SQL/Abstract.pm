@@ -39,6 +39,7 @@ our $AUTOLOAD;
 my @BUILTIN_SPECIAL_OPS = (
   {regex => qr/^ (?: not \s )? between $/ix, handler => sub { die "NOPE" }},
   {regex => qr/^ is (?: \s+ not )?     $/ix, handler => sub { die "NOPE" }},
+  {regex => qr/^ (?: not \s )? in      $/ix, handler => sub { die "NOPE" }},
 );
 
 #======================================================================
