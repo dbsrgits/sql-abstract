@@ -279,8 +279,9 @@ my @in_between_tests = (
   },
 
   {
-    where => { -in => [42] },
-    throws => qr/Illegal use of top-level '-in'/,
+    where => { -in => [ 'bob', 4, 2 ] },
+    stmt => ' WHERE (bob IN (?, ?))',
+    bind => [ 4, 2 ],
     test => 'Top level -in',
   },
   {
