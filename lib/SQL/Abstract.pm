@@ -578,6 +578,12 @@ sub render_expr {
   $self->render_aqt($self->expand_expr($expr));
 }
 
+sub _normalize_op {
+  my ($self, $raw) = @_;
+  s/^-(?=[a-z])//, s/\s+/_/g for my $op = lc $raw;
+  $op;
+}
+
 sub _expand_expr {
   my ($self, $expr) = @_;
   our $Expand_Depth ||= 0; local $Expand_Depth = $Expand_Depth + 1;
@@ -702,7 +708,8 @@ sub _expand_expr_hashpair_scalar {
 sub _expand_expr_hashpair_op {
   my ($self, $k, $v) = @_;
 
-  s/^-(?=\w)//, s/ +/_/g for my $op = lc $k;
+  my $op = $self->_normalize_op($k);
+
   $self->_assert_pass_injection_guard($op);
 
   # Ops prefixed with -not_ get converted
@@ -777,9 +784,10 @@ sub _expand_expr_hashtriple {
 
   my $ik = $self->_expand_ident(-ident => $k);
 
-  my $op = join ' ', split '_', (map lc, $vk =~ /^-?(.*)$/)[0];
+  my $op = $self->_normalize_op($vk);
   $self->_assert_pass_injection_guard($op);
-  if ($op =~ s/ [_\s]? \d+ $//x ) {
+
+  if ($op =~ s/ _? \d+ $//x ) {
     return $self->_expand_expr($k, { $vk, $vv });
   }
   if (my $x = $self->{expand_op}{$op}) {
@@ -787,6 +795,9 @@ sub _expand_expr_hashtriple {
     return $self->$x($op, $vv, $k);
   }
   { # Old SQLA compat
+
+    my $op = join(' ', split '_', $op);
+
     if (my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}}) {
       return { -op => [ $op, $ik, $vv ] };
     }
@@ -840,7 +851,10 @@ sub _expand_expr_hashtriple {
 }
 
 sub _dwim_op_to_is {
-  my ($self, $op, $empty, $fail) = @_;
+  my ($self, $raw, $empty, $fail) = @_;
+
+  my $op = $self->_normalize_op($raw);
+
   if ($op =~ /^not$/i) {
     return 0;
   }
@@ -1091,6 +1105,8 @@ sub _render_op {
 
   { # Old SQLA compat
 
+    my $op = join(' ', split '_', $op);
+
     my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}};
     if ($us and @args > 1) {
       puke "Special op '${op}' requires first value to be identifier"
@@ -1184,14 +1200,15 @@ sub _render_op_not {
 sub _render_unop_prefix {
   my ($self, $op, $v) = @_;
   my ($expr_sql, @bind) = $self->render_aqt($v->[0]);
-  my $op_sql = $self->_sqlcase($op);
+
+  my $op_sql = $self->_sqlcase(join ' ', split '_', $op);
   return ("${op_sql} ${expr_sql}", @bind);
 }
 
 sub _render_unop_postfix {
   my ($self, $op, $v) = @_;
   my ($expr_sql, @bind) = $self->render_aqt($v->[0]);
-  my $op_sql = $self->_sqlcase($op);
+  my $op_sql = $self->_sqlcase(join ' ', split '_', $op);
   return ($expr_sql.' '.$op_sql, @bind);
 }
 
