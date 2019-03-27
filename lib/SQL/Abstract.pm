@@ -248,7 +248,7 @@ sub new {
     ),
     (not => '_render_op_not'),
     (map +($_ => '_render_op_andor'), qw(and or)),
-    ',' => sub { shift->_render_op_multop(@_, 1) },
+    ',' => '_render_op_multop',
   };
 
   return bless \%opt, $class;
@@ -1191,12 +1191,12 @@ sub _render_op_andor {
 }
 
 sub _render_op_multop {
-  my ($self, $op, $args, $strip_left) = @_;
+  my ($self, $op, $args) = @_;
   my @parts = grep length($_->[0]), map [ $self->render_aqt($_) ], @$args;
   return '' unless @parts;
   return @{$parts[0]} if @parts == 1;
   my ($final_sql) = join(
-    ($strip_left ? '' : ' ').$self->_sqlcase(join ' ', split '_', $op).' ',
+    ($op eq ',' ? '' : ' ').$self->_sqlcase(join ' ', split '_', $op).' ',
     map $_->[0], @parts
   );
   return (
