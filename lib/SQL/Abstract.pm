@@ -702,12 +702,12 @@ sub _expand_expr_hashpair_scalar {
 sub _expand_expr_hashpair_op {
   my ($self, $k, $v) = @_;
 
-  (my $op = $k) =~ s/^-(?=\w)//;
+  s/^-(?=\w)//, s/ +/_/g for my $op = lc $k;
   $self->_assert_pass_injection_guard($op);
 
   # Ops prefixed with -not_ get converted
 
-  if (my ($rest) = $op =~/^not[_ ](.*)$/) {
+  if (my ($rest) = $op =~/^not_(.*)$/) {
     return +{ -op => [
       'not',
       $self->_expand_expr({ "-${rest}", $v })
@@ -716,6 +716,8 @@ sub _expand_expr_hashpair_op {
 
 
   { # Old SQLA compat
+
+    my $op = join(' ', split '_', $op);
 
     # the old special op system requires illegality for top-level use
 
