@@ -284,6 +284,13 @@ my @in_between_tests = (
     bind => [ 4, 2 ],
     test => 'Top level -in',
   },
+# This works but then SQL::Abstract::Tree breaks - something for a later commit
+#  {
+#    where => { -in => [ { -list => [ qw(x y) ] }, { -list => [ 1, 3 ] }, { -list => [ 2, 4 ] } ] },
+#    stmt => ' WHERE ((x, y) IN ((?, ?), (?, ?))',
+#    bind => [ 1, 3, 2, 4 ],
+#    test => 'Top level -in with list args',
+#  },
   {
     where => { -between => [42, 69] },
     throws => qr/Illegal use of top-level '-between'/,
