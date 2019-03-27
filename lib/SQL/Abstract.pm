@@ -702,8 +702,7 @@ sub _expand_expr_hashpair_scalar {
 sub _expand_expr_hashpair_op {
   my ($self, $k, $v) = @_;
 
-  my $op = $k;
-  $op =~ s/^-(?=\w)//;
+  (my $op = $k) =~ s/^-(?=\w)//;
   $self->_assert_pass_injection_guard($op);
 
   # Ops prefixed with -not_ get converted
