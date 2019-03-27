@@ -1014,8 +1014,7 @@ sub _expand_in {
   ;
   puke("Argument passed to the '${\uc($op)}' operator can not be undefined")
     if !defined($vv);
-  my @rhs = map $self->_expand_expr($_),
-              map { ref($_) ? $_ : { -bind => [ $k, $_ ] } }
+  my @rhs = map $self->expand_expr($_, -value),
               map { defined($_) ? $_: puke($undef_err) }
                 (ref($vv) eq 'ARRAY' ? @$vv : $vv);
   return $self->${\($op =~ /^not/ ? 'sqltrue' : 'sqlfalse')} unless @rhs;
