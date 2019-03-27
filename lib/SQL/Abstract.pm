@@ -155,8 +155,8 @@ sub new {
   $opt{equality_op}   = qr/^( \Q$opt{cmp}\E | \= )$/ix;
   $opt{inequality_op} = qr/^( != | <> )$/ix;
 
-  $opt{like_op}       = qr/^ (is\s+)? r?like $/xi;
-  $opt{not_like_op}   = qr/^ (is\s+)? not \s+ r?like $/xi;
+  $opt{like_op}       = qr/^ (is_)?r?like $/xi;
+  $opt{not_like_op}   = qr/^ (is_)?not_r?like $/xi;
 
   # SQL booleans
   $opt{sqltrue}  ||= '1=1';
@@ -205,12 +205,12 @@ sub new {
 
   $opt{expand_op} = {
     'between' => '_expand_between',
-    'not between' => '_expand_between',
+    'not_between' => '_expand_between',
     'in' => '_expand_in',
-    'not in' => '_expand_in',
+    'not_in' => '_expand_in',
     'nest' => '_expand_nest',
     (map +($_ => '_expand_op_andor'), ('and', 'or')),
-    (map +($_ => '_expand_op_is'), ('is', 'is not')),
+    (map +($_ => '_expand_op_is'), ('is', 'is_not')),
   };
 
   # placeholder for _expand_unop system
@@ -234,10 +234,10 @@ sub new {
   };
 
   $opt{render_op} = {
-    (map +($_ => '_render_op_between'), 'between', 'not between'),
-    (map +($_ => '_render_op_in'), 'in', 'not in'),
+    (map +($_ => '_render_op_between'), 'between', 'not_between'),
+    (map +($_ => '_render_op_in'), 'in', 'not_in'),
     (map +($_ => '_render_unop_postfix'),
-      'is null', 'is not null', 'asc', 'desc',
+      'is_null', 'is_not_null', 'asc', 'desc',
     ),
     (not => '_render_op_not'),
     (map +($_ => '_render_op_andor'), qw(and or)),
@@ -580,7 +580,7 @@ sub render_expr {
 
 sub _normalize_op {
   my ($self, $raw) = @_;
-  s/^-(?=[a-z])//, s/\s+/_/g for my $op = lc $raw;
+  s/^-(?=.)//, s/\s+/_/g for my $op = lc $raw;
   $op;
 }
 
@@ -708,9 +708,9 @@ sub _expand_expr_hashpair_scalar {
 sub _expand_expr_hashpair_op {
   my ($self, $k, $v) = @_;
 
-  my $op = $self->_normalize_op($k);
+  $self->_assert_pass_injection_guard($k =~ /\A-(.*)\Z/s);
 
-  $self->_assert_pass_injection_guard($op);
+  my $op = $self->_normalize_op($k);
 
   # Ops prefixed with -not_ get converted
 
@@ -718,9 +718,8 @@ sub _expand_expr_hashpair_op {
     return +{ -op => [
       'not',
       $self->_expand_expr({ "-${rest}", $v })
-  ] };
+    ] };
   }
-
 
   { # Old SQLA compat
 
@@ -819,7 +818,7 @@ sub _expand_expr_hashtriple {
       or $op =~ $self->{not_like_op}
     ) {
       if (lc($logic) eq '-or' and @values > 1) {
-        belch "A multi-element arrayref as an argument to the inequality op '${\uc($op)}' "
+        belch "A multi-element arrayref as an argument to the inequality op '${\uc(join ' ', split '_', $op)}' "
             . 'is technically equivalent to an always-true 1=1 (you probably wanted '
             . "to say ...{ \$inequality_op => [ -and => \@values ] }... instead)"
         ;
@@ -862,14 +861,14 @@ sub _dwim_op_to_is {
     return 1;
   }
   if ($op =~ $self->{like_op}) {
-    belch(sprintf $empty, uc($op));
+    belch(sprintf $empty, uc(join ' ', split '_', $op));
     return 1;
   }
   if ($op =~ $self->{inequality_op}) {
     return 0;
   }
   if ($op =~ $self->{not_like_op}) {
-    belch(sprintf $empty, uc($op));
+    belch(sprintf $empty, uc(join ' ', split '_', $op));
     return 0;
   }
   puke(sprintf $fail, $op);
@@ -969,7 +968,7 @@ sub _expand_op_is {
          and exists($vv->{-value})
          and !defined($vv->{-value})
        );
-  return +{ -op => [ $op.' null', $self->_expand_ident(-ident => $k) ] };
+  return +{ -op => [ $op.'_null', $self->_expand_ident(-ident => $k) ] };
 }
 
 sub _expand_between {
@@ -1145,7 +1144,11 @@ sub _render_op_between {
   };
   my ($lhsql, @lhbind) = $self->render_aqt($left);
   return (
-    join(' ', '(', $lhsql, $self->_sqlcase($op), $rhsql, ')'),
+    join(' ',
+      '(', $lhsql,
+       $self->_sqlcase(join ' ', split '_', $op),
+      $rhsql, ')'
+    ),
     @lhbind, @rhbind
   );
 }
@@ -1161,7 +1164,7 @@ sub _render_op_in {
   } @$rhs;
   my ($lhsql, @lbind) = $self->render_aqt($lhs);
   return (
-    $lhsql.' '.$self->_sqlcase($op).' ( '
+    $lhsql.' '.$self->_sqlcase(join ' ', split '_', $op).' ( '
     .join(', ', @in_sql)
     .' )',
     @lbind, @in_bind
@@ -1183,7 +1186,7 @@ sub _render_op_multop {
   return '' unless @parts;
   return @{$parts[0]} if @parts == 1;
   my ($final_sql) = join(
-    ' '.$self->_sqlcase($op).' ',
+    ' '.$self->_sqlcase(join ' ', split '_', $op).' ',
     map $_->[0], @parts
   );
   return (
@@ -1201,7 +1204,7 @@ sub _render_unop_prefix {
   my ($self, $op, $v) = @_;
   my ($expr_sql, @bind) = $self->render_aqt($v->[0]);
 
-  my $op_sql = $self->_sqlcase(join ' ', split '_', $op);
+  my $op_sql = $self->_sqlcase($op); # join ' ', split '_', $op);
   return ("${op_sql} ${expr_sql}", @bind);
 }
 
