@@ -244,6 +244,7 @@ sub new {
     ),
     (not => '_render_op_not'),
     (map +($_ => '_render_op_andor'), qw(and or)),
+    ',' => '_render_op_multop',
   };
 
   return bless \%opt, $class;
@@ -1277,7 +1278,7 @@ sub _expand_order_by {
               ),
                 map $self->expand_expr($_, -ident),
                 map ref($_) eq 'ARRAY' ? @$_ : $_, @to_expand;
-    return (@exp > 1 ? { -list => \@exp } : $exp[0]);
+    return (@exp > 1 ? { -op => [ ',', @exp ] } : $exp[0]);
   };
 
   local @{$self->{expand}}{qw(-asc -desc)} = (($expander) x 2);
@@ -1316,8 +1317,9 @@ sub _chunkify_order_by {
     if $expanded->{-ident} or @{$expanded->{-literal}||[]} == 1;
 
   for ($expanded) {
-    if (ref() eq 'HASH' and my $l = $_->{-list}) {
-      return map $self->_chunkify_order_by($_), @$l;
+    if (ref() eq 'HASH' and $_->{-op} and $_->{-op}[0] eq ',') {
+      my ($comma, @list) = @{$_->{-op}};
+      return map $self->_chunkify_order_by($_), @list;
     }
     return [ $self->render_aqt($_) ];
   }
