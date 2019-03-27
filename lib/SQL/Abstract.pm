@@ -202,6 +202,8 @@ sub new {
     -or => '_expand_op_andor',
     -nest => '_expand_nest',
     -bind => sub { shift; +{ @_ } },
+    -in => '_expand_in',
+    -not_in => '_expand_in',
   };
 
   $opt{expand_op} = {
@@ -992,7 +994,10 @@ sub _expand_between {
 }
 
 sub _expand_in {
-  my ($self, $op, $vv, $k) = @_;
+  my ($self, $raw, $vv, $k) = @_;
+  $k = shift @{$vv = [ @$vv ]} unless defined $k;
+  local our $Cur_Col_Meta = $k;
+  my $op = $self->_normalize_op($raw);
   if (my $literal = is_literal_value($vv)) {
     my ($sql, @bind) = @$literal;
     my $opened_sql = $self->_open_outer_paren($sql);
