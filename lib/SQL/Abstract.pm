@@ -204,7 +204,7 @@ sub new {
     -bind => sub { shift; +{ @_ } },
     -in => '_expand_in',
     -not_in => '_expand_in',
-    -list => sub {
+    -tuple => sub {
       my ($self, $node, $args) = @_;
       +{ $node => [ map $self->expand_expr($_), @$args ] };
     },
@@ -236,7 +236,7 @@ sub new {
   }
 
   $opt{render} = {
-    (map +("-$_", "_render_$_"), qw(op func bind ident literal list)),
+    (map +("-$_", "_render_$_"), qw(op func bind ident literal tuple)),
     %{$opt{render}||{}}
   };
 
@@ -1001,7 +1001,6 @@ sub _expand_between {
 sub _expand_in {
   my ($self, $raw, $vv, $k) = @_;
   $k = shift @{$vv = [ @$vv ]} unless defined $k;
-  local our $Cur_Col_Meta = $k;
   my $op = $self->_normalize_op($raw);
   if (my $literal = is_literal_value($vv)) {
     my ($sql, @bind) = @$literal;
@@ -1076,9 +1075,9 @@ sub _render_ident {
   return $self->_convert($self->_quote($ident));
 }
 
-sub _render_list {
-  my ($self, $list) = @_;
-  my ($sql, @bind) = $self->_render_op([ ',', @$list ]);
+sub _render_tuple {
+  my ($self, $values) = @_;
+  my ($sql, @bind) = $self->_render_op([ ',', @$values ]);
   return "($sql)", @bind;  
 }
 
