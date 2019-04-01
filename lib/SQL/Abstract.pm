@@ -193,21 +193,21 @@ sub new {
   $opt{expand_unary} = {};
 
   $opt{expand} = {
-    -not => '_expand_not',
-    -bool => '_expand_bool',
-    -and => '_expand_op_andor',
-    -or => '_expand_op_andor',
-    -nest => '_expand_nest',
-    -bind => '_expand_bind',
-    -in => '_expand_in',
-    -not_in => '_expand_in',
-    -row => '_expand_row',
-    -between => '_expand_between',
-    -not_between => '_expand_between',
-    -op => '_expand_op',
-    (map +($_ => '_expand_op_is'), ('-is', '-is_not')),
-    -ident => '_expand_ident',
-    -value => '_expand_value',
+    not => '_expand_not',
+    bool => '_expand_bool',
+    and => '_expand_op_andor',
+    or => '_expand_op_andor',
+    nest => '_expand_nest',
+    bind => '_expand_bind',
+    in => '_expand_in',
+    not_in => '_expand_in',
+    row => '_expand_row',
+    between => '_expand_between',
+    not_between => '_expand_between',
+    op => '_expand_op',
+    (map +($_ => '_expand_op_is'), ('is', 'is_not')),
+    ident => '_expand_ident',
+    value => '_expand_value',
   };
 
   $opt{expand_op} = {
@@ -593,9 +593,6 @@ sub _expand_expr {
       belch 'Use of [and|or|nest]_N modifiers is deprecated and will be removed in SQLA v2.0. '
           . "You probably wanted ...-and => [ $key => COND1, $key => COND2 ... ]";
     }
-    if (my $exp = $self->{expand}{$key}) {
-      return $self->$exp($key, $value);
-    }
     return $self->_expand_hashpair($key, $value);
   }
   if (ref($expr) eq 'ARRAY') {
@@ -706,6 +703,10 @@ sub _expand_hashpair_op {
   $self->_assert_pass_injection_guard($k =~ /\A-(.*)\Z/s);
 
   my $op = $self->_normalize_op($k);
+
+  if (my $exp = $self->{expand}{$op}) {
+    return $self->$exp($k, $v);
+  }
 
   # Ops prefixed with -not_ get converted
 
@@ -1304,7 +1305,7 @@ sub _expand_order_by {
     return +{ -op => [ ',', @exp ] };
   };
 
-  local @{$self->{expand}}{qw(-asc -desc)} = (($expander) x 2);
+  local @{$self->{expand}}{qw(asc desc)} = (($expander) x 2);
 
   return $self->$expander(undef, $arg);
 }
