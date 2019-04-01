@@ -562,7 +562,7 @@ sub render_aqt {
   my ($self, $aqt) = @_;
   my ($k, $v, @rest) = %$aqt;
   die "No" if @rest;
-  die "Also no" unless $k =~ s/^-//;
+  die "Not a node type: $k" unless $k =~ s/^-//;
   if (my $meth = $self->{render}{$k}) {
     return $self->$meth($v);
   }
@@ -587,7 +587,7 @@ sub _expand_expr {
   if (ref($expr) eq 'HASH') {
     return undef unless my $kc = keys %$expr;
     if ($kc > 1) {
-      return $self->_expand_op_andor(-and => $expr);
+      return $self->_expand_op_andor(and => $expr);
     }
     my ($key, $value) = %$expr;
     if ($key =~ /^-/ and $key =~ s/ [_\s]? \d+ $//x ) {
@@ -597,8 +597,7 @@ sub _expand_expr {
     return $self->_expand_hashpair($key, $value);
   }
   if (ref($expr) eq 'ARRAY') {
-    my $logic = '-'.lc($self->{logic});
-    return $self->_expand_op_andor($logic, $expr);
+    return $self->_expand_op_andor(lc($self->{logic}), $expr);
   }
   if (my $literal = is_literal_value($expr)) {
     return +{ -literal => $literal };
@@ -632,7 +631,7 @@ sub _expand_hashpair_ident {
   # hash with multiple or no elements is andor
 
   if (ref($v) eq 'HASH' and keys %$v != 1) {
-    return $self->_expand_op_andor(-and => $v, $k);
+    return $self->_expand_op_andor(and => $v, $k);
   }
 
   # undef needs to be re-sent with cmp to achieve IS/IS NOT NULL
@@ -660,8 +659,8 @@ sub _expand_hashpair_ident {
     $self->_debug("ARRAY($k) means distribute over elements");
     my $logic = lc(
       $v->[0] =~ /^-(and|or)$/i
-        ? shift(@{$v = [ @$v ]})
-        : '-'.lc($self->{logic} || 'OR')
+        ? (shift(@{$v = [ @$v ]}), $1)
+        : lc($self->{logic} || 'OR')
     );
     return $self->_expand_op_andor(
       $logic => $v, $k
@@ -706,7 +705,7 @@ sub _expand_hashpair_op {
   my $op = $self->_normalize_op($k);
 
   if (my $exp = $self->{expand}{$op}) {
-    return $self->$exp($k, $v);
+    return $self->$exp($op, $v);
   }
 
   # Ops prefixed with -not_ get converted
@@ -814,13 +813,13 @@ sub _expand_hashtriple {
   if (ref($vv) eq 'ARRAY') {
     my @raw = @$vv;
     my $logic = (defined($raw[0]) and $raw[0] =~ /^-(and|or)$/i)
-      ? shift @raw : '-or';
+      ? (shift(@raw), $1) : 'or';
     my @values = map +{ $vk => $_ }, @raw;
     if (
       $op =~ $self->{inequality_op}
       or $op =~ $self->{not_like_op}
     ) {
-      if (lc($logic) eq '-or' and @values > 1) {
+      if (lc($logic) eq 'or' and @values > 1) {
         belch "A multi-element arrayref as an argument to the inequality op '${\uc(join ' ', split '_', $op)}' "
             . 'is technically equivalent to an always-true 1=1 (you probably wanted '
             . "to say ...{ \$inequality_op => [ -and => \@values ] }... instead)"
@@ -878,12 +877,12 @@ sub _dwim_op_to_is {
 }
 
 sub _expand_ident {
-  my ($self, $op, $body, $k) = @_;
+  my ($self, undef, $body, $k) = @_;
   return $self->_expand_hashpair_cmp(
     $k, { -ident => $body }
   ) if defined($k);
   unless (defined($body) or (ref($body) and ref($body) eq 'ARRAY')) {
-    puke "$op requires a single plain scalar argument (a quotable identifier) or an arrayref of identifier parts";
+    puke "-ident requires a single plain scalar argument (a quotable identifier) or an arrayref of identifier parts";
   }
   my @parts = map split(/\Q${\($self->{name_sep}||'.')}\E/, $_),
                 ref($body) ? @$body : $body;
@@ -907,13 +906,13 @@ sub _expand_not {
 
 sub _expand_row {
   my ($self, $node, $args) = @_;
-  +{ $node => [ map $self->expand_expr($_), @$args ] };
+  +{ '-'.$node => [ map $self->expand_expr($_), @$args ] };
 }
 
 sub _expand_op {
   my ($self, $node, $args) = @_;
   my ($op, @opargs) = @$args;
-  +{ $node => [ $op, map $self->expand_expr($_), @opargs ] };
+  +{ '-'.$node => [ $op, map $self->expand_expr($_), @opargs ] };
 }
 
 sub _expand_bool {
@@ -926,7 +925,7 @@ sub _expand_bool {
 }
 
 sub _expand_op_andor {
-  my ($self, $logic, $v, $k) = @_;
+  my ($self, $logop, $v, $k) = @_;
   if (defined $k) {
     $v = [ map +{ $k, $_ },
              (ref($v) eq 'HASH')
@@ -934,7 +933,6 @@ sub _expand_op_andor {
               : @$v,
          ];
   }
-  my ($logop) = $logic =~ /^-?(.*)$/;
   if (ref($v) eq 'HASH') {
     return undef unless keys %$v;
     return +{ -op => [
@@ -981,7 +979,6 @@ sub _expand_op_andor {
 
 sub _expand_op_is {
   my ($self, $op, $vv, $k) = @_;
-  $op =~ s/^-//;
   ($k, $vv) = @$vv unless defined $k;
   puke "$op can only take undef as argument"
     if defined($vv)
@@ -995,7 +992,6 @@ sub _expand_op_is {
 
 sub _expand_between {
   my ($self, $op, $vv, $k) = @_;
-  $op =~ s/^-//;
   $k = shift @{$vv = [ @$vv ]} unless defined $k;
   my @rhs = map $self->_expand_expr($_),
               ref($vv) eq 'ARRAY' ? @$vv : $vv;
@@ -1063,7 +1059,7 @@ sub _expand_nest {
 
 sub _expand_bind {
   my ($self, $op, $bind) = @_;
-  return { $op => $bind };
+  return { '-'.$op => $bind };
 }
 
 sub _recurse_where {
