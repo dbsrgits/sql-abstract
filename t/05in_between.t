@@ -294,7 +294,18 @@ my @in_between_tests = (
   {
     where => { -between => [42, 69] },
     throws => qr/Fatal: Operator 'BETWEEN' requires/,
-    test => 'Top level -between',
+    test => 'Top level -between with broken args',
+  },
+  {
+    where => {
+      -between => [
+        { -op => [ '+', { -ident => 'foo' }, 2 ] },
+        3, 4
+      ],
+    },
+    stmt => ' WHERE (foo + ? BETWEEN ? AND ?)',
+    bind => [ 2, 3, 4 ],
+    test => 'Top level -between with useful LHS',
   },
 );
 
@@ -313,17 +324,19 @@ for my $case (@in_between_tests) {
     }
     else {
       my ($stmt, @bind);
-      warnings_are {
-        ($stmt, @bind) = $sql->where($case->{where});
-      } [], "$label gives no warnings";
-
-      is_same_sql_bind(
-        $stmt,
-        \@bind,
-        $case->{stmt},
-        $case->{bind},
-        "$label generates correct SQL and bind",
-      ) || diag dumper ({ where => $case->{where}, exp => $sql->_expand_expr($case->{where}) });
+      lives_ok {
+        warnings_are {
+          ($stmt, @bind) = $sql->where($case->{where});
+        } [], "$label gives no warnings";
+  
+        is_same_sql_bind(
+          $stmt,
+          \@bind,
+          $case->{stmt},
+          $case->{bind},
+          "$label generates correct SQL and bind",
+        ) || diag dumper ({ where => $case->{where}, exp => $sql->_expand_expr($case->{where}) });
+      } || diag dumper ({ where => $case->{where}, exp => $sql->_expand_expr($case->{where}) });
     }
   }
 }
