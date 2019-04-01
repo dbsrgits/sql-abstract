@@ -215,6 +215,7 @@ sub new {
       my ($op, @opargs) = @$args;
       +{ $node => [ $op, map $self->expand_expr($_), @opargs ] };
     },
+    (map +($_ => '_expand_op_is'), ('-is', '-is_not')),
   };
 
   $opt{expand_op} = {
@@ -977,6 +978,8 @@ sub _expand_op_andor {
 
 sub _expand_op_is {
   my ($self, $op, $vv, $k) = @_;
+  $op =~ s/^-//;
+  ($k, $vv) = @$vv unless defined $k;
   puke "$op can only take undef as argument"
     if defined($vv)
        and not (
@@ -984,7 +987,7 @@ sub _expand_op_is {
          and exists($vv->{-value})
          and !defined($vv->{-value})
        );
-  return +{ -op => [ $op.'_null', $self->_expand_ident(-ident => $k) ] };
+  return +{ -op => [ $op.'_null', $self->expand_expr($k, -ident) ] };
 }
 
 sub _expand_between {

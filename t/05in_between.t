@@ -317,7 +317,13 @@ my @in_between_tests = (
     },
     stmt => ' WHERE (x, y) IN ((?, ?), (?, ?))',
     bind => [ 1..4 ],
-    test => 'Complex IN',
+    test => 'Complex top-level -in',
+  },
+  {
+    where => { -is => [ 'bob', undef ] },
+    stmt => ' WHERE bob IS NULL',
+    bind => [],
+    test => 'Top level -is ok',
   },
 );
 
