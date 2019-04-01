@@ -596,7 +596,7 @@ sub _expand_expr {
     if (my $exp = $self->{expand}{$key}) {
       return $self->$exp($key, $value);
     }
-    return $self->_expand_expr_hashpair($key, $value);
+    return $self->_expand_hashpair($key, $value);
   }
   if (ref($expr) eq 'ARRAY') {
     my $logic = '-'.lc($self->{logic});
@@ -606,12 +606,12 @@ sub _expand_expr {
     return +{ -literal => $literal };
   }
   if (!ref($expr) or Scalar::Util::blessed($expr)) {
-    return $self->_expand_expr_scalar($expr);
+    return $self->_expand_scalar($expr);
   }
   die "notreached";
 }
 
-sub _expand_expr_hashpair {
+sub _expand_hashpair {
   my ($self, $k, $v) = @_;
   unless (defined($k) and length($k)) {
     if (defined($k) and my $literal = is_literal_value($v)) {
@@ -621,12 +621,12 @@ sub _expand_expr_hashpair {
     puke "Supplying an empty left hand side argument is not supported";
   }
   if ($k =~ /^-/) {
-    return $self->_expand_expr_hashpair_op($k, $v);
+    return $self->_expand_hashpair_op($k, $v);
   }
-  return $self->_expand_expr_hashpair_ident($k, $v);
+  return $self->_expand_hashpair_ident($k, $v);
 }
 
-sub _expand_expr_hashpair_ident {
+sub _expand_hashpair_ident {
   my ($self, $k, $v) = @_;
 
   local our $Cur_Col_Meta = $k;
@@ -640,19 +640,19 @@ sub _expand_expr_hashpair_ident {
   # undef needs to be re-sent with cmp to achieve IS/IS NOT NULL
 
   if (is_undef_value($v)) {
-    return $self->_expand_expr_hashpair_cmp($k => undef);
+    return $self->_expand_hashpair_cmp($k => undef);
   }
 
   # scalars and objects get expanded as whatever requested or values
 
   if (!ref($v) or Scalar::Util::blessed($v)) {
-    return $self->_expand_expr_hashpair_scalar($k, $v);
+    return $self->_expand_hashpair_scalar($k, $v);
   }
 
   # single key hashref is a hashtriple
 
   if (ref($v) eq 'HASH') {
-    return $self->_expand_expr_hashtriple($k, %$v);
+    return $self->_expand_hashtriple($k, %$v);
   }
 
   # arrayref needs re-engineering over the elements
@@ -686,21 +686,21 @@ sub _expand_expr_hashpair_ident {
   die "notreached";
 }
 
-sub _expand_expr_scalar {
+sub _expand_scalar {
   my ($self, $expr) = @_;
 
   return $self->_expand_expr({ (our $Default_Scalar_To) => $expr });
 }
 
-sub _expand_expr_hashpair_scalar {
+sub _expand_hashpair_scalar {
   my ($self, $k, $v) = @_;
 
-  return $self->_expand_expr_hashpair_cmp(
-    $k, $self->_expand_expr_scalar($v),
+  return $self->_expand_hashpair_cmp(
+    $k, $self->_expand_scalar($v),
   );
 }
 
-sub _expand_expr_hashpair_op {
+sub _expand_hashpair_op {
   my ($self, $k, $v) = @_;
 
   $self->_assert_pass_injection_guard($k =~ /\A-(.*)\Z/s);
@@ -774,12 +774,12 @@ sub _expand_expr_hashpair_op {
   die "notreached";
 }
 
-sub _expand_expr_hashpair_cmp {
+sub _expand_hashpair_cmp {
   my ($self, $k, $v) = @_;
-  $self->_expand_expr_hashtriple($k, $self->{cmp}, $v);
+  $self->_expand_hashtriple($k, $self->{cmp}, $v);
 }
 
-sub _expand_expr_hashtriple {
+sub _expand_hashtriple {
   my ($self, $k, $vk, $vv) = @_;
 
   my $ik = $self->_expand_ident(-ident => $k);
@@ -840,7 +840,7 @@ sub _expand_expr_hashtriple {
       "unexpected operator '%s' with undef operand",
     ) ? 'is' : 'is not');
 
-    return $self->_expand_expr_hashpair($k => { $is, undef });
+    return $self->_expand_hashpair($k => { $is, undef });
   }
   local our $Cur_Col_Meta = $k;
   return +{ -op => [
@@ -877,7 +877,7 @@ sub _dwim_op_to_is {
 
 sub _expand_ident {
   my ($self, $op, $body, $k) = @_;
-  return $self->_expand_expr_hashpair_cmp(
+  return $self->_expand_hashpair_cmp(
     $k, { -ident => $body }
   ) if defined($k);
   unless (defined($body) or (ref($body) and ref($body) eq 'ARRAY')) {
@@ -893,7 +893,7 @@ sub _expand_ident {
 }
 
 sub _expand_value {
-  return $_[0]->_expand_expr_hashpair_cmp(
+  return $_[0]->_expand_hashpair_cmp(
     $_[3], { -value => $_[2] },
   ) if defined($_[3]);
   +{ -bind => [ our $Cur_Col_Meta, $_[2] ] };
