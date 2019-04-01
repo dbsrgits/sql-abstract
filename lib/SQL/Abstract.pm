@@ -905,14 +905,14 @@ sub _expand_not {
 }
 
 sub _expand_row {
-  my ($self, $node, $args) = @_;
-  +{ '-'.$node => [ map $self->expand_expr($_), @$args ] };
+  my ($self, undef, $args) = @_;
+  +{ -row => [ map $self->expand_expr($_), @$args ] };
 }
 
 sub _expand_op {
-  my ($self, $node, $args) = @_;
+  my ($self, undef, $args) = @_;
   my ($op, @opargs) = @$args;
-  +{ '-'.$node => [ $op, map $self->expand_expr($_), @opargs ] };
+  +{ -op => [ $op, map $self->expand_expr($_), @opargs ] };
 }
 
 sub _expand_bool {
@@ -1042,7 +1042,7 @@ sub _expand_in {
 }
 
 sub _expand_nest {
-  my ($self, $op, $v) = @_;
+  my ($self, undef, $v) = @_;
   # DBIx::Class requires a nest warning to be emitted once but the private
   # method it overrode to do so no longer exists
   if ($self->{warn_once_on_nest}) {
@@ -1058,8 +1058,8 @@ sub _expand_nest {
 }
 
 sub _expand_bind {
-  my ($self, $op, $bind) = @_;
-  return { '-'.$op => $bind };
+  my ($self, undef, $bind) = @_;
+  return { -bind => $bind };
 }
 
 sub _recurse_where {
