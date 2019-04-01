@@ -307,6 +307,18 @@ my @in_between_tests = (
     bind => [ 2, 3, 4 ],
     test => 'Top level -between with useful LHS',
   },
+  {
+    where => {
+      -in => [
+        { -tuple => [ 'x', 'y' ] },
+        { -tuple => [ 1, 2 ] },
+        { -tuple => [ 3, 4 ] },
+      ],
+    },
+    stmt => ' WHERE (x, y) IN ((?, ?), (?, ?))',
+    bind => [ 1..4 ],
+    test => 'Complex IN',
+  },
 );
 
 for my $case (@in_between_tests) {
