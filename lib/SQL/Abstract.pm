@@ -223,7 +223,7 @@ sub new {
   };
 
   $opt{render} = {
-    (map +("-$_", "_render_$_"), qw(op func bind ident literal row)),
+    (map +($_, "_render_$_"), qw(op func bind ident literal row)),
     %{$opt{render}||{}}
   };
 
@@ -562,6 +562,7 @@ sub render_aqt {
   my ($self, $aqt) = @_;
   my ($k, $v, @rest) = %$aqt;
   die "No" if @rest;
+  die "Also no" unless $k =~ s/^-//;
   if (my $meth = $self->{render}{$k}) {
     return $self->$meth($v);
   }
@@ -746,7 +747,7 @@ sub _expand_hashpair_op {
   # an explicit node type is currently assumed to be expanded (this is almost
   # certainly wrong and there should be expansion anyway)
 
-  if ($self->{render}{$k}) {
+  if ($self->{render}{$op}) {
     return { $k => $v };
   }
 
