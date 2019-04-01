@@ -201,17 +201,10 @@ sub new {
     -bind => sub { shift; +{ @_ } },
     -in => '_expand_in',
     -not_in => '_expand_in',
-    -row => sub {
-      my ($self, $node, $args) = @_;
-      +{ $node => [ map $self->expand_expr($_), @$args ] };
-    },
+    -row => '_expand_row',
     -between => '_expand_between',
     -not_between => '_expand_between',
-    -op => sub {
-      my ($self, $node, $args) = @_;
-      my ($op, @opargs) = @$args;
-      +{ $node => [ $op, map $self->expand_expr($_), @opargs ] };
-    },
+    -op => '_expand_op',
     (map +($_ => '_expand_op_is'), ('-is', '-is_not')),
     -ident => '_expand_ident',
     -value => '_expand_value',
@@ -908,6 +901,17 @@ sub _expand_value {
 
 sub _expand_not {
   +{ -op => [ 'not', $_[0]->_expand_expr($_[2]) ] };
+}
+
+sub _expand_row {
+  my ($self, $node, $args) = @_;
+  +{ $node => [ map $self->expand_expr($_), @$args ] };
+}
+
+sub _expand_op {
+  my ($self, $node, $args) = @_;
+  my ($op, @opargs) = @$args;
+  +{ $node => [ $op, map $self->expand_expr($_), @opargs ] };
 }
 
 sub _expand_bool {
