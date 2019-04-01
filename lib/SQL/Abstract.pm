@@ -210,6 +210,11 @@ sub new {
     },
     -between => '_expand_between',
     -not_between => '_expand_between',
+    -op => sub {
+      my ($self, $node, $args) = @_;
+      my ($op, @opargs) = @$args;
+      +{ $node => [ $op, map $self->expand_expr($_), @opargs ] };
+    },
   };
 
   $opt{expand_op} = {
@@ -997,7 +1002,7 @@ sub _expand_between {
   }
   return +{ -op => [
     $op,
-    $self->expand_expr($k, -ident),
+    $self->expand_expr(ref($k) ? $k : { -ident => $k }),
     @rhs
   ] }
 }
