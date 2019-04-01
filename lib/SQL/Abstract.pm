@@ -217,6 +217,7 @@ sub new {
     },
     (map +($_ => '_expand_op_is'), ('-is', '-is_not')),
     -ident => '_expand_ident',
+    -value => '_expand_value',
   };
 
   $opt{expand_op} = {
@@ -228,22 +229,8 @@ sub new {
     (map +($_ => '_expand_op_andor'), ('and', 'or')),
     (map +($_ => '_expand_op_is'), ('is', 'is_not')),
     'ident' => '_expand_ident',
+    'value' => '_expand_value',
   };
-
-  # placeholder for _expand_unop system
-  {
-    my %unops = (-value => '_expand_value');
-    foreach my $name (keys %unops) {
-      $opt{expand}{$name} = $unops{$name};
-      my ($op) = $name =~ /^-(.*)$/;
-      $opt{expand_op}{$op} = sub {
-        my ($self, $op, $arg, $k) = @_;
-        return $self->_expand_expr_hashpair_cmp(
-          $k, { "-${op}" => $arg }
-        );
-      };
-    }
-  }
 
   $opt{render} = {
     (map +("-$_", "_render_$_"), qw(op func bind ident literal row)),
