@@ -168,9 +168,6 @@ sub new {
   # special operators
   $opt{special_ops} ||= [];
 
-  # regexes are applied in order, thus push after user-defines
-  push @{$opt{special_ops}}, @BUILTIN_SPECIAL_OPS;
-
   if ($class->isa('DBIx::Class::SQLMaker')) {
     $opt{warn_once_on_nest} = 1;
     $opt{disable_old_special_ops} = 1;
@@ -734,8 +731,13 @@ sub _expand_expr_hashpair_op {
 
     if (
       (our $Expand_Depth) == 1
-      and $self->{disable_old_special_ops}
-      and List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}}
+      and (
+        List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}}
+        or (
+          $self->{disable_old_special_ops}
+          and List::Util::first { $op =~ $_->{regex} } @BUILTIN_SPECIAL_OPS
+        )
+      )
     ) {
       puke "Illegal use of top-level '-$op'"
     }
