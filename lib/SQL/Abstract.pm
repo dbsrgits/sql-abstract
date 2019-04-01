@@ -204,7 +204,7 @@ sub new {
     -bind => sub { shift; +{ @_ } },
     -in => '_expand_in',
     -not_in => '_expand_in',
-    -tuple => sub {
+    -row => sub {
       my ($self, $node, $args) = @_;
       +{ $node => [ map $self->expand_expr($_), @$args ] };
     },
@@ -244,7 +244,7 @@ sub new {
   }
 
   $opt{render} = {
-    (map +("-$_", "_render_$_"), qw(op func bind ident literal tuple)),
+    (map +("-$_", "_render_$_"), qw(op func bind ident literal row)),
     %{$opt{render}||{}}
   };
 
@@ -1087,7 +1087,7 @@ sub _render_ident {
   return $self->_convert($self->_quote($ident));
 }
 
-sub _render_tuple {
+sub _render_row {
   my ($self, $values) = @_;
   my ($sql, @bind) = $self->_render_op([ ',', @$values ]);
   return "($sql)", @bind;  

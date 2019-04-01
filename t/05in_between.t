@@ -310,9 +310,9 @@ my @in_between_tests = (
   {
     where => {
       -in => [
-        { -tuple => [ 'x', 'y' ] },
-        { -tuple => [ 1, 2 ] },
-        { -tuple => [ 3, 4 ] },
+        { -row => [ 'x', 'y' ] },
+        { -row => [ 1, 2 ] },
+        { -row => [ 3, 4 ] },
       ],
     },
     stmt => ' WHERE (x, y) IN ((?, ?), (?, ?))',
