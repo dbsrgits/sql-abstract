@@ -40,6 +40,8 @@ my @BUILTIN_SPECIAL_OPS = (
   {regex => qr/^ (?: not \s )? between $/ix, handler => sub { die "NOPE" }},
   {regex => qr/^ is (?: \s+ not )?     $/ix, handler => sub { die "NOPE" }},
   {regex => qr/^ (?: not \s )? in      $/ix, handler => sub { die "NOPE" }},
+  {regex => qr/^ ident                 $/ix, handler => sub { die "NOPE" }},
+  {regex => qr/^ value                 $/ix, handler => sub { die "NOPE" }},
 );
 
 #======================================================================
@@ -170,10 +172,8 @@ sub new {
   push @{$opt{special_ops}}, @BUILTIN_SPECIAL_OPS;
 
   if ($class->isa('DBIx::Class::SQLMaker')) {
-    push @{$opt{special_ops}}, our $DBIC_Compat_Op ||= {
-      regex => qr/^(?:ident|value|(?:not\s)?in)$/i, handler => sub { die "NOPE" }
-    };
     $opt{is_dbic_sqlmaker} = 1;
+    $opt{disable_old_special_ops} = 1;
   }
 
   # unary operators
@@ -208,6 +208,8 @@ sub new {
       my ($self, $node, $args) = @_;
       +{ $node => [ map $self->expand_expr($_), @$args ] };
     },
+    -between => '_expand_between',
+    -not_between => '_expand_between',
   };
 
   $opt{expand_op} = {
@@ -737,6 +739,7 @@ sub _expand_expr_hashpair_op {
 
     if (
       (our $Expand_Depth) == 1
+      and $self->{disable_old_special_ops}
       and List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}}
     ) {
       puke "Illegal use of top-level '-$op'"
@@ -981,6 +984,8 @@ sub _expand_op_is {
 
 sub _expand_between {
   my ($self, $op, $vv, $k) = @_;
+  $op =~ s/^-//;
+  $k = shift @{$vv = [ @$vv ]} unless defined $k;
   local our $Cur_Col_Meta = $k;
   my @rhs = map $self->_expand_expr($_),
               ref($vv) eq 'ARRAY' ? @$vv : $vv;

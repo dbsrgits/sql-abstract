@@ -293,7 +293,7 @@ my @in_between_tests = (
 #  },
   {
     where => { -between => [42, 69] },
-    throws => qr/Illegal use of top-level '-between'/,
+    throws => qr/Fatal: Operator 'BETWEEN' requires/,
     test => 'Top level -between',
   },
 );
