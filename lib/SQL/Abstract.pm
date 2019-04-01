@@ -986,7 +986,6 @@ sub _expand_between {
   my ($self, $op, $vv, $k) = @_;
   $op =~ s/^-//;
   $k = shift @{$vv = [ @$vv ]} unless defined $k;
-  local our $Cur_Col_Meta = $k;
   my @rhs = map $self->_expand_expr($_),
               ref($vv) eq 'ARRAY' ? @$vv : $vv;
   unless (
@@ -998,7 +997,7 @@ sub _expand_between {
   }
   return +{ -op => [
     $op,
-    $self->_expand_ident(-ident => $k),
+    $self->expand_expr($k, -ident),
     @rhs
   ] }
 }
