@@ -198,7 +198,7 @@ sub new {
     -and => '_expand_op_andor',
     -or => '_expand_op_andor',
     -nest => '_expand_nest',
-    -bind => sub { shift; +{ @_ } },
+    -bind => '_expand_bind',
     -in => '_expand_in',
     -not_in => '_expand_in',
     -row => '_expand_row',
@@ -1057,6 +1057,11 @@ sub _expand_nest {
     }
   }
   return $self->_expand_expr($v);
+}
+
+sub _expand_bind {
+  my ($self, $op, $bind) = @_;
+  return { $op => $bind };
 }
 
 sub _recurse_where {
