@@ -172,7 +172,7 @@ sub new {
   push @{$opt{special_ops}}, @BUILTIN_SPECIAL_OPS;
 
   if ($class->isa('DBIx::Class::SQLMaker')) {
-    $opt{is_dbic_sqlmaker} = 1;
+    $opt{warn_once_on_nest} = 1;
     $opt{disable_old_special_ops} = 1;
   }
 
@@ -1041,7 +1041,7 @@ sub _expand_nest {
   my ($self, $op, $v) = @_;
   # DBIx::Class requires a nest warning to be emitted once but the private
   # method it overrode to do so no longer exists
-  if ($self->{is_dbic_sqlmaker}) {
+  if ($self->{warn_once_on_nest}) {
     unless (our $Nest_Warned) {
       belch(
         "-nest in search conditions is deprecated, you most probably wanted:\n"
