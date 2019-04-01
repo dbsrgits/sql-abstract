@@ -216,6 +216,7 @@ sub new {
       +{ $node => [ $op, map $self->expand_expr($_), @opargs ] };
     },
     (map +($_ => '_expand_op_is'), ('-is', '-is_not')),
+    -ident => '_expand_ident',
   };
 
   $opt{expand_op} = {
@@ -226,11 +227,12 @@ sub new {
     'nest' => '_expand_nest',
     (map +($_ => '_expand_op_andor'), ('and', 'or')),
     (map +($_ => '_expand_op_is'), ('is', 'is_not')),
+    'ident' => '_expand_ident',
   };
 
   # placeholder for _expand_unop system
   {
-    my %unops = (-ident => '_expand_ident', -value => '_expand_value');
+    my %unops = (-value => '_expand_value');
     foreach my $name (keys %unops) {
       $opt{expand}{$name} = $unops{$name};
       my ($op) = $name =~ /^-(.*)$/;
@@ -892,7 +894,10 @@ sub _dwim_op_to_is {
 }
 
 sub _expand_ident {
-  my ($self, $op, $body) = @_;
+  my ($self, $op, $body, $k) = @_;
+  return $self->_expand_expr_hashpair_cmp(
+    $k, { -ident => $body }
+  ) if defined($k);
   unless (defined($body) or (ref($body) and ref($body) eq 'ARRAY')) {
     puke "$op requires a single plain scalar argument (a quotable identifier) or an arrayref of identifier parts";
   }
@@ -906,6 +911,9 @@ sub _expand_ident {
 }
 
 sub _expand_value {
+  return $_[0]->_expand_expr_hashpair_cmp(
+    $_[3], { -value => $_[2] },
+  ) if defined($_[3]);
   +{ -bind => [ our $Cur_Col_Meta, $_[2] ] };
 }
 
