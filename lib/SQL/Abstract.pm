@@ -233,7 +233,7 @@ sub new {
     (map +($_ => '_render_unop_postfix'),
       'is_null', 'is_not_null', 'asc', 'desc',
     ),
-    (not => '_render_op_not'),
+    (not => '_render_unop_paren'),
     (map +($_ => '_render_op_andor'), qw(and or)),
     ',' => '_render_op_multop',
   };
@@ -1130,18 +1130,20 @@ sub _render_op {
 
     my $op = join(' ', split '_', $op);
 
-    my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}};
-    if ($us and @args > 1) {
+    my $ss = List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}};
+    if ($ss and @args > 1) {
       puke "Special op '${op}' requires first value to be identifier"
         unless my ($ident) = map $_->{-ident}, grep ref($_) eq 'HASH', $args[0];
       my $k = join(($self->{name_sep}||'.'), @$ident);
       local our $Expand_Depth = 1;
-      return $self->${\($us->{handler})}($k, $op, $args[1]);
+      return $self->${\($ss->{handler})}($k, $op, $args[1]);
     }
     if (my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{unary_ops}}) {
       return $self->${\($us->{handler})}($op, $args[0]);
     }
-
+    if ($ss) {
+      return $self->_render_unop_paren($op, \@args);
+    }
   }
   if (@args == 1) {
     return $self->_render_unop_prefix($op, \@args);
@@ -1218,7 +1220,7 @@ sub _render_op_multop {
     map @{$_}[1..$#$_], @parts
   );
 }
-sub _render_op_not {
+sub _render_unop_paren {
   my ($self, $op, $v) = @_;
   my ($sql, @bind) = $self->_render_unop_prefix($op, $v);
   return "(${sql})", @bind;
