@@ -1202,7 +1202,7 @@ sub _render_op_andor {
   my @parts = grep length($_->[0]), map [ $self->render_aqt($_) ], @$args;
   return '' unless @parts;
   return @{$parts[0]} if @parts == 1;
-  my ($sql, @bind) = $self->_render_op_multop($op, $args);
+  my ($sql, @bind) = $self->_join_parts(' '.$self->_sqlcase($op).' ', @parts);
   return '( '.$sql.' )', @bind;
 }
 
@@ -1211,15 +1211,21 @@ sub _render_op_multop {
   my @parts = grep length($_->[0]), map [ $self->render_aqt($_) ], @$args;
   return '' unless @parts;
   return @{$parts[0]} if @parts == 1;
-  my ($final_sql) = join(
-    ($op eq ',' ? '' : ' ').$self->_sqlcase(join ' ', split '_', $op).' ',
-    map $_->[0], @parts
-  );
+  my $join = ($op eq ','
+                ? ', '
+                :  ' '.$self->_sqlcase(join ' ', split '_', $op).' '
+             );
+  return $self->_join_parts($join, @parts);
+}
+
+sub _join_parts {
+  my ($self, $join, @parts) = @_;
   return (
-    $final_sql,
+    join($join, map $_->[0], @parts),
     map @{$_}[1..$#$_], @parts
   );
 }
+
 sub _render_unop_paren {
   my ($self, $op, $v) = @_;
   my ($sql, @bind) = $self->_render_unop_prefix($op, $v);
