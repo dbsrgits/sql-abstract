@@ -1010,9 +1010,8 @@ sub _expand_between {
 }
 
 sub _expand_in {
-  my ($self, $raw, $vv, $k) = @_;
+  my ($self, $op, $vv, $k) = @_;
   $k = shift @{$vv = [ @$vv ]} unless defined $k;
-  my $op = $self->_normalize_op($raw);
   if (my $literal = is_literal_value($vv)) {
     my ($sql, @bind) = @$literal;
     my $opened_sql = $self->_open_outer_paren($sql);
