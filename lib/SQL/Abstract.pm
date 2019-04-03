@@ -264,9 +264,37 @@ sub insert {
   my $data    = shift || return;
   my $options = shift;
 
-  my $method       = $self->_METHOD_FOR_refkind("_insert", $data);
-  my ($sql, @bind) = $self->$method($data);
-  $sql = join " ", $self->_sqlcase('insert into'), $table, $sql;
+  my ($sql, @bind) = do {
+    if (is_literal_value($data)) {
+      $self->render_expr($data);
+    } else {
+      my ($fields, $values) = (
+        ref($data) eq 'HASH' ?
+          ([ sort keys %$data ], [ @{$data}{sort keys %$data} ])
+          : (undef, $data)
+      );
+
+      # no names (arrayref) means can't generate bindtype
+      !($fields) && $self->{bindtype} eq 'columns'
+        && belch "can't do 'columns' bindtype when called with arrayref";
+
+      my $fields_sql = ($fields
+        ? ' '.($self->render_expr({ -row => $fields }, '-ident'))[0]
+        : ''
+      );
+      my ($values_sql, @bind) = $self->render_aqt(
+        { -row => [
+            map {
+              local our $Cur_Col_Meta = $fields->[$_];
+              $self->_expand_insert_value($values->[$_])
+            } 0..$#$values
+        ] }
+      );
+      ($fields_sql.' '.$self->_sqlcase('values').' '.$values_sql, @bind);
+    }
+  };
+
+  $sql = (join " ", $self->_sqlcase('insert into'), $table).$sql;
 
   if ($options->{returning}) {
     my ($s, @b) = $self->_insert_returning($options);
@@ -294,80 +322,14 @@ sub _returning {
     : ($self->_sqlcase(' returning ').$sql, @bind);
 }
 
-sub _insert_HASHREF { # explicit list of fields and then values
-  my ($self, $data) = @_;
-
-  my @fields = sort keys %$data;
-
-  my ($sql, @bind) = $self->_insert_values($data);
-
-  # assemble SQL
-  $_ = $self->_quote($_) foreach @fields;
-  $sql = "( ".join(", ", @fields).") ".$sql;
-
-  return ($sql, @bind);
-}
-
-sub _insert_ARRAYREF { # just generate values(?,?) part (no list of fields)
-  my ($self, $data) = @_;
-
-  # no names (arrayref) so can't generate bindtype
-  $self->{bindtype} ne 'columns'
-    or belch "can't do 'columns' bindtype when called with arrayref";
-
-  my (@values, @all_bind);
-  foreach my $value (@$data) {
-    my ($values, @bind) = $self->_insert_value(undef, $value);
-    push @values, $values;
-    push @all_bind, @bind;
-  }
-  my $sql = $self->_sqlcase('values')." ( ".join(", ", @values)." )";
-  return ($sql, @all_bind);
-}
-
-sub _insert_ARRAYREFREF { # literal SQL with bind
-  my ($self, $data) = @_;
-
-  my ($sql, @bind) = @${$data};
-  $self->_assert_bindval_matches_bindtype(@bind);
-
-  return ($sql, @bind);
-}
-
-
-sub _insert_SCALARREF { # literal SQL without bind
-  my ($self, $data) = @_;
-
-  return ($$data);
-}
-
-sub _insert_values {
-  my ($self, $data) = @_;
-
-  my (@values, @all_bind);
-  foreach my $column (sort keys %$data) {
-    my ($values, @bind) = $self->_insert_value($column, $data->{$column});
-    push @values, $values;
-    push @all_bind, @bind;
-  }
-  my $sql = $self->_sqlcase('values')." ( ".join(", ", @values)." )";
-  return ($sql, @all_bind);
-}
-
-sub _insert_value {
-  my ($self, $column, $v) = @_;
-
-  return $self->render_aqt(
-    $self->_expand_insert_value($column, $v)
-  );
-}
-
 sub _expand_insert_value {
-  my ($self, $column, $v) = @_;
+  my ($self, $v) = @_;
+
+  my $k = our $Cur_Col_Meta;
 
   if (ref($v) eq 'ARRAY') {
     if ($self->{array_datatypes}) {
-      return +{ -bind => [ $column, $v ] };
+      return +{ -bind => [ $k, $v ] };
     }
     my ($sql, @bind) = @$v;
     $self->_assert_bindval_matches_bindtype(@bind);
@@ -376,13 +338,12 @@ sub _expand_insert_value {
   if (ref($v) eq 'HASH') {
     if (grep !/^-/, keys %$v) {
       belch "HASH ref as bind value in insert is not supported";
-      return +{ -bind => [ $column, $v ] };
+      return +{ -bind => [ $k, $v ] };
     }
   }
   if (!defined($v)) {
-    return +{ -bind => [ $column, undef ] };
+    return +{ -bind => [ $k, undef ] };
   }
-  local our $Cur_Col_Meta = $column;
   return $self->expand_expr($v);
 }
 
@@ -570,8 +531,8 @@ sub render_aqt {
 }
 
 sub render_expr {
-  my ($self, $expr) = @_;
-  $self->render_aqt($self->expand_expr($expr));
+  my ($self, $expr, $default_scalar_to) = @_;
+  $self->render_aqt($self->expand_expr($expr, $default_scalar_to));
 }
 
 sub _normalize_op {
