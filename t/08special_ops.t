@@ -86,12 +86,13 @@ my @tests = (
   },
 
   # Verify inconsistent behaviour from DBIx::Class:SQLMaker::Oracle works
+  # (unary use of special op is not equivalent to special op + =)
   {
     where => {
-      manager_id => { '-prior' => { -ident => 'employee_id' } },
-      customer_id => { '>', { '-prior' => \'account_mgr_id' } },
+      foo_id => { '=' => { '-prior' => { -ident => 'bar_id' } } },
+      baz_id => { '-prior' => { -ident => 'quux_id' } },
     },
-    stmt        => ' WHERE ( customer_id > ( PRIOR account_mgr_id ) AND manager_id = PRIOR employee_id )',
+    stmt        => ' WHERE ( baz_id = PRIOR quux_id AND foo_id = ( PRIOR bar_id ) )',
     bind        => [],
   },
 );
