@@ -33,6 +33,24 @@ my $sqlmaker = SQL::Abstract->new(special_ops => [
      }
    },
 
+  # PRIOR op from DBIx::Class::SQLMaker::Oracle
+
+  {
+    regex => qr/^prior$/i,
+    handler => sub {
+      my ($self, $lhs, $op, $rhs) = @_;
+      my ($sql, @bind) = $self->_recurse_where ($rhs);
+
+      $sql = sprintf ('%s = %s %s ',
+        $self->_convert($self->_quote($lhs)),
+        $self->_sqlcase ($op),
+        $sql
+      );
+
+      return ($sql, @bind);
+    },
+  },
+
 ], unary_ops => [
   # unary op from Mojo::Pg
   {regex => qr/^json$/i,
@@ -67,6 +85,15 @@ my @tests = (
     bind => [ { json => { bar => 'baz' } } ],
   },
 
+  # Verify inconsistent behaviour from DBIx::Class:SQLMaker::Oracle works
+  {
+    where => {
+      manager_id => { '-prior' => { -ident => 'employee_id' } },
+      customer_id => { '>', { '-prior' => \'account_mgr_id' } },
+    },
+    stmt        => ' WHERE ( customer_id > ( PRIOR account_mgr_id ) AND manager_id = PRIOR employee_id )',
+    bind        => [],
+  },
 );
 
 for (@tests) {
