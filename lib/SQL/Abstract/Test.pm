@@ -7,6 +7,13 @@ use Test::Builder;
 use Test::Deep ();
 use SQL::Abstract::Tree;
 
+if (my $class = $ENV{SQL_ABSTRACT_TEST_AGAINST}) {
+  my $mod = join('/', split '::', $class).".pm";
+  require $mod;
+  eval qq{sub SQL::Abstract () { "\Q${class}\E" }; 1}
+    or die "Failed to create const sub for ${class}: $@";
+}
+
 our @EXPORT_OK = qw(
   is_same_sql_bind is_same_sql is_same_bind
   eq_sql_bind eq_sql eq_bind dumper diag_where
