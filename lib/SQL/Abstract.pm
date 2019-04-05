@@ -873,6 +873,9 @@ sub _expand_row {
 sub _expand_op {
   my ($self, undef, $args) = @_;
   my ($op, @opargs) = @$args;
+  if (my $exp = $self->{expand_op}{$op}) {
+    return $self->$exp($op, \@opargs);
+  }
   +{ -op => [ $op, map $self->expand_expr($_), @opargs ] };
 }
 
@@ -978,7 +981,7 @@ sub _expand_in {
     my $opened_sql = $self->_open_outer_paren($sql);
     return +{ -op => [
       $op, $self->expand_expr($k, -ident),
-      [ { -literal => [ $opened_sql, @bind ] } ]
+      { -literal => [ $opened_sql, @bind ] }
     ] };
   }
   my $undef_err =
@@ -997,7 +1000,7 @@ sub _expand_in {
   return +{ -op => [
     $op,
     $self->expand_expr($k, -ident),
-    \@rhs
+    @rhs
   ] };
 }
 
@@ -1142,13 +1145,13 @@ sub _render_op_between {
 
 sub _render_op_in {
   my ($self, $op, $args) = @_;
-  my ($lhs, $rhs) = @$args;
+  my ($lhs, @rhs) = @$args;
   my @in_bind;
   my @in_sql = map {
     my ($sql, @bind) = $self->render_aqt($_);
     push @in_bind, @bind;
     $sql;
-  } @$rhs;
+  } @rhs;
   my ($lhsql, @lbind) = $self->render_aqt($lhs);
   return (
     $lhsql.' '.$self->_sqlcase(join ' ', split '_', $op).' ( '
