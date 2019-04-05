@@ -13,8 +13,10 @@ sub register_defaults {
   my ($self) = @_;
   $self->{clauses_of}{select} = [ qw(select from where order_by) ];
   $self->{expand}{select} = sub { shift->_expand_statement(@_) };
-  $self->{render}{select} = sub { shift->_render_statement(@_) };
-  $self->{expand_clause}{'select.select'} = '_expand_maybe_list_expr';
+  $self->{render}{select} = sub { shift->_render_statement(select => @_) };
+  $self->{expand_clause}{'select.select'} = sub {
+    $_[0]->_expand_maybe_list_expr($_[1], -ident)
+  };
   $self->{expand_clause}{'select.from'} = sub {
     $_[0]->_expand_maybe_list_expr($_[1], -ident)
   };
@@ -26,7 +28,7 @@ sub register_defaults {
 sub _expand_statement {
   my ($self, $type, $args) = @_;
   my $ec = $self->{expand_clause};
-  return +{
+  return +{ "-${type}" => +{
     map +($_ => (do {
       my $val = $args->{$_};
       if (defined($val) and my $exp = $ec->{"${type}.$_"}) {
@@ -35,7 +37,7 @@ sub _expand_statement {
         $val;
       }
     })), sort keys %$args
-  };
+  } };
 }
 
 sub _render_statement {
