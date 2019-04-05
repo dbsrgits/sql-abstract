@@ -325,6 +325,13 @@ my @in_between_tests = (
     bind => [],
     test => 'Top level -is ok',
   },
+  {
+    where => { -op => [ in => x => 1, 2, 3 ] },
+    stmt => ' WHERE x IN (?, ?, ?)',
+    bind => [ 1, 2, 3 ],
+    test => 'Raw -op passes through correctly'
+  },
+
 );
 
 for my $case (@in_between_tests) {
