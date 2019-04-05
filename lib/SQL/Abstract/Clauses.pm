@@ -64,9 +64,9 @@ sub select {
   # This oddity is to literalify since historically SQLA doesn't quote
   # a single identifier argument, so we convert it into a literal
 
-  unless (ref(my $select = $clauses{select}||'*')) {
-    $clauses{select} = \$select;
-  }
+  $clauses{select} = { -literal => [ $clauses{select}||'*' ] }
+    unless ref($clauses{select});
+
   my ($sql, @bind) = $self->render_expr({ -select => \%clauses });
   return wantarray ? ($sql, @bind) : $sql;
 }
