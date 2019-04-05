@@ -45,7 +45,8 @@ sub _render_statement {
   my @parts;
   foreach my $clause (@{$self->{clauses_of}{$type}}) {
     next unless my $clause_expr = $args->{$clause};
-    my ($sql, @bind) = $self->render_expr($clause_expr);
+    local $self->{convert_where} = $self->{convert} if $clause eq 'where';
+    my ($sql, @bind) = $self->render_aqt($clause_expr);
     next unless defined($sql) and length($sql);
     push @parts, [
       $self->_sqlcase(join ' ', split '_', $clause).' '.$sql,
@@ -53,6 +54,19 @@ sub _render_statement {
     ];
   }
   return $self->_join_parts(' ', @parts);
+}
+
+sub select {
+  my ($self, @args) = @_;
+  my %clauses;
+  @clauses{qw(from select where order_by)} = @args;
+  # This oddity is to literalify since historically SQLA doesn't quote
+  # a single identifier argument, and the .'' is to copy $clauses{select}
+  # before taking a reference to it to avoid making a reference loop
+  $clauses{select}= \(($clauses{select}||'*').'')
+    unless ref($clauses{select});
+  my ($sql, @bind) = $self->render_expr({ -select => \%clauses });
+  return wantarray ? ($sql, @bind) : $sql;
 }
 
 1;
