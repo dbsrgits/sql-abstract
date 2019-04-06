@@ -264,11 +264,13 @@ sub insert {
   my $data    = shift || return;
   my $options = shift;
 
-  my ($sql, @bind) = do {
+  my $fields;
+
+  my $v_aqt = do {
     if (is_literal_value($data)) {
-      $self->render_expr($data);
+      $self->expand_expr($data);
     } else {
-      my ($fields, $values) = (
+      ($fields, my $values) = (
         ref($data) eq 'HASH' ?
           ([ sort keys %$data ], [ @{$data}{sort keys %$data} ])
           : (undef, $data)
@@ -278,29 +280,30 @@ sub insert {
       !($fields) && $self->{bindtype} eq 'columns'
         && belch "can't do 'columns' bindtype when called with arrayref";
 
-      my $fields_sql = ($fields
-        ? ' '.($self->render_expr({ -row => $fields }, '-ident'))[0]
-        : ''
-      );
-      my ($values_sql, @bind) = $self->render_aqt(
-        { -row => [
-            map {
-              local our $Cur_Col_Meta = $fields->[$_];
-              $self->_expand_insert_value($values->[$_])
-            } 0..$#$values
-        ] }
-      );
-      ($fields_sql.' '.$self->_sqlcase('values').' '.$values_sql, @bind);
+      +{ -row => [
+        map {
+         local our $Cur_Col_Meta = $fields->[$_];
+         $self->_expand_insert_value($values->[$_])
+         } 0..$#$values
+      ] };
     }
   };
 
-  $sql = (join " ", $self->_sqlcase('insert into'), $table).$sql;
+  my $f_aqt = (@$fields
+    ? $self->expand_expr({ -row => $fields }, -ident)
+    : undef
+  );
+
+  my @parts = ([ $self->_sqlcase('insert into').' '.$table ]);
+  push @parts, [ $self->render_aqt($f_aqt) ] if $f_aqt;
+  push @parts, [ $self->render_aqt($v_aqt) ];
+  $parts[-1][0] =~ s/^/VALUES /;
 
   if ($options->{returning}) {
-    my ($s, @b) = $self->_insert_returning($options);
-    $sql .= $s;
-    push @bind, @b;
+    push @parts, [ $self->_insert_returning($options) ];
   }
+
+  my ($sql, @bind) = $self->_join_parts(' ', @parts);
 
   return wantarray ? ($sql, @bind) : $sql;
 }
