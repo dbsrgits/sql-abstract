@@ -266,34 +266,7 @@ sub insert {
 
   my $fields;
 
-  my ($f_aqt, $v_aqt) = do {
-    if (is_literal_value($data)) {
-      (undef, $self->expand_expr($data));
-    } else {
-      my ($fields, $values) = (
-        ref($data) eq 'HASH' ?
-          ([ sort keys %$data ], [ @{$data}{sort keys %$data} ])
-          : ([], $data)
-      );
-
-      # no names (arrayref) means can't generate bindtype
-      !($fields) && $self->{bindtype} eq 'columns'
-        && belch "can't do 'columns' bindtype when called with arrayref";
-
-      +(
-        (@$fields
-          ? $self->expand_expr({ -row => $fields }, -ident)
-          : undef
-        ),
-        +{ -row => [
-          map {
-           local our $Cur_Col_Meta = $fields->[$_];
-           $self->_expand_insert_value($values->[$_])
-           } 0..$#$values
-        ] },
-      );
-    }
-  };
+  my ($f_aqt, $v_aqt) = $self->_expand_insert_values($data);
 
   my @parts = ([ $self->_sqlcase('insert into').' '.$table ]);
   push @parts, [ $self->render_aqt($f_aqt) ] if $f_aqt;
@@ -307,6 +280,36 @@ sub insert {
   my ($sql, @bind) = $self->_join_parts(' ', @parts);
 
   return wantarray ? ($sql, @bind) : $sql;
+}
+
+sub _expand_insert_values {
+  my ($self, $data) = @_;
+  if (is_literal_value($data)) {
+    (undef, $self->expand_expr($data));
+  } else {
+    my ($fields, $values) = (
+      ref($data) eq 'HASH' ?
+        ([ sort keys %$data ], [ @{$data}{sort keys %$data} ])
+        : ([], $data)
+    );
+
+    # no names (arrayref) means can't generate bindtype
+    !($fields) && $self->{bindtype} eq 'columns'
+      && belch "can't do 'columns' bindtype when called with arrayref";
+
+    +(
+      (@$fields
+        ? $self->expand_expr({ -row => $fields }, -ident)
+        : undef
+      ),
+      +{ -row => [
+        map {
+         local our $Cur_Col_Meta = $fields->[$_];
+         $self->_expand_insert_value($values->[$_])
+         } 0..$#$values
+      ] },
+    );
+  }
 }
 
 # So that subclasses can override INSERT ... RETURNING separately from
