@@ -5,6 +5,8 @@ use warnings;
 use mro 'c3';
 use base 'SQL::Abstract';
 
+BEGIN { *puke = \&SQL::Abstract::puke }
+
 sub new {
   shift->next::method(@_)->register_defaults
 }
@@ -22,6 +24,17 @@ sub register_defaults {
   };
   $self->{expand_clause}{'select.where'} = 'expand_expr';
   $self->{expand_clause}{'select.order_by'} = '_expand_order_by';
+  $self->{clauses_of}{update} = [ qw(update set where returning) ];
+  $self->{expand}{update} = sub { shift->_expand_statement(@_) };
+  $self->{render}{update} = sub { shift->_render_statement(update => @_) };
+  $self->{expand_clause}{'update.update'} = sub {
+    $_[0]->expand_expr($_[1], -ident)
+  };
+  $self->{expand_clause}{'update.set'} = '_expand_update_set_values';
+  $self->{expand_clause}{'update.where'} = 'expand_expr';
+  $self->{expand_clause}{'update.returning'} = sub {
+    shift->_expand_maybe_list_expr(@_, -ident);
+  };
   return $self;
 }
 
@@ -68,6 +81,17 @@ sub select {
     unless ref($clauses{select});
 
   my ($sql, @bind) = $self->render_expr({ -select => \%clauses });
+  return wantarray ? ($sql, @bind) : $sql;
+}
+
+sub update {
+  my ($self, $table, $set, $where, $options) = @_;
+  my %clauses;
+  @clauses{qw(update set where)} = ($table, $set, $where);
+  puke "Unsupported data type specified to \$sql->update"
+    unless ref($clauses{set}) eq 'HASH';
+  @clauses{keys %$options} = values %$options;
+  my ($sql, @bind) = $self->render_expr({ -update => \%clauses });
   return wantarray ? ($sql, @bind) : $sql;
 }
 
