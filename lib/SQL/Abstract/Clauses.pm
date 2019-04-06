@@ -45,6 +45,15 @@ sub register_defaults {
   $self->{expand_clause}{'delete.returning'} = sub {
     shift->_expand_maybe_list_expr(@_, -ident);
   };
+  $self->{clauses_of}{insert} = [ 'insert_into', '', 'values', 'returning' ];
+  $self->{expand}{insert} = sub { shift->_expand_statement(@_) };
+  $self->{render}{insert} = sub { shift->_render_statement(insert => @_) };
+  $self->{expand_clause}{'insert.insert_into'} = sub {
+    shift->expand_expr(@_, -ident);
+  };
+  $self->{expand_clause}{'insert.returning'} = sub {
+    shift->_expand_maybe_list_expr(@_, -ident);
+  };
   return $self;
 }
 
@@ -109,6 +118,16 @@ sub delete {
   my ($self, $table, $where, $options) = @_;
   my %clauses = (delete_from => $table, where => $where, %{$options||{}});
   my ($sql, @bind) = $self->render_expr({ -delete => \%clauses });
+  return wantarray ? ($sql, @bind) : $sql;
+}
+
+sub insert {
+  my ($self, $table, $data, $options) = @_;
+  my %clauses = (insert_into => $table, %{$options||{}});
+  my ($f_aqt, $v_aqt) = $self->_expand_insert_values($data);
+  $clauses{''} = $f_aqt if $f_aqt;
+  $clauses{values} = $v_aqt;
+  my ($sql, @bind) = $self->render_expr({ -insert => \%clauses });
   return wantarray ? ($sql, @bind) : $sql;
 }
 
