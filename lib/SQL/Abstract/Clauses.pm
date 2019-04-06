@@ -35,6 +35,16 @@ sub register_defaults {
   $self->{expand_clause}{'update.returning'} = sub {
     shift->_expand_maybe_list_expr(@_, -ident);
   };
+  $self->{clauses_of}{delete} = [ qw(delete_from where returning) ];
+  $self->{expand}{delete} = sub { shift->_expand_statement(@_) };
+  $self->{render}{delete} = sub { shift->_render_statement(delete => @_) };
+  $self->{expand_clause}{'delete.delete_from'} = sub {
+    $_[0]->_expand_maybe_list_expr($_[1], -ident)
+  };
+  $self->{expand_clause}{'delete.where'} = 'expand_expr';
+  $self->{expand_clause}{'delete.returning'} = sub {
+    shift->_expand_maybe_list_expr(@_, -ident);
+  };
   return $self;
 }
 
@@ -92,6 +102,13 @@ sub update {
     unless ref($clauses{set}) eq 'HASH';
   @clauses{keys %$options} = values %$options;
   my ($sql, @bind) = $self->render_expr({ -update => \%clauses });
+  return wantarray ? ($sql, @bind) : $sql;
+}
+
+sub delete {
+  my ($self, $table, $where, $options) = @_;
+  my %clauses = (delete_from => $table, where => $where, %{$options||{}});
+  my ($sql, @bind) = $self->render_expr({ -delete => \%clauses });
   return wantarray ? ($sql, @bind) : $sql;
 }
 
