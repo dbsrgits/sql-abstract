@@ -266,33 +266,34 @@ sub insert {
 
   my $fields;
 
-  my $v_aqt = do {
+  my ($f_aqt, $v_aqt) = do {
     if (is_literal_value($data)) {
-      $self->expand_expr($data);
+      (undef, $self->expand_expr($data));
     } else {
-      ($fields, my $values) = (
+      my ($fields, $values) = (
         ref($data) eq 'HASH' ?
           ([ sort keys %$data ], [ @{$data}{sort keys %$data} ])
-          : (undef, $data)
+          : ([], $data)
       );
 
       # no names (arrayref) means can't generate bindtype
       !($fields) && $self->{bindtype} eq 'columns'
         && belch "can't do 'columns' bindtype when called with arrayref";
 
-      +{ -row => [
-        map {
-         local our $Cur_Col_Meta = $fields->[$_];
-         $self->_expand_insert_value($values->[$_])
-         } 0..$#$values
-      ] };
+      +(
+        (@$fields
+          ? $self->expand_expr({ -row => $fields }, -ident)
+          : undef
+        ),
+        +{ -row => [
+          map {
+           local our $Cur_Col_Meta = $fields->[$_];
+           $self->_expand_insert_value($values->[$_])
+           } 0..$#$values
+        ] },
+      );
     }
   };
-
-  my $f_aqt = (@$fields
-    ? $self->expand_expr({ -row => $fields }, -ident)
-    : undef
-  );
 
   my @parts = ([ $self->_sqlcase('insert into').' '.$table ]);
   push @parts, [ $self->render_aqt($f_aqt) ] if $f_aqt;
