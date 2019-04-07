@@ -61,14 +61,18 @@ sub _expand_statement {
   my ($self, $type, $args) = @_;
   my $ec = $self->{expand_clause};
   return +{ "-${type}" => +{
-    map +($_ => (do {
+    map {
       my $val = $args->{$_};
       if (defined($val) and my $exp = $ec->{"${type}.$_"}) {
-        $self->$exp($val);
+        if ((my (@exp) = $self->$exp($val)) == 1) {
+          ($_ => $exp[0])
+        } else {
+          @exp
+        }
       } else {
-        $val;
+        ($_ => $val)
       }
-    })), sort keys %$args
+    } sort keys %$args
   } };
 }
 
