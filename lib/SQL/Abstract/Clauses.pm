@@ -45,7 +45,9 @@ sub register_defaults {
   $self->{expand_clause}{'delete.returning'} = sub {
     shift->_expand_maybe_list_expr(@_, -ident);
   };
-  $self->{clauses_of}{insert} = [ 'insert_into', '', 'values', 'returning' ];
+  $self->{clauses_of}{insert} = [
+    'insert_into', 'fields', 'values', 'returning'
+  ];
   $self->{expand}{insert} = sub { shift->_expand_statement(@_) };
   $self->{render}{insert} = sub { shift->_render_statement(insert => @_) };
   $self->{expand_clause}{'insert.insert_into'} = sub {
@@ -53,6 +55,9 @@ sub register_defaults {
   };
   $self->{expand_clause}{'insert.returning'} = sub {
     shift->_expand_maybe_list_expr(@_, -ident);
+  };
+  $self->{render_clause}{'insert.fields'} = sub {
+    return $_[0]->render_aqt({ -row => [ $_[1] ] });
   };
   return $self;
 }
@@ -82,12 +87,19 @@ sub _render_statement {
   foreach my $clause (@{$self->{clauses_of}{$type}}) {
     next unless my $clause_expr = $args->{$clause};
     local $self->{convert_where} = $self->{convert} if $clause eq 'where';
-    my ($sql, @bind) = $self->render_aqt($clause_expr);
+    my ($sql) = my @part = do {
+      if (my $rdr = $self->{render_clause}{"${type}.${clause}"}) {
+        $self->$rdr($clause_expr);
+      } else {
+        my ($clause_sql, @bind) = $self->render_aqt($clause_expr);
+        my $sql = join ' ',
+          $self->_sqlcase(join ' ', split '_', $clause),
+          $clause_sql;
+        ($sql, @bind);
+      }
+    };
     next unless defined($sql) and length($sql);
-    push @parts, [
-      $self->_sqlcase(join ' ', split '_', $clause).' '.$sql,
-      @bind
-    ];
+    push @parts, \@part;
   }
   return $self->_join_parts(' ', @parts);
 }
@@ -129,7 +141,7 @@ sub insert {
   my ($self, $table, $data, $options) = @_;
   my %clauses = (insert_into => $table, %{$options||{}});
   my ($f_aqt, $v_aqt) = $self->_expand_insert_values($data);
-  $clauses{''} = $f_aqt if $f_aqt;
+  $clauses{fields} = $f_aqt if $f_aqt;
   $clauses{values} = $v_aqt;
   my ($sql, @bind) = $self->render_expr({ -insert => \%clauses });
   return wantarray ? ($sql, @bind) : $sql;
