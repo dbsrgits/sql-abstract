@@ -16,14 +16,8 @@ sub register_defaults {
   $self->{clauses_of}{select} = [ qw(select from where order_by) ];
   $self->{expand}{select} = sub { shift->_expand_statement(@_) };
   $self->{render}{select} = sub { shift->_render_statement(select => @_) };
-  $self->{expand_clause}{'select.select'} = sub {
-    $_[0]->_expand_maybe_list_expr($_[1], -ident)
-  };
-  $self->{expand_clause}{'select.from'} = sub {
-    $_[0]->_expand_maybe_list_expr($_[1], -ident)
-  };
-  $self->{expand_clause}{'select.where'} = 'expand_expr';
-  $self->{expand_clause}{'select.order_by'} = '_expand_order_by';
+  $self->{expand_clause}{"select.$_"} = "_expand_select_clause_$_"
+    for @{$self->{clauses_of}{select}};
   $self->{clauses_of}{update} = [ qw(update set where returning) ];
   $self->{expand}{update} = sub { shift->_expand_statement(@_) };
   $self->{render}{update} = sub { shift->_render_statement(update => @_) };
@@ -60,6 +54,26 @@ sub register_defaults {
     return $_[0]->render_aqt({ -row => [ $_[1] ] });
   };
   return $self;
+}
+
+sub _expand_select_clause_select {
+  my ($self, $select) = @_;
+  +(select => $self->_expand_maybe_list_expr($select, -ident));
+}
+
+sub _expand_select_clause_from {
+  my ($self, $from) = @_;
+  +(from => $self->_expand_maybe_list_expr($from, -ident));
+}
+
+sub _expand_select_clause_where {
+  my ($self, $where) = @_;
+  +(where => $self->expand_expr($where));
+}
+
+sub _expand_select_clause_order_by {
+  my ($self, $order_by) = @_;
+  +(order_by => $self->_expand_order_by($order_by));
 }
 
 sub _expand_statement {
