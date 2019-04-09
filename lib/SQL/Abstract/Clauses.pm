@@ -36,6 +36,7 @@ sub register_defaults {
   $self->{expand_clause}{'insert.insert_into'} = sub {
     shift->expand_expr(@_, -ident);
   };
+  $self->{expand_clause}{'insert.values'} = '_expand_insert_clause_values';
   $self->{expand_clause}{'insert.returning'} = sub {
     shift->_expand_maybe_list_expr(@_, -ident);
   };
@@ -169,12 +170,15 @@ sub delete {
 
 sub insert {
   my ($self, $table, $data, $options) = @_;
-  my %clauses = (insert_into => $table, %{$options||{}});
-  my ($f_aqt, $v_aqt) = $self->_expand_insert_values($data);
-  $clauses{fields} = $f_aqt if $f_aqt;
-  $clauses{values} = $v_aqt;
+  my %clauses = (insert_into => $table, values => $data, %{$options||{}});
   my ($sql, @bind) = $self->render_expr({ -insert => \%clauses });
   return wantarray ? ($sql, @bind) : $sql;
+}
+
+sub _expand_insert_clause_values {
+  my ($self, $data) = @_;
+  my ($f_aqt, $v_aqt) = $self->_expand_insert_values($data);
+  return (values => $v_aqt, ($f_aqt ? (fields => $f_aqt) : ()));
 }
 
 1;
