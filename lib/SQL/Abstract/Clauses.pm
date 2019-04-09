@@ -21,14 +21,8 @@ sub register_defaults {
   $self->{clauses_of}{update} = [ qw(update set where returning) ];
   $self->{expand}{update} = sub { shift->_expand_statement(@_) };
   $self->{render}{update} = sub { shift->_render_statement(update => @_) };
-  $self->{expand_clause}{'update.update'} = sub {
-    $_[0]->expand_expr($_[1], -ident)
-  };
-  $self->{expand_clause}{'update.set'} = '_expand_update_set_values';
-  $self->{expand_clause}{'update.where'} = 'expand_expr';
-  $self->{expand_clause}{'update.returning'} = sub {
-    shift->_expand_maybe_list_expr(@_, -ident);
-  };
+  $self->{expand_clause}{"update.$_"} = "_expand_update_clause_$_"
+    for @{$self->{clauses_of}{update}};
   $self->{clauses_of}{delete} = [ qw(delete_from where returning) ];
   $self->{expand}{delete} = sub { shift->_expand_statement(@_) };
   $self->{render}{delete} = sub { shift->_render_statement(delete => @_) };
@@ -74,6 +68,23 @@ sub _expand_select_clause_where {
 sub _expand_select_clause_order_by {
   my ($self, $order_by) = @_;
   +(order_by => $self->_expand_order_by($order_by));
+}
+
+sub _expand_update_clause_update {
+  my ($self, $target) = @_;
+  +(update => $self->expand_expr($target, -ident));
+}
+
+sub _expand_update_clause_set {
+  +(set => shift->_expand_update_set_values(@_));
+}
+
+sub _expand_update_clause_where {
+  +(where => shift->expand_expr(@_));
+}
+
+sub _expand_update_clause_returning {
+  +(returning => shift->_expand_maybe_list_expr(@_, -ident));
 }
 
 sub _expand_statement {
