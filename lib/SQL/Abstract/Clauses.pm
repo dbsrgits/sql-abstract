@@ -26,13 +26,8 @@ sub register_defaults {
   $self->{clauses_of}{delete} = [ qw(delete_from where returning) ];
   $self->{expand}{delete} = sub { shift->_expand_statement(@_) };
   $self->{render}{delete} = sub { shift->_render_statement(delete => @_) };
-  $self->{expand_clause}{'delete.delete_from'} = sub {
-    $_[0]->_expand_maybe_list_expr($_[1], -ident)
-  };
-  $self->{expand_clause}{'delete.where'} = 'expand_expr';
-  $self->{expand_clause}{'delete.returning'} = sub {
-    shift->_expand_maybe_list_expr(@_, -ident);
-  };
+  $self->{expand_clause}{"delete.$_"} = "_expand_delete_clause_$_"
+    for @{$self->{clauses_of}{delete}};
   $self->{clauses_of}{insert} = [
     'insert_into', 'fields', 'values', 'returning'
   ];
@@ -84,6 +79,16 @@ sub _expand_update_clause_where {
 }
 
 sub _expand_update_clause_returning {
+  +(returning => shift->_expand_maybe_list_expr(@_, -ident));
+}
+
+sub _expand_delete_clause_delete_from {
+  +(delete_from => shift->_expand_maybe_list_expr(@_, -ident));
+}
+
+sub _expand_delete_clause_where { +(where => shift->expand_expr(@_)); }
+
+sub _expand_delete_clause_returning {
   +(returning => shift->_expand_maybe_list_expr(@_, -ident));
 }
 
