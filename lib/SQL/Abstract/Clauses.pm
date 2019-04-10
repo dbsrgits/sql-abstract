@@ -19,30 +19,46 @@ sub register_defaults {
   $self->{render}{select} = sub { shift->_render_statement(select => @_) };
   $self->{expand_clause}{"select.$_"} = "_expand_select_clause_$_"
     for @{$self->{clauses_of}{select}};
-  $self->{clauses_of}{update} = [ qw(update set where returning) ];
+  $self->{clauses_of}{update} = [ qw(target set where returning) ];
   $self->{expand}{update} = sub { shift->_expand_statement(@_) };
   $self->{render}{update} = sub { shift->_render_statement(update => @_) };
   $self->{expand_clause}{"update.$_"} = "_expand_update_clause_$_"
     for @{$self->{clauses_of}{update}};
-  $self->{clauses_of}{delete} = [ qw(delete_from where returning) ];
+  $self->{expand_clause}{'update.update'} = '_expand_update_clause_target';
+  $self->{render_clause}{'update.target'} = sub {
+    my ($self, $target) = @_;
+    my ($sql, @bind) = $self->render_aqt($target);
+    ($self->_sqlcase('update ').$sql, @bind);
+  };
+  $self->{clauses_of}{delete} = [ qw(target where returning) ];
   $self->{expand}{delete} = sub { shift->_expand_statement(@_) };
   $self->{render}{delete} = sub { shift->_render_statement(delete => @_) };
   $self->{expand_clause}{"delete.$_"} = "_expand_delete_clause_$_"
     for @{$self->{clauses_of}{delete}};
+  $self->{expand_clause}{"delete.from"} = '_expand_delete_clause_target';
+  $self->{render_clause}{'delete.target'} = sub {
+    my ($self, $from) = @_;
+    my ($sql, @bind) = $self->render_aqt($from);
+    ($self->_sqlcase('delete from ').$sql, @bind);
+  };
   $self->{clauses_of}{insert} = [
-    'insert_into', 'fields', 'values', 'returning'
+    'target', 'fields', 'values', 'returning'
   ];
   $self->{expand}{insert} = sub { shift->_expand_statement(@_) };
   $self->{render}{insert} = sub { shift->_render_statement(insert => @_) };
-  $self->{expand_clause}{'insert.insert_into'} = sub {
-    shift->expand_expr(@_, -ident);
-  };
+  $self->{expand_clause}{'insert.into'} = '_expand_insert_clause_target';
+  $self->{expand_clause}{'insert.target'} = '_expand_insert_clause_target';
   $self->{expand_clause}{'insert.values'} = '_expand_insert_clause_values';
   $self->{expand_clause}{'insert.returning'} = sub {
     shift->_expand_maybe_list_expr(@_, -ident);
   };
   $self->{render_clause}{'insert.fields'} = sub {
     return $_[0]->render_aqt($_[1]);
+  };
+  $self->{render_clause}{'insert.target'} = sub {
+    my ($self, $from) = @_;
+    my ($sql, @bind) = $self->render_aqt($from);
+    ($self->_sqlcase('insert into ').$sql, @bind);
   };
   return $self;
 }
@@ -67,9 +83,9 @@ sub _expand_select_clause_order_by {
   +(order_by => $self->_expand_order_by($order_by));
 }
 
-sub _expand_update_clause_update {
+sub _expand_update_clause_target {
   my ($self, $target) = @_;
-  +(update => $self->expand_expr($target, -ident));
+  +(target => $self->expand_expr($target, -ident));
 }
 
 sub _expand_update_clause_set {
@@ -85,8 +101,8 @@ sub _expand_update_clause_returning {
   +(returning => shift->_expand_maybe_list_expr(@_, -ident));
 }
 
-sub _expand_delete_clause_delete_from {
-  +(delete_from => shift->_expand_maybe_list_expr(@_, -ident));
+sub _expand_delete_clause_target {
+  +(target => shift->_expand_maybe_list_expr(@_, -ident));
 }
 
 sub _expand_delete_clause_where { +(where => shift->expand_expr(@_)); }
@@ -155,7 +171,7 @@ sub select {
 sub update {
   my ($self, $table, $set, $where, $options) = @_;
   my %clauses;
-  @clauses{qw(update set where)} = ($table, $set, $where);
+  @clauses{qw(target set where)} = ($table, $set, $where);
   puke "Unsupported data type specified to \$sql->update"
     unless ref($clauses{set}) eq 'HASH';
   @clauses{keys %$options} = values %$options;
@@ -165,16 +181,20 @@ sub update {
 
 sub delete {
   my ($self, $table, $where, $options) = @_;
-  my %clauses = (delete_from => $table, where => $where, %{$options||{}});
+  my %clauses = (target => $table, where => $where, %{$options||{}});
   my ($sql, @bind) = $self->render_expr({ -delete => \%clauses });
   return wantarray ? ($sql, @bind) : $sql;
 }
 
 sub insert {
   my ($self, $table, $data, $options) = @_;
-  my %clauses = (insert_into => $table, values => $data, %{$options||{}});
+  my %clauses = (target => $table, values => $data, %{$options||{}});
   my ($sql, @bind) = $self->render_expr({ -insert => \%clauses });
   return wantarray ? ($sql, @bind) : $sql;
+}
+
+sub _expand_insert_clause_target {
+  +(target => shift->_expand_maybe_list_expr(@_, -ident));
 }
 
 sub _expand_insert_clause_values {
