@@ -7,11 +7,31 @@ use Test::Builder;
 use Test::Deep ();
 use SQL::Abstract::Tree;
 
-if (my $class = $ENV{SQL_ABSTRACT_TEST_AGAINST}) {
-  my $mod = join('/', split '::', $class).".pm";
-  require $mod;
-  eval qq{sub SQL::Abstract () { "\Q${class}\E" }; 1}
-    or die "Failed to create const sub for ${class}: $@";
+{
+  my $class;
+  if ($class = $ENV{SQL_ABSTRACT_TEST_AGAINST}) {
+    my $mod = join('/', split '::', $class).".pm";
+    require $mod;
+    eval qq{sub SQL::Abstract () { "\Q${class}\E" }; 1}
+      or die "Failed to create const sub for ${class}: $@";
+  }
+  if ($ENV{SQL_ABSTRACT_TEST_EXPAND_STABILITY}) {
+    $class ||= do { require SQL::Abstract; 'SQL::Abstract' };
+    my $orig = $class->can('expand_expr');
+    require Data::Dumper::Concise;
+    my $wrapped = sub {
+      my ($self, @args) = @_;
+      my $e1 = $self->$orig(@args);
+      my $e2 = $self->$orig($e1);
+      (our $tb)->is_eq(
+        (map Data::Dumper::Concise::Dumper($_), $e1, $e2),
+        'expand_expr stability ok'
+      );
+      return $e1;
+    };
+    no strict 'refs'; no warnings 'redefine';
+    *{"${class}::expand_expr"} = $wrapped;
+  }
 }
 
 our @EXPORT_OK = qw(
