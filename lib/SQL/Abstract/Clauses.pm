@@ -72,6 +72,7 @@ sub _expand_update_clause_update {
 }
 
 sub _expand_update_clause_set {
+  return $_[1] if ref($_[1]) eq 'HASH' and ($_[1]->{-op}||[''])->[0] eq ',';
   +(set => shift->_expand_update_set_values(@_));
 }
 
@@ -177,6 +178,7 @@ sub insert {
 
 sub _expand_insert_clause_values {
   my ($self, $data) = @_;
+  return $data if ref($data) eq 'HASH' and $data->{-row};
   my ($f_aqt, $v_aqt) = $self->_expand_insert_values($data);
   return (values => $v_aqt, ($f_aqt ? (fields => $f_aqt) : ()));
 }
