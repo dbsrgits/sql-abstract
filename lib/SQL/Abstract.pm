@@ -277,9 +277,7 @@ sub insert {
     push @parts, [ $self->_insert_returning($options) ];
   }
 
-  my ($sql, @bind) = $self->_join_parts(' ', @parts);
-
-  return wantarray ? ($sql, @bind) : $sql;
+  return $self->_join_parts(' ', @parts);
 }
 
 sub _expand_insert_values {
@@ -539,7 +537,10 @@ sub render_aqt {
 
 sub render_expr {
   my ($self, $expr, $default_scalar_to) = @_;
-  $self->render_aqt($self->expand_expr($expr, $default_scalar_to));
+  my ($sql, @bind) = $self->render_aqt(
+    $self->expand_expr($expr, $default_scalar_to)
+  );
+  return (wantarray ? ($sql, @bind) : $sql);
 }
 
 sub _normalize_op {
@@ -1193,7 +1194,7 @@ sub _join_parts {
   my ($self, $join, @parts) = @_;
   return (
     join($join, map $_->[0], @parts),
-    map @{$_}[1..$#$_], @parts
+    (wantarray ? (map @{$_}[1..$#$_], @parts) : ()),
   );
 }
 
