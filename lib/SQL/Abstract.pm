@@ -1343,6 +1343,7 @@ sub _table  {
 
 sub _expand_maybe_list_expr {
   my ($self, $expr, $default) = @_;
+  return $expr if ref($expr) eq 'HASH' and (($expr->{-op}||[''])->[0] eq ',');
   return +{ -op => [ ',',
     map $self->expand_expr($_, $default),
       ref($expr) eq 'ARRAY' ? @$expr : $expr
