@@ -1258,7 +1258,8 @@ sub _expand_order_by {
 
   return unless defined($arg) and not (ref($arg) eq 'ARRAY' and !@$arg);
 
-  return $arg if ref($arg) eq 'HASH' and ($arg->{-op}||[''])->[0] eq ',';
+  return $self->_expand_maybe_list_expr($arg)
+    if ref($arg) eq 'HASH' and ($arg->{-op}||[''])->[0] eq ',';
 
   my $expander = sub {
     my ($self, $dir, $expr) = @_;
@@ -1345,7 +1346,10 @@ sub _table  {
 
 sub _expand_maybe_list_expr {
   my ($self, $expr, $default) = @_;
-  return $expr if ref($expr) eq 'HASH' and ($expr->{-op}||[''])->[0] eq ',';
+  return { -op => [
+    ',', map $self->expand_expr($_, $default), 
+          @{$expr->{-op}}[1..$#{$expr->{-op}}]
+  ] } if ref($expr) eq 'HASH' and ($expr->{-op}||[''])->[0] eq ',';
   return +{ -op => [ ',',
     map $self->expand_expr($_, $default),
       ref($expr) eq 'ARRAY' ? @$expr : $expr
