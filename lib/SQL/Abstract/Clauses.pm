@@ -2,6 +2,7 @@ package SQL::Abstract::Clauses;
 
 use strict;
 use warnings;
+use if $] < '5.010', 'MRO::Compat';
 use mro 'c3';
 use base 'SQL::Abstract';
 
