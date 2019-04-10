@@ -48,6 +48,12 @@ sub register_defaults {
   $self->{render}{insert} = sub { shift->_render_statement(insert => @_) };
   $self->{expand_clause}{'insert.into'} = '_expand_insert_clause_target';
   $self->{expand_clause}{'insert.target'} = '_expand_insert_clause_target';
+  $self->{expand_clause}{'insert.fields'} = sub {
+    return +{ -row => [
+      shift->_expand_maybe_list_expr(@_, -ident)
+    ] } if ref($_[1]) eq 'ARRAY';
+    return $_[1]; # should maybe still expand somewhat?
+  };
   $self->{expand_clause}{'insert.values'} = '_expand_insert_clause_values';
   $self->{expand_clause}{'insert.returning'} = sub {
     shift->_expand_maybe_list_expr(@_, -ident);
@@ -155,6 +161,9 @@ sub _render_statement {
 
 sub select {
   my ($self, @args) = @_;
+
+  return $self->render_expr({ -select => $_[1] }) if ref($_[1]) eq 'HASH';
+
   my %clauses;
   @clauses{qw(from select where order_by)} = @args;
 
@@ -164,33 +173,38 @@ sub select {
   $clauses{select} = { -literal => [ $clauses{select}||'*' ] }
     unless ref($clauses{select});
 
-  my ($sql, @bind) = $self->render_expr({ -select => \%clauses });
-  return wantarray ? ($sql, @bind) : $sql;
+  return $self->render_expr({ -select => \%clauses });
 }
 
 sub update {
   my ($self, $table, $set, $where, $options) = @_;
+
+  return $self->render_expr({ -update => $_[1] }) if ref($_[1]) eq 'HASH';
+
   my %clauses;
   @clauses{qw(target set where)} = ($table, $set, $where);
   puke "Unsupported data type specified to \$sql->update"
     unless ref($clauses{set}) eq 'HASH';
   @clauses{keys %$options} = values %$options;
-  my ($sql, @bind) = $self->render_expr({ -update => \%clauses });
-  return wantarray ? ($sql, @bind) : $sql;
+  return $self->render_expr({ -update => \%clauses });
 }
 
 sub delete {
   my ($self, $table, $where, $options) = @_;
+
+  return $self->render_expr({ -delete => $_[1] }) if ref($_[1]) eq 'HASH';
+
   my %clauses = (target => $table, where => $where, %{$options||{}});
-  my ($sql, @bind) = $self->render_expr({ -delete => \%clauses });
-  return wantarray ? ($sql, @bind) : $sql;
+  return $self->render_expr({ -delete => \%clauses });
 }
 
 sub insert {
   my ($self, $table, $data, $options) = @_;
+
+  return $self->render_expr({ -insert => $_[1] }) if ref($_[1]) eq 'HASH';
+
   my %clauses = (target => $table, values => $data, %{$options||{}});
-  my ($sql, @bind) = $self->render_expr({ -insert => \%clauses });
-  return wantarray ? ($sql, @bind) : $sql;
+  return $self->render_expr({ -insert => \%clauses });
 }
 
 sub _expand_insert_clause_target {
