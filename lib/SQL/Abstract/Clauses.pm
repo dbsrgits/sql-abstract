@@ -41,7 +41,7 @@ sub register_defaults {
     shift->_expand_maybe_list_expr(@_, -ident);
   };
   $self->{render_clause}{'insert.fields'} = sub {
-    return $_[0]->render_aqt({ -row => [ $_[1] ] });
+    return $_[0]->render_aqt($_[1]);
   };
   return $self;
 }
