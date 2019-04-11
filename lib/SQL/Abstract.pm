@@ -208,6 +208,7 @@ sub new {
     (map +($_ => '_expand_op_is'), ('is', 'is_not')),
     ident => '_expand_ident',
     value => '_expand_value',
+    func => '_expand_func',
   };
 
   $opt{expand_op} = {
@@ -734,7 +735,11 @@ sub _expand_hashpair_op {
         return +{ -op => [ $func, $self->_expand_expr($v) ] };
       }
     }
-    return +{ -func => [ $func, $self->_expand_expr($v) ] };
+    return +{ -func => [
+      $func,
+      map $self->_expand_expr($_),
+        ref($v) eq 'ARRAY' ? @$v : $v
+    ] };
   }
 
   # scalars and literals get simply expanded
@@ -845,6 +850,12 @@ sub _dwim_op_to_is {
     return 0;
   }
   puke(sprintf $fail, $op);
+}
+
+sub _expand_func {
+  my ($self, undef, $args) = @_;
+  my ($func, @args) = @$args;
+  return { -func => [ $func, map $self->expand_expr($_), @args ] };
 }
 
 sub _expand_ident {
