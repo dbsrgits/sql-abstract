@@ -588,6 +588,8 @@ sub _expand_hashpair {
   }
   if ($k =~ /^-/) {
     return $self->_expand_hashpair_op($k, $v);
+  } elsif ($k =~ /^[^\w]/i) {
+    return $self->_expand_op(-op, [ $k, @$v ]);
   }
   return $self->_expand_hashpair_ident($k, $v);
 }
