@@ -590,7 +590,10 @@ sub _expand_hashpair {
   if ($k =~ /^-/) {
     return $self->_expand_hashpair_op($k, $v);
   } elsif ($k =~ /^[^\w]/i) {
-    return $self->_expand_op(-op, [ $k, @$v ]);
+    my ($lhs, @rhs) = @$v;
+    return $self->_expand_op(
+      -op, [ $k, $self->expand_expr($lhs, -ident), @rhs ]
+    );
   }
   return $self->_expand_hashpair_ident($k, $v);
 }
