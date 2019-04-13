@@ -66,6 +66,9 @@ sub register_defaults {
     my ($sql, @bind) = $self->render_aqt($from);
     ($self->_sqlcase('insert into ').$sql, @bind);
   };
+  $self->{render_clause}{'insert.values'} = sub {
+    return $_[0]->render_aqt($_[1]);
+  };
   return $self;
 }
 
@@ -213,9 +216,12 @@ sub _expand_insert_clause_target {
 
 sub _expand_insert_clause_values {
   my ($self, $data) = @_;
+  if (ref($data) eq 'HASH' and (keys(%$data))[0] =~ /^-/) {
+    return $self->expand_expr($data);
+  }
   return $data if ref($data) eq 'HASH' and $data->{-row};
   my ($f_aqt, $v_aqt) = $self->_expand_insert_values($data);
-  return (values => $v_aqt, ($f_aqt ? (fields => $f_aqt) : ()));
+  return (values => { -values => $v_aqt }, ($f_aqt ? (fields => $f_aqt) : ()));
 }
 
 1;

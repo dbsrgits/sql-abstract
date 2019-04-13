@@ -1054,9 +1054,9 @@ sub _expand_values {
   return { -values => [
     map +(
       ref($_) eq 'HASH'
-        ? $_
+        ? $self->expand_expr($_)
         : +{ -row => [ map $self->expand_expr($_), @$_ ] }
-    ), @$values
+    ), ref($values) eq 'ARRAY' ? @$values : $values
   ] };
 }
 
