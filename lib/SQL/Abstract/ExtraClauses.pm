@@ -24,6 +24,9 @@ sub new {
   $new->{render}{from_list} = '_render_from_list';
   $new->{expand}{join} = '_expand_join';
   $new->{render}{join} = '_render_join';
+  $new->{expand_op}{as} = '_expand_op_as';
+  $new->{expand}{as} = '_expand_op_as';
+  $new->{render}{as} = '_render_as';
   return $new;
 }
 
@@ -40,7 +43,13 @@ sub _expand_from_list {
   my @list;
   my @args = ref($args) ? @$args : ($args);
   while (my $entry = shift @args) {
-    if (!ref($entry) and $entry =~ /^-/) {
+    if (!ref($entry) and $entry =~ /^-(.*)/) {
+      if ($1 eq 'as') {
+        $list[-1] = $self->expand_expr({ -as => [
+          $list[-1], map +(ref($_) eq 'ARRAY' ? @$_ : $_), shift(@args)
+        ]});
+        next;
+      }
       $entry = { $entry => shift @args };
     }
     my $aqt = $self->expand_expr($entry, -ident);
@@ -59,6 +68,9 @@ sub _expand_join {
       ? %$args
       : (to => $args->[0], @{$args}[1..$#$args])
   );
+  if (my $as = delete $proto{as}) {
+    $proto{to} = { -as => [ $proto{to}, ref($as) eq 'ARRAY' ? @$as : $as ] };
+  }
   my %ret = map +($_ => $self->expand_expr($proto{$_}, -ident)),
               sort keys %proto;
   return +{ -join => \%ret };
@@ -93,6 +105,27 @@ sub _render_join {
     ) : ()),
   );
   return $self->_join_parts(' ', @parts);
+}
+
+sub _expand_op_as {
+  my ($self, undef, $vv, $k) = @_;
+  my @as = map $self->expand_expr($_, -ident),
+             (defined($k) ? ($k) : ()), ref($vv) eq 'ARRAY' ? @$vv : $vv;
+  return { -as => \@as };
+}
+
+sub _render_as {
+  my ($self, $args) = @_;
+  my ($thing, $as, @cols) = @$args;
+  return $self->_join_parts(
+    ' ',
+    [ $self->render_aqt($thing) ],
+    [ $self->_sqlcase('as') ],
+    [ @cols
+        ? $self->render_aqt({ -func => [ $as, @cols ] })
+        : $self->render_aqt($as)
+    ],
+  );
 }
 
 1;

@@ -1087,6 +1087,9 @@ sub _render_row {
 sub _render_func {
   my ($self, $rest) = @_;
   my ($func, @args) = @$rest;
+  if (ref($func) eq 'HASH') {
+    $func = $self->render_aqt($func);
+  }
   my @arg_sql;
   my @bind = map {
     my @x = @$_;
