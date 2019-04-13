@@ -96,4 +96,12 @@ is_same_sql(
   q{SELECT x.* FROM (SELECT * FROM y) AS x},
 );
 
+is_same_sql(
+  $sqlac->insert({
+    into => 'foo',
+    values => { -select => { select => '*', from => 'bar' } }
+  }),
+  q{INSERT INTO foo SELECT * FROM bar}
+);
+
 done_testing;
