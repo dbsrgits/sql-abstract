@@ -9,7 +9,8 @@ my $sqlac = SQL::Abstract::ExtraClauses->new;
 my ($sql, @bind) = $sqlac->select({
   select => [ qw(artist.id artist.name), { -func => [ json_agg => 'cd' ] } ],
   from => [
-    artist => -join => [ cd => on => { 'cd.artist_id' => 'artist.id' } ],
+    { artists => { -as => 'artist' } },
+    -join => [ cds => as => 'cd' => on => { 'cd.artist_id' => 'artist.id' } ],
   ],
   where => { 'artist.genres', => { '@>', { -value => [ 'Rock' ] } } },
   order_by => 'artist.name',
@@ -21,7 +22,7 @@ is_same_sql_bind(
   $sql, \@bind,
   q{
     SELECT artist.id, artist.name, JSON_AGG(cd)
-    FROM artist JOIN cd ON cd.artist_id = artist.id
+    FROM artists AS artist JOIN cds AS cd ON cd.artist_id = artist.id
     WHERE artist.genres @> ?
     ORDER BY artist.name
     GROUP BY artist.id
