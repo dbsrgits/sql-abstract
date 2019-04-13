@@ -27,6 +27,12 @@ sub new {
   $new->{expand_op}{as} = '_expand_op_as';
   $new->{expand}{as} = '_expand_op_as';
   $new->{render}{as} = '_render_as';
+  splice(@{$new->{clauses_of}{update}}, 2, 0, 'from');
+  splice(@{$new->{clauses_of}{delete}}, 1, 0, 'using');
+  $new->{expand_clause}{'update.from'} = '_expand_select_clause_from';
+  $new->{expand_clause}{'delete.using'} = sub {
+    +(using => $_[0]->_expand_from_list(undef, $_[1]));
+  };
   return $new;
 }
 
@@ -71,6 +77,12 @@ sub _expand_join {
   if (my $as = delete $proto{as}) {
     $proto{to} = { -as => [ $proto{to}, ref($as) eq 'ARRAY' ? @$as : $as ] };
   }
+  if (defined($proto{using}) and ref(my $using = $proto{using}) ne 'HASH') {
+    $proto{using} = { -row => [
+      map [ $self->expand_expr($_, -ident) ],
+        ref($using) eq 'ARRAY' ? @$using: $using
+    ] };
+  }
   my %ret = map +($_ => $self->expand_expr($proto{$_}, -ident)),
               sort keys %proto;
   return +{ -join => \%ret };
@@ -95,7 +107,7 @@ sub _render_join {
       )
     ],
     [ $self->render_aqt(
-        map +($_->{-ident} or $_->{-as} ? $_ : { -row => [ $_ ] }), $args->{to}
+        map +($_->{-ident} || $_->{-as} ? $_ : { -row => [ $_ ] }), $args->{to}
     ) ],
     ($args->{on} ? (
       [ $self->_sqlcase('on') ],

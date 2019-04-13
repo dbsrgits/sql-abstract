@@ -91,7 +91,7 @@ sub _expand_select_clause_order_by {
 
 sub _expand_update_clause_target {
   my ($self, $target) = @_;
-  +(target => $self->expand_expr($target, -ident));
+  +(target => $self->_expand_maybe_list_expr($target, -ident));
 }
 
 sub _expand_update_clause_set {
