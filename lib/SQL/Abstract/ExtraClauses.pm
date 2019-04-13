@@ -94,7 +94,9 @@ sub _render_join {
         .'join'
       )
     ],
-    [ $self->render_aqt($args->{to}) ],
+    [ $self->render_aqt(
+        map +($_->{-ident} or $_->{-as} ? $_ : { -row => [ $_ ] }), $args->{to}
+    ) ],
     ($args->{on} ? (
       [ $self->_sqlcase('on') ],
       [ $self->render_aqt($args->{on}) ],
@@ -119,12 +121,22 @@ sub _render_as {
   my ($thing, $as, @cols) = @$args;
   return $self->_join_parts(
     ' ',
-    [ $self->render_aqt($thing) ],
+    [ $self->render_aqt(
+        map +($_->{-ident} ? $_ : { -row => [ $_ ] }), $thing
+    ) ],
     [ $self->_sqlcase('as') ],
-    [ @cols
-        ? $self->render_aqt({ -func => [ $as, @cols ] })
-        : $self->render_aqt($as)
-    ],
+    (@cols
+      ? [ $self->_join_parts('',
+            [ $self->render_aqt($as) ],
+            [ '(' ],
+            [ $self->_join_parts(
+                ', ',
+                map [ $self->render_aqt($_) ], @cols
+            ) ],
+            [ ')' ],
+        ) ]
+      : [ $self->render_aqt($as) ]
+    ),
   );
 }
 

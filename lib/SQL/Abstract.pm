@@ -209,6 +209,7 @@ sub new {
     ident => '_expand_ident',
     value => '_expand_value',
     func => '_expand_func',
+    values => '_expand_values',
   };
 
   $opt{expand_op} = {
@@ -1046,6 +1047,17 @@ sub _expand_nest {
 sub _expand_bind {
   my ($self, undef, $bind) = @_;
   return { -bind => $bind };
+}
+
+sub _expand_values {
+  my ($self, undef, $values) = @_;
+  return { -values => [
+    map +(
+      ref($_) eq 'HASH'
+        ? $_
+        : +{ -row => [ map $self->expand_expr($_), @$_ ] }
+    ), @$values
+  ] };
 }
 
 sub _recurse_where {
