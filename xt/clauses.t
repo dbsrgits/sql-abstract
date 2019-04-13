@@ -88,4 +88,12 @@ is_same_sql(
   q{SELECT x.*, y.* FROM x JOIN y USING (y_id)},
 );
 
+is_same_sql(
+  $sqlac->select({
+    select => 'x.*',
+    from => [ { -select => { select => '*', from => 'y' } }, -as => 'x' ],
+  }),
+  q{SELECT x.* FROM (SELECT * FROM y) AS x},
+);
+
 done_testing;
