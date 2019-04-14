@@ -131,4 +131,15 @@ is_same_sql(
     WHERE NOT EXISTS (SELECT 1 FROM bar WHERE foo.id = bar.foo_id)},
 );
 
+is_same_sql(
+  $sqlac->select({
+    select => '*',
+    from => 'foo',
+    where => { id => {
+      '=' => { -select => { select => { -max => 'id' }, from => 'foo' } }
+    } },
+  }),
+  q{SELECT * FROM foo WHERE id = (SELECT MAX(id) FROM foo)},
+);
+
 done_testing;
