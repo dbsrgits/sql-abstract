@@ -724,33 +724,29 @@ sub _expand_hashpair_op {
     return { $k => $v };
   }
 
-  # hashref RHS values get expanded and used as op/func args
+  my $type = $self->{unknown_unop_always_func} ? -func : -op;
 
-  if (
-    ref($v) eq 'HASH'
-    and keys %$v == 1
-    and (keys %$v)[0] =~ /^-/
-  ) {
-    my ($func) = $k =~ /^-(.*)$/;
-    { # Old SQLA compat
-      if (List::Util::first { $func =~ $_->{regex} } @{$self->{special_ops}}) {
-        return +{ -op => [ $func, $self->_expand_expr($v) ] };
-      }
+  { # Old SQLA compat
+
+    if (
+      ref($v) eq 'HASH'
+      and keys %$v == 1
+      and (keys %$v)[0] =~ /^-/
+    ) {
+      $type = (
+        (List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}})
+          ? -op
+          : -func
+      )
     }
-    return +{ -func => [
-      $func,
-      map $self->_expand_expr($_),
-        ref($v) eq 'ARRAY' ? @$v : $v
-    ] };
   }
 
-  # scalars and literals get simply expanded
-
-  if (!ref($v) or is_literal_value($v)) {
-    return +{ -op => [ $op, $self->_expand_expr($v) ] };
-  }
-
-  die "notreached";
+  return +{ $type => [
+    $op,
+    ($type eq -func and ref($v) eq 'ARRAY')
+      ? map $self->_expand_expr($_), @$v
+      : $self->_expand_expr($v)
+  ] };
 }
 
 sub _expand_hashpair_cmp {

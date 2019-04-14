@@ -4,10 +4,10 @@ use Test::More;
 use SQL::Abstract::Test import => [ qw(is_same_sql_bind is_same_sql) ];
 use SQL::Abstract::ExtraClauses;
 
-my $sqlac = SQL::Abstract::ExtraClauses->new;
+my $sqlac = SQL::Abstract::ExtraClauses->new(unknown_unop_always_func => 1);
 
 my ($sql, @bind) = $sqlac->select({
-  select => [ qw(artist.id artist.name), { -func => [ json_agg => 'cd' ] } ],
+  select => [ qw(artist.id artist.name), { -json_agg => 'cd' } ],
   from => [
     { artists => { -as => 'artist' } },
     -join => [ cds => as => 'cd' => on => { 'cd.artist_id' => 'artist.id' } ],
@@ -15,7 +15,7 @@ my ($sql, @bind) = $sqlac->select({
   where => { 'artist.genres', => { '@>', { -value => [ 'Rock' ] } } },
   order_by => 'artist.name',
   group_by => 'artist.id',
-  having => { '>' => [ { -func => [ count => 'cd.id' ] }, 3 ] }
+  having => { '>' => [ { -count => 'cd.id' }, 3 ] }
 });
 
 is_same_sql_bind(
@@ -113,6 +113,22 @@ is_same_sql_bind(
   $sql, \@bind,
   q{INSERT INTO eh VALUES (?, ?), (?, ?), (?, ?)},
   [ 1..6 ],
+);
+
+is_same_sql(
+  $sqlac->select({
+    select => '*',
+    from => 'foo',
+    where => { -not_exists => {
+      -select => {
+        select => \1,
+        from => 'bar',
+        where => { 'foo.id' => { -ident => 'bar.foo_id' } }
+      },
+    } },
+  }),
+  q{SELECT * FROM foo
+    WHERE NOT EXISTS (SELECT 1 FROM bar WHERE foo.id = bar.foo_id)},
 );
 
 done_testing;
