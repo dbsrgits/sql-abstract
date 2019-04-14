@@ -99,9 +99,20 @@ is_same_sql(
 is_same_sql(
   $sqlac->insert({
     into => 'foo',
-    values => { -select => { select => '*', from => 'bar' } }
+    select => { select => '*', from => 'bar' }
   }),
   q{INSERT INTO foo SELECT * FROM bar}
+);
+
+($sql, @bind) = $sqlac->insert({
+  into => 'eh',
+  rowvalues => [ [ 1, 2 ], [ 3, 4 ], [ 5, 6 ] ]
+});
+
+is_same_sql_bind(
+  $sql, \@bind,
+  q{INSERT INTO eh VALUES (?, ?), (?, ?), (?, ?)},
+  [ 1..6 ],
 );
 
 done_testing;

@@ -33,6 +33,12 @@ sub new {
   $new->{expand_clause}{'delete.using'} = sub {
     +(using => $_[0]->_expand_from_list(undef, $_[1]));
   };
+  $new->{expand_clause}{'insert.rowvalues'} = sub {
+    (from => $_[0]->expand_expr({ -values => $_[1] }));
+  };
+  $new->{expand_clause}{'insert.select'} = sub {
+    (from => $_[0]->expand_expr({ -select => $_[1] }));
+  };
   return $new;
 }
 

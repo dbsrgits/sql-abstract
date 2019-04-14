@@ -42,7 +42,7 @@ sub register_defaults {
     ($self->_sqlcase('delete from ').$sql, @bind);
   };
   $self->{clauses_of}{insert} = [
-    'target', 'fields', 'values', 'returning'
+    'target', 'fields', 'from', 'returning'
   ];
   $self->{expand}{insert} = sub { shift->_expand_statement(@_) };
   $self->{render}{insert} = sub { shift->_render_statement(insert => @_) };
@@ -66,7 +66,7 @@ sub register_defaults {
     my ($sql, @bind) = $self->render_aqt($from);
     ($self->_sqlcase('insert into ').$sql, @bind);
   };
-  $self->{render_clause}{'insert.values'} = sub {
+  $self->{render_clause}{'insert.from'} = sub {
     return $_[0]->render_aqt($_[1]);
   };
   return $self;
@@ -133,7 +133,7 @@ sub _expand_statement {
           @exp
         }
       } else {
-        ($_ => $val)
+        ($_ => $self->expand_expr($val))
       }
     } sort keys %$args
   } };
@@ -221,7 +221,7 @@ sub _expand_insert_clause_values {
   }
   return $data if ref($data) eq 'HASH' and $data->{-row};
   my ($f_aqt, $v_aqt) = $self->_expand_insert_values($data);
-  return (values => { -values => $v_aqt }, ($f_aqt ? (fields => $f_aqt) : ()));
+  return (from => { -values => $v_aqt }, ($f_aqt ? (fields => $f_aqt) : ()));
 }
 
 1;
