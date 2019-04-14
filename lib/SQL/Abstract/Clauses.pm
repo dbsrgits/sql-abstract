@@ -71,6 +71,9 @@ sub register_defaults {
   };
   $self->{expand}{values} = '_expand_values';
   $self->{render}{values} = '_render_values';
+  $self->{expand}{exists} = sub {
+    $_[0]->_expand_op(undef, [ exists => $_[2] ]);
+  };
   return $self;
 }
 
