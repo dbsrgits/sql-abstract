@@ -67,8 +67,10 @@ sub register_defaults {
     ($self->_sqlcase('insert into ').$sql, @bind);
   };
   $self->{render_clause}{'insert.from'} = sub {
-    return $_[0]->render_aqt($_[1]);
+    return $_[0]->render_aqt($_[1], 1);
   };
+  $self->{expand}{values} = '_expand_values';
+  $self->{render}{values} = '_render_values';
   return $self;
 }
 
@@ -149,7 +151,7 @@ sub _render_statement {
       if (my $rdr = $self->{render_clause}{"${type}.${clause}"}) {
         $self->$rdr($clause_expr);
       } else {
-        my ($clause_sql, @bind) = $self->render_aqt($clause_expr);
+        my ($clause_sql, @bind) = $self->render_aqt($clause_expr, 1);
         my $sql = join ' ',
           $self->_sqlcase(join ' ', split '_', $clause),
           $clause_sql;
@@ -159,13 +161,31 @@ sub _render_statement {
     next unless defined($sql) and length($sql);
     push @parts, \@part;
   }
-  return $self->_join_parts(' ', @parts);
+  my ($sql, @bind) = $self->_join_parts(' ', @parts);
+  return (
+    (our $Render_Top_Level ? $sql : '('.$sql.')'),
+    @bind
+  );
+}
+
+sub render_aqt {
+  my ($self, $aqt, $top_level) = @_;
+  local our $Render_Top_Level = $top_level;
+  return $self->next::method($aqt);
+}
+
+sub render_statement {
+  my ($self, $expr, $default_scalar_to) = @_;
+  my ($sql, @bind) = $self->render_aqt(
+    $self->expand_expr($expr, $default_scalar_to), 1
+  );
+  return (wantarray ? ($sql, @bind) : $sql);
 }
 
 sub select {
   my ($self, @args) = @_;
 
-  return $self->render_expr({ -select => $_[1] }) if ref($_[1]) eq 'HASH';
+  return $self->render_statement({ -select => $_[1] }) if ref($_[1]) eq 'HASH';
 
   my %clauses;
   @clauses{qw(from select where order_by)} = @args;
@@ -176,38 +196,38 @@ sub select {
   $clauses{select} = { -literal => [ $clauses{select}||'*' ] }
     unless ref($clauses{select});
 
-  return $self->render_expr({ -select => \%clauses });
+  return $self->render_statement({ -select => \%clauses });
 }
 
 sub update {
   my ($self, $table, $set, $where, $options) = @_;
 
-  return $self->render_expr({ -update => $_[1] }) if ref($_[1]) eq 'HASH';
+  return $self->render_statement({ -update => $_[1] }) if ref($_[1]) eq 'HASH';
 
   my %clauses;
   @clauses{qw(target set where)} = ($table, $set, $where);
   puke "Unsupported data type specified to \$sql->update"
     unless ref($clauses{set}) eq 'HASH';
   @clauses{keys %$options} = values %$options;
-  return $self->render_expr({ -update => \%clauses });
+  return $self->render_statement({ -update => \%clauses });
 }
 
 sub delete {
   my ($self, $table, $where, $options) = @_;
 
-  return $self->render_expr({ -delete => $_[1] }) if ref($_[1]) eq 'HASH';
+  return $self->render_statement({ -delete => $_[1] }) if ref($_[1]) eq 'HASH';
 
   my %clauses = (target => $table, where => $where, %{$options||{}});
-  return $self->render_expr({ -delete => \%clauses });
+  return $self->render_statement({ -delete => \%clauses });
 }
 
 sub insert {
   my ($self, $table, $data, $options) = @_;
 
-  return $self->render_expr({ -insert => $_[1] }) if ref($_[1]) eq 'HASH';
+  return $self->render_statement({ -insert => $_[1] }) if ref($_[1]) eq 'HASH';
 
   my %clauses = (target => $table, values => $data, %{$options||{}});
-  return $self->render_expr({ -insert => \%clauses });
+  return $self->render_statement({ -insert => \%clauses });
 }
 
 sub _expand_insert_clause_target {
@@ -223,5 +243,31 @@ sub _expand_insert_clause_values {
   my ($f_aqt, $v_aqt) = $self->_expand_insert_values($data);
   return (from => { -values => $v_aqt }, ($f_aqt ? (fields => $f_aqt) : ()));
 }
+
+sub _expand_values {
+  my ($self, undef, $values) = @_;
+  return { -values => [
+    map +(
+      ref($_) eq 'HASH'
+        ? $self->expand_expr($_)
+        : +{ -row => [ map $self->expand_expr($_), @$_ ] }
+    ), ref($values) eq 'ARRAY' ? @$values : $values
+  ] };
+}
+
+sub _render_values {
+  my ($self, $values) = @_;
+  my ($v_sql, @bind) = $self->_join_parts(
+    ', ',
+    map [ $self->render_aqt($_) ],
+      ref($values) eq 'ARRAY' ? @$values : $values
+  );
+  my $sql = $self->_sqlcase('values').' '.$v_sql;
+  return (
+    (our $Render_Top_Level ? $sql : '('.$sql.')'),
+    @bind
+  );
+}
+
 
 1;

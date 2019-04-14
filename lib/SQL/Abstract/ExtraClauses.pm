@@ -139,9 +139,7 @@ sub _render_as {
   my ($thing, $as, @cols) = @$args;
   return $self->_join_parts(
     ' ',
-    [ $self->render_aqt(
-        map +($_->{-ident} ? $_ : { -row => [ $_ ] }), $thing
-    ) ],
+    [ $self->render_aqt($thing) ],
     [ $self->_sqlcase('as') ],
     (@cols
       ? [ $self->_join_parts('',

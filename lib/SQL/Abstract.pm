@@ -209,7 +209,6 @@ sub new {
     ident => '_expand_ident',
     value => '_expand_value',
     func => '_expand_func',
-    values => '_expand_values',
   };
 
   $opt{expand_op} = {
@@ -225,7 +224,7 @@ sub new {
   };
 
   $opt{render} = {
-    (map +($_, "_render_$_"), qw(op func bind ident literal row values)),
+    (map +($_, "_render_$_"), qw(op func bind ident literal row)),
     %{$opt{render}||{}}
   };
 
@@ -272,7 +271,7 @@ sub insert {
 
   my @parts = ([ $self->_sqlcase('insert into').' '.$table ]);
   push @parts, [ $self->render_aqt($f_aqt) ] if $f_aqt;
-  push @parts, [ $self->render_aqt({ -values => $v_aqt }) ];
+  push @parts, [ $self->_sqlcase('values') ], [ $self->render_aqt($v_aqt) ];
 
   if ($options->{returning}) {
     push @parts, [ $self->_insert_returning($options) ];
@@ -1049,17 +1048,6 @@ sub _expand_bind {
   return { -bind => $bind };
 }
 
-sub _expand_values {
-  my ($self, undef, $values) = @_;
-  return { -values => [
-    map +(
-      ref($_) eq 'HASH'
-        ? $self->expand_expr($_)
-        : +{ -row => [ map $self->expand_expr($_), @$_ ] }
-    ), ref($values) eq 'ARRAY' ? @$values : $values
-  ] };
-}
-
 sub _recurse_where {
   my ($self, $where, $logic) = @_;
 
@@ -1093,16 +1081,6 @@ sub _render_row {
   my ($self, $values) = @_;
   my ($sql, @bind) = $self->_render_op([ ',', @$values ]);
   return "($sql)", @bind;  
-}
-
-sub _render_values {
-  my ($self, $values) = @_;
-  my ($sql, @bind) = $self->_join_parts(
-    ', ',
-    map [ $self->render_aqt($_) ],
-      ref($values) eq 'ARRAY' ? @$values : $values
-  );
-  return $self->_sqlcase('values ').$sql, @bind;
 }
 
 sub _render_func {
