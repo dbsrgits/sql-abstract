@@ -142,4 +142,22 @@ is_same_sql(
   q{SELECT * FROM foo WHERE id = (SELECT MAX(id) FROM foo)},
 );
 
+{
+  local $sqlac->{clauses_of}{select} = [
+    @{$sqlac->{clauses_of}{select}}, qw(limit offset)
+  ];
+
+  ($sql, @bind) = $sqlac->select({
+    select => '*',
+    from => 'foo',
+    limit => 10,
+    offset => 20,
+  });
+
+  is_same_sql_bind(
+    $sql, \@bind,
+    q{SELECT * FROM foo LIMIT ? OFFSET ?}, [ 10, 20 ]
+  );
+}
+
 done_testing;
