@@ -11,9 +11,17 @@ BEGIN { *puke = \&SQL::Abstract::puke }
 sub register_defaults {
   my $self = shift;
   $self->next::method(@_);
-  $self->clauses_of(
-    select => $self->clauses_of('select'), qw(group_by having)
-  );
+  my @clauses = $self->clauses_of('select');
+  my @before_setop;
+  CLAUSE: foreach my $idx (0..$#clauses) {
+    if ($clauses[$idx] eq 'order_by') {
+      @before_setop = @clauses[0..$idx-1];
+      splice(@clauses, $idx, 0, qw(setop group_by having));
+      last CLAUSE;
+    }
+  }
+  die "Huh?" unless @before_setop;
+  $self->clauses_of(select => @clauses);
   $self->clause_expanders(
     'select.group_by', sub {
       $_[0]->_expand_maybe_list_expr($_[1], -ident)
@@ -53,11 +61,62 @@ sub register_defaults {
     },
   );
 
-  $self->renderer(keyword => sub {
-    $_[0]->_sqlcase(join ' ', split '_', $_[1]);
+  # set ops
+  {
+    my $orig = $self->expander('select');
+    $self->expander(select => sub {
+      my $self = shift;
+      my $exp = $self->$orig(@_);
+      return $exp unless my $setop = (my $sel = $exp->{-select})->{setop};
+      if (my @keys = grep $sel->{$_}, @before_setop) {
+        my %inner; @inner{@keys} = delete @{$sel}{@keys};
+        unshift @{(values(%$setop))[0]{queries}},
+          { -select => \%inner };
+      }
+      return $exp;
+    });
+  }
+
+  $self->clause_expander('select.union' => sub {
+    +(setop => $_[0]->expand_expr({
+                 -union => {
+                   queries => (ref($_[1]) eq 'ARRAY' ? $_[1] : [ $_[1] ]),
+                 }
+               }));
   });
+  $self->clause_expander('select.union_all' => sub {
+    +(setop => $_[0]->expand_expr({
+                 -union => {
+                   type => 'all',
+                   queries => (ref($_[1]) eq 'ARRAY' ? $_[1] : [ $_[1] ]),
+                 }
+               }));
+  });
+  $self->expander(union => sub {
+    my ($self, undef, $args) = @_;
+    +{ -union => {
+         %$args,
+         queries => [ map $self->expand_expr($_), @{$args->{queries}} ],
+    } };
+  });
+
+  $self->clause_renderer('select.setop' => sub {
+    my ($self, $setop) = @_;
+    $self->render_aqt($setop);
+  });
+
+  $self->renderer(union => sub {
+    my ($self, $args) = @_;
+    $self->join_clauses(
+      ' '.$self->format_keyword(join '_', 'union', ($args->{type}||())).' ',
+      map [ $self->render_aqt($_) ], @{$args->{queries}}
+    );
+  });
+
   return $self;
 }
+
+sub format_keyword { $_[0]->_sqlcase(join ' ', split '_', $_[1]) }
 
 sub _expand_select_clause_from {
   my ($self, $from) = @_;
@@ -121,18 +180,16 @@ sub _render_join {
 
   my @parts = (
     [ $self->render_aqt($args->{from}) ],
-    [ $self->render_aqt(
-        { -keyword => join '_', ($args->{type}||()), 'join' }
-    ) ],
+    [ $self->format_keyword(join '_', ($args->{type}||()), 'join') ],
     [ $self->render_aqt(
         map +($_->{-ident} || $_->{-as} ? $_ : { -row => [ $_ ] }), $args->{to}
     ) ],
     ($args->{on} ? (
-      [ $self->render_aqt({ -keyword => 'on' }) ],
+      [ $self->format_keyword('on') ],
       [ $self->render_aqt($args->{on}) ],
     ) : ()),
     ($args->{using} ? (
-      [ $self->render_aqt({ -keyword => 'using' }) ],
+      [ $self->format_keyword('using') ],
       [ $self->render_aqt($args->{using}) ],
     ) : ()),
   );
@@ -152,7 +209,7 @@ sub _render_as {
   return $self->join_clauses(
     ' ',
     [ $self->render_aqt($thing) ],
-    [ $self->render_aqt({ -keyword => 'as' }) ],
+    [ $self->format_keyword('as') ],
     (@cols
       ? [ $self->join_clauses('',
             [ $self->render_aqt($as) ],

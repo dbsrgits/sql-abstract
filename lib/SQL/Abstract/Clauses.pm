@@ -274,14 +274,14 @@ sub _render_values {
 
 sub _ext_rw {
   my ($self, $name, $key, $value) = @_;
-  return $self->{$name}{$key} unless @_ > 2;
+  return $self->{$name}{$key} unless @_ > 3;
   $self->{$name}{$key} = $value;
   return $self;
 }
 
 BEGIN {
   foreach my $type (qw(
-    expand op_expand render op_renderer clause_expand clause_render
+    expand op_expand render op_render clause_expand clause_render
   )) {
     my $key = join '_', reverse split '_', $type;
     my $singular = "${type}er";
