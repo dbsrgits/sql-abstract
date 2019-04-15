@@ -279,12 +279,15 @@ sub _ext_rw {
   return $self;
 }
 
-sub expander { shift->_ext_rw(expand => @_) }
-sub op_expander { shift->_ext_rw(expand_op => @_) }
-sub renderer { shift->_ext_rw(render => @_) }
-sub op_renderer { shift->_ext_rw(expand_op => @_) }
-sub clause_expander { shift->_ext_rw(expand_clause => @_) }
-sub clause_renderer { shift->_ext_rw(render_clause => @_) }
+BEGIN {
+  foreach my $type (qw(
+    expand op_expand render op_renderer clause_expand clause_render
+  )) {
+    my $key = join '_', reverse split '_', $type;
+    eval qq{sub ${type}er { shift->_ext_rw($key => \@_) }; 1 }
+      or die "Method builder failed: $@";
+  }
+}
 
 sub clauses_of {
   my ($self, $of, @clauses) = @_;
