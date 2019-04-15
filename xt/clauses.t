@@ -24,9 +24,9 @@ is_same_sql_bind(
     SELECT artist.id, artist.name, JSON_AGG(cd)
     FROM artists AS artist JOIN cds AS cd ON cd.artist_id = artist.id
     WHERE artist.genres @> ?
-    ORDER BY artist.name
     GROUP BY artist.id
     HAVING COUNT(cd.id) > ?
+    ORDER BY artist.name
   },
   [ [ 'Rock' ], 3 ]
 );
@@ -163,5 +163,16 @@ is_same_sql(
     q{SELECT * FROM foo LIMIT ? OFFSET ?}, [ 10, 20 ]
   );
 }
+
+($sql) = $sqlac->select({
+  select => { -as => [ 1, 'x' ] },
+  union => { -select => { select => { -as => [ 2, 'x' ] } } },
+  order_by => { -desc => 'x' },
+});
+
+is_same_sql(
+  $sql,
+  q{(SELECT 1 AS x) UNION (SELECT 2 AS x) ORDER BY x DESC},
+);
 
 done_testing;
