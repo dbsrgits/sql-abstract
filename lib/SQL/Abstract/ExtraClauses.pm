@@ -22,11 +22,11 @@ sub register_defaults {
   );
   $self->${\"${_}er"}(from_list => "_${_}_from_list")
     for qw(expand render);
-  $self->{expand}{join} = '_expand_join';
-  $self->{render}{join} = '_render_join';
-  $self->{expand_op}{as} = '_expand_op_as';
-  $self->{expand}{as} = '_expand_op_as';
-  $self->{render}{as} = '_render_as';
+  $self->${\"${_}er"}(join => "_${_}_join")
+    for qw(expand render);
+  $self->op_expander(as => '_expand_op_as');
+  $self->expander(as => '_expand_op_as');
+  $self->renderer(as => '_render_as');
 
   splice(@{$self->{clauses_of}{update}}, 2, 0, 'from');
   splice(@{$self->{clauses_of}{delete}}, 1, 0, 'using');
