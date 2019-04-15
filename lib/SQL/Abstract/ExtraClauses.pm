@@ -14,12 +14,12 @@ sub register_defaults {
   $self->clauses_of(
     select => $self->clauses_of('select'), qw(group_by having)
   );
-  $self->clause_expander('select.group_by', sub {
-    $_[0]->_expand_maybe_list_expr($_[1], -ident)
-  });
-  $self->clause_expander('select.having', sub {
-    $_[0]->expand_expr($_[1])
-  });
+  $self->clause_expanders(
+    'select.group_by', sub {
+      $_[0]->_expand_maybe_list_expr($_[1], -ident)
+    },
+    'select.having', 'expand_expr',
+  );
   $self->${\"${_}er"}(from_list => "_${_}_from_list")
     for qw(expand render);
   $self->{expand}{join} = '_expand_join';
@@ -27,18 +27,21 @@ sub register_defaults {
   $self->{expand_op}{as} = '_expand_op_as';
   $self->{expand}{as} = '_expand_op_as';
   $self->{render}{as} = '_render_as';
+
   splice(@{$self->{clauses_of}{update}}, 2, 0, 'from');
   splice(@{$self->{clauses_of}{delete}}, 1, 0, 'using');
-  $self->{expand_clause}{'update.from'} = '_expand_select_clause_from';
-  $self->{expand_clause}{'delete.using'} = sub {
-    +(using => $_[0]->_expand_from_list(undef, $_[1]));
-  };
-  $self->{expand_clause}{'insert.rowvalues'} = sub {
-    (from => $_[0]->expand_expr({ -values => $_[1] }));
-  };
-  $self->{expand_clause}{'insert.select'} = sub {
-    (from => $_[0]->expand_expr({ -select => $_[1] }));
-  };
+  $self->clause_expanders(
+    'update.from' => '_expand_select_clause_from',
+    'delete.using' => sub {
+      +(using => $_[0]->_expand_from_list(undef, $_[1]));
+    },
+    'insert.rowvalues' => sub {
+      +(from => $_[0]->expand_expr({ -values => $_[1] }));
+    },
+    'insert.select' => sub {
+      +(from => $_[0]->expand_expr({ -select => $_[1] }));
+    },
+  );
   return $self;
 }
 
