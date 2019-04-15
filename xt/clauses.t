@@ -186,4 +186,15 @@ is_same_sql(
   q{(SELECT * FROM foo) EXCEPT (SELECT * FROM foo_exclusions)},
 );
 
+$sql = $sqlac->select({
+  with => [ foo => { -select => { select => \1 } } ],
+  select => '*',
+  from => 'foo'
+});
+
+is_same_sql(
+  $sql,
+  q{WITH (foo AS (SELECT 1)) SELECT * FROM foo},
+);
+
 done_testing;

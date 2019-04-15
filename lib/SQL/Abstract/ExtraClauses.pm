@@ -21,7 +21,7 @@ sub register_defaults {
     }
   }
   die "Huh?" unless @before_setop;
-  $self->clauses_of(select => @clauses);
+  $self->clauses_of(select => 'with', @clauses);
   $self->clause_expanders(
     'select.group_by', sub {
       $_[0]->_expand_maybe_list_expr($_[1], -ident)
@@ -115,6 +115,52 @@ sub register_defaults {
                  }));
     });
   }
+  $self->clause_expander('select.with' => my $with_expander = sub {
+    my ($self, $with) = @_;
+    if (ref($with) eq 'HASH') {
+      return +{
+        %$with,
+        queries => [ map $self->expand_expr($_), @{$with->{queries}} ]
+      }
+    }
+    my @with = @$with;
+    my @exp;
+    while (my ($name, $query) = splice @with, 0, 2) {
+      my @n = map $self->expand_expr($_, -ident),
+                ref($name) eq 'ARRAY' ? @$name : $name;
+      push @exp, [
+        \@n,
+        $self->expand_expr($query)
+      ];
+    }
+    return +{ queries => \@exp };
+  });
+  $self->clause_expander('select.with_recursive' => sub {
+    my ($self, $with) = @_;
+    my $exp = $self->$with_expander($with);
+    return +{
+      %$exp,
+      type => 'recursive'
+    };
+  });
+  $self->clause_renderer('select.with' => sub {
+    my ($self, $with) = @_;
+    my $q_part = [ $self->join_clauses(', ',
+      map {
+        my ($alias, $query) = @$_;
+        [ $self->join_clauses(' ',
+            [ $self->_render_alias($alias) ],
+            [ $self->format_keyword('as') ],
+            [ $self->render_aqt($query) ],
+        ) ]
+      } @{$with->{queries}}
+    ) ];
+    return $self->join_clauses('',
+      [ $self->format_keyword(join '_', 'with', ($with->{type}||'')).' (' ],
+      $q_part,
+      [ ')' ],
+    );
+  });
 
   return $self;
 }
@@ -208,23 +254,29 @@ sub _expand_op_as {
 
 sub _render_as {
   my ($self, $args) = @_;
-  my ($thing, $as, @cols) = @$args;
+  my ($thing, @alias) = @$args;
   return $self->join_clauses(
     ' ',
     [ $self->render_aqt($thing) ],
     [ $self->format_keyword('as') ],
-    (@cols
-      ? [ $self->join_clauses('',
-            [ $self->render_aqt($as) ],
-            [ '(' ],
-            [ $self->join_clauses(
-                ', ',
-                map [ $self->render_aqt($_) ], @cols
-            ) ],
-            [ ')' ],
-        ) ]
-      : [ $self->render_aqt($as) ]
-    ),
+    [ $self->_render_alias(\@alias) ],
+  );
+}
+
+sub _render_alias {
+  my ($self, $args) = @_;
+  my ($as, @cols) = @$args;
+  return (@cols
+    ? $self->join_clauses('',
+         [ $self->render_aqt($as) ],
+         [ '(' ],
+         [ $self->join_clauses(
+             ', ',
+             map [ $self->render_aqt($_) ], @cols
+         ) ],
+         [ ')' ],
+      )
+    : $self->render_aqt($as)
   );
 }
 
