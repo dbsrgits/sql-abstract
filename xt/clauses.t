@@ -143,9 +143,14 @@ is_same_sql(
 );
 
 {
-  local $sqlac->{clauses_of}{select} = [
-    @{$sqlac->{clauses_of}{select}}, qw(limit offset)
-  ];
+
+  my $sqlac = $sqlac->clone
+                    ->clauses_of(
+                        select => (
+                          $sqlac->clauses_of('select'),
+                          qw(limit offset),
+                        )
+                      );
 
   ($sql, @bind) = $sqlac->select({
     select => '*',

@@ -272,5 +272,42 @@ sub _render_values {
   );
 }
 
+sub _ext_rw {
+  my ($self, $name, $key, $value) = @_;
+  return $self->{$name}{$key} unless @_ > 2;
+  $self->{$name}{$key} = $value;
+  return $self;
+}
+
+sub expander { shift->_ext_rw(expand => @_) }
+sub op_expander { shift->_ext_rw(expand_op => @_) }
+sub renderer { shift->_ext_rw(render => @_) }
+sub op_renderer { shift->_ext_rw(expand_op => @_) }
+sub clause_expander { shift->_ext_rw(expand_cluse => @_) }
+sub clause_renderer { shift->_ext_rw(render_clause => @_) }
+
+sub clauses_of {
+  my ($self, $of, @clauses) = @_;
+  unless (@clauses) {
+    return @{$self->{clauses_of}{$of}||[]};
+  }
+  $self->{clauses_of}{$of} = \@clauses;
+  return $self;
+}
+
+sub clone {
+  my ($self) = @_;
+  bless(
+    {
+      (map +($_ => (
+        ref($self->{$_}) eq 'HASH'
+          ? { %{$self->{$_}} }
+          : $self->{$_}
+      )), keys %$self),
+    },
+    ref($self)
+  );
+}
+
 
 1;
