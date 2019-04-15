@@ -28,8 +28,18 @@ sub register_defaults {
   $self->expander(as => '_expand_op_as');
   $self->renderer(as => '_render_as');
 
-  splice(@{$self->{clauses_of}{update}}, 2, 0, 'from');
-  splice(@{$self->{clauses_of}{delete}}, 1, 0, 'using');
+  $self->clauses_of(update => sub {
+    my ($self, @clauses) = @_;
+    splice(@clauses, 2, 0, 'from');
+    @clauses;
+  });
+
+  $self->clauses_of(delete => sub {
+    my ($self, @clauses) = @_;
+    splice(@clauses, 1, 0, 'using');
+    @clauses;
+  });
+
   $self->clause_expanders(
     'update.from' => '_expand_select_clause_from',
     'delete.using' => sub {
