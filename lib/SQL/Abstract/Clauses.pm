@@ -302,6 +302,9 @@ sub clauses_of {
   unless (@clauses) {
     return @{$self->{clauses_of}{$of}||[]};
   }
+  if (ref($clauses[0]) eq 'CODE') {
+    @clauses = $self->${\($clauses[0])}(@{$self->{clauses_of}{$of}||[]});
+  }
   $self->{clauses_of}{$of} = \@clauses;
   return $self;
 }
