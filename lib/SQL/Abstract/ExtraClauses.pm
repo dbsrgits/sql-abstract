@@ -113,7 +113,7 @@ sub _expand_join {
 
 sub _render_from_list {
   my ($self, $list) = @_;
-  return $self->_join_parts(', ', map [ $self->render_aqt($_) ], @$list);
+  return $self->join_clauses(', ', map [ $self->render_aqt($_) ], @$list);
 }
 
 sub _render_join {
@@ -136,7 +136,7 @@ sub _render_join {
       [ $self->render_aqt($args->{using}) ],
     ) : ()),
   );
-  return $self->_join_parts(' ', @parts);
+  return $self->join_clauses(' ', @parts);
 }
 
 sub _expand_op_as {
@@ -149,15 +149,15 @@ sub _expand_op_as {
 sub _render_as {
   my ($self, $args) = @_;
   my ($thing, $as, @cols) = @$args;
-  return $self->_join_parts(
+  return $self->join_clauses(
     ' ',
     [ $self->render_aqt($thing) ],
     [ $self->render_aqt({ -keyword => 'as' }) ],
     (@cols
-      ? [ $self->_join_parts('',
+      ? [ $self->join_clauses('',
             [ $self->render_aqt($as) ],
             [ '(' ],
-            [ $self->_join_parts(
+            [ $self->join_clauses(
                 ', ',
                 map [ $self->render_aqt($_) ], @cols
             ) ],

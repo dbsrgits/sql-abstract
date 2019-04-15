@@ -164,7 +164,7 @@ sub _render_statement {
     next unless defined($sql) and length($sql);
     push @parts, \@part;
   }
-  my ($sql, @bind) = $self->_join_parts(' ', @parts);
+  my ($sql, @bind) = $self->join_clauses(' ', @parts);
   return (
     (our $Render_Top_Level ? $sql : '('.$sql.')'),
     @bind
@@ -260,7 +260,7 @@ sub _expand_values {
 
 sub _render_values {
   my ($self, $values) = @_;
-  my ($v_sql, @bind) = $self->_join_parts(
+  my ($v_sql, @bind) = $self->join_clauses(
     ', ',
     map [ $self->render_aqt($_) ],
       ref($values) eq 'ARRAY' ? @$values : $values

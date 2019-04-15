@@ -277,7 +277,7 @@ sub insert {
     push @parts, [ $self->_insert_returning($options) ];
   }
 
-  return $self->_join_parts(' ', @parts);
+  return $self->join_clauses(' ', @parts);
 }
 
 sub _expand_insert_values {
@@ -1188,7 +1188,7 @@ sub _render_op_andor {
   my @parts = grep length($_->[0]), map [ $self->render_aqt($_) ], @$args;
   return '' unless @parts;
   return @{$parts[0]} if @parts == 1;
-  my ($sql, @bind) = $self->_join_parts(' '.$self->_sqlcase($op).' ', @parts);
+  my ($sql, @bind) = $self->join_clauses(' '.$self->_sqlcase($op).' ', @parts);
   return '( '.$sql.' )', @bind;
 }
 
@@ -1201,10 +1201,10 @@ sub _render_op_multop {
                 ? ', '
                 :  ' '.$self->_sqlcase(join ' ', split '_', $op).' '
              );
-  return $self->_join_parts($join, @parts);
+  return $self->join_clauses($join, @parts);
 }
 
-sub _join_parts {
+sub join_clauses {
   my ($self, $join, @parts) = @_;
   return (
     join($join, map $_->[0], @parts),
