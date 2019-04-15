@@ -20,10 +20,10 @@ sub register_defaults {
     },
     'select.having', 'expand_expr',
   );
-  $self->${\"${_}er"}(from_list => "_${_}_from_list")
-    for qw(expand render);
-  $self->${\"${_}er"}(join => "_${_}_join")
-    for qw(expand render);
+  foreach my $thing (qw(join from_list)) {
+    $self->expander($thing => "_expand_${thing}")
+         ->renderer($thing => "_render_${thing}")
+  }
   $self->op_expander(as => '_expand_op_as');
   $self->expander(as => '_expand_op_as');
   $self->renderer(as => '_render_as');
