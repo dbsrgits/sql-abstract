@@ -165,8 +165,8 @@ is_same_sql(
 }
 
 ($sql) = $sqlac->select({
-  select => { -as => [ 1, 'x' ] },
-  union => { -select => { select => { -as => [ 2, 'x' ] } } },
+  select => { -as => [ \1, 'x' ] },
+  union => { -select => { select => { -as => [ \2, 'x' ] } } },
   order_by => { -desc => 'x' },
 });
 
