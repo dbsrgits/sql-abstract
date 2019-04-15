@@ -164,7 +164,7 @@ is_same_sql(
   );
 }
 
-($sql) = $sqlac->select({
+$sql = $sqlac->select({
   select => { -as => [ \1, 'x' ] },
   union => { -select => { select => { -as => [ \2, 'x' ] } } },
   order_by => { -desc => 'x' },
@@ -173,6 +173,17 @@ is_same_sql(
 is_same_sql(
   $sql,
   q{(SELECT 1 AS x) UNION (SELECT 2 AS x) ORDER BY x DESC},
+);
+
+$sql = $sqlac->select({
+  select => '*',
+  from => 'foo',
+  except => { -select => { select => '*', from => 'foo_exclusions' } }
+});
+
+is_same_sql(
+  $sql,
+  q{(SELECT * FROM foo) EXCEPT (SELECT * FROM foo_exclusions)},
 );
 
 done_testing;

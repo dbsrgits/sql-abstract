@@ -76,42 +76,45 @@ sub register_defaults {
       return $exp;
     });
   }
-
-  $self->clause_expander('select.union' => sub {
-    +(setop => $_[0]->expand_expr({
-                 -union => {
-                   queries => (ref($_[1]) eq 'ARRAY' ? $_[1] : [ $_[1] ]),
-                 }
-               }));
-  });
-  $self->clause_expander('select.union_all' => sub {
-    +(setop => $_[0]->expand_expr({
-                 -union => {
-                   type => 'all',
-                   queries => (ref($_[1]) eq 'ARRAY' ? $_[1] : [ $_[1] ]),
-                 }
-               }));
-  });
-  $self->expander(union => sub {
-    my ($self, undef, $args) = @_;
-    +{ -union => {
+  my $expand_setop = sub {
+    my ($self, $setop, $args) = @_;
+    +{ "-${setop}" => {
          %$args,
          queries => [ map $self->expand_expr($_), @{$args->{queries}} ],
     } };
-  });
+  };
+  $self->expanders(map +($_ => $expand_setop), qw(union intersect except));
 
   $self->clause_renderer('select.setop' => sub {
     my ($self, $setop) = @_;
     $self->render_aqt($setop);
   });
 
-  $self->renderer(union => sub {
-    my ($self, $args) = @_;
-    $self->join_clauses(
-      ' '.$self->format_keyword(join '_', 'union', ($args->{type}||())).' ',
-      map [ $self->render_aqt($_) ], @{$args->{queries}}
-    );
-  });
+  foreach my $setop (qw(union intersect except)) {
+    $self->renderer($setop => sub {
+      my ($self, $args) = @_;
+      $self->join_clauses(
+        ' '.$self->format_keyword(join '_', $setop, ($args->{type}||())).' ',
+        map [ $self->render_aqt($_) ], @{$args->{queries}}
+      );
+    });
+
+    $self->clause_expander("select.${setop}" => sub {
+      +(setop => $_[0]->expand_expr({
+                   "-${setop}" => {
+                     queries => (ref($_[1]) eq 'ARRAY' ? $_[1] : [ $_[1] ]),
+                   }
+                 }));
+    });
+    $self->clause_expander("select.${setop}_all" => sub {
+      +(setop => $_[0]->expand_expr({
+                   "-${setop}" => {
+                     type => 'all',
+                     queries => (ref($_[1]) eq 'ARRAY' ? $_[1] : [ $_[1] ]),
+                   }
+                 }));
+    });
+  }
 
   return $self;
 }
