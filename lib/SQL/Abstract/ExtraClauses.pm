@@ -20,8 +20,8 @@ sub register_defaults {
   $self->clause_expander('select.having', sub {
     $_[0]->expand_expr($_[1])
   });
-  $self->{expand}{from_list} = '_expand_from_list';
-  $self->{render}{from_list} = '_render_from_list';
+  $self->${\"${_}er"}(from_list => "_${_}_from_list")
+    for qw(expand render);
   $self->{expand}{join} = '_expand_join';
   $self->{render}{join} = '_render_join';
   $self->{expand_op}{as} = '_expand_op_as';
@@ -53,7 +53,7 @@ sub _expand_from_list {
     return { -from_list => [ $self->expand_expr($args) ] };
   }
   my @list;
-  my @args = ref($args) ? @$args : ($args);
+  my @args = ref($args) eq 'ARRAY' ? @$args : ($args);
   while (my $entry = shift @args) {
     if (!ref($entry) and $entry =~ /^-(.*)/) {
       if ($1 eq 'as') {
