@@ -52,6 +52,10 @@ sub register_defaults {
       +(from => $_[0]->expand_expr({ -select => $_[1] }));
     },
   );
+
+  $self->renderer(keyword => sub {
+    $_[0]->_sqlcase(join ' ', split '_', $_[1]);
+  });
   return $self;
 }
 
@@ -117,23 +121,18 @@ sub _render_join {
 
   my @parts = (
     [ $self->render_aqt($args->{from}) ],
-    [ $self->_sqlcase(
-        ($args->{type}
-          ? join(' ', split '_', $args->{type}).' '
-          : ''
-        )
-        .'join'
-      )
-    ],
+    [ $self->render_aqt(
+        { -keyword => join '_', ($args->{type}||()), 'join' }
+    ) ],
     [ $self->render_aqt(
         map +($_->{-ident} || $_->{-as} ? $_ : { -row => [ $_ ] }), $args->{to}
     ) ],
     ($args->{on} ? (
-      [ $self->_sqlcase('on') ],
+      [ $self->render_aqt({ -keyword => 'on' }) ],
       [ $self->render_aqt($args->{on}) ],
     ) : ()),
     ($args->{using} ? (
-      [ $self->_sqlcase('using') ],
+      [ $self->render_aqt({ -keyword => 'using' }) ],
       [ $self->render_aqt($args->{using}) ],
     ) : ()),
   );
@@ -153,7 +152,7 @@ sub _render_as {
   return $self->_join_parts(
     ' ',
     [ $self->render_aqt($thing) ],
-    [ $self->_sqlcase('as') ],
+    [ $self->render_aqt({ -keyword => 'as' }) ],
     (@cols
       ? [ $self->_join_parts('',
             [ $self->render_aqt($as) ],
