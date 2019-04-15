@@ -8,38 +8,38 @@ use base qw(SQL::Abstract::Clauses);
 
 BEGIN { *puke = \&SQL::Abstract::puke }
 
-sub new {
-  my ($proto, @args) = @_;
-  my $new = $proto->next::method(@args);
-  $new->{clauses_of}{select} = [
-    @{$new->{clauses_of}{select}}, qw(group_by having)
-  ];
-  $new->{expand_clause}{'select.group_by'} = sub {
+sub register_defaults {
+  my $self = shift;
+  $self->next::method(@_);
+  $self->clauses_of(
+    select => $self->clauses_of('select'), qw(group_by having)
+  );
+  $self->clause_expander('select.group_by', sub {
     $_[0]->_expand_maybe_list_expr($_[1], -ident)
-  };
-  $new->{expand_clause}{'select.having'} = sub {
+  });
+  $self->clause_expander('select.having', sub {
     $_[0]->expand_expr($_[1])
-  };
-  $new->{expand}{from_list} = '_expand_from_list';
-  $new->{render}{from_list} = '_render_from_list';
-  $new->{expand}{join} = '_expand_join';
-  $new->{render}{join} = '_render_join';
-  $new->{expand_op}{as} = '_expand_op_as';
-  $new->{expand}{as} = '_expand_op_as';
-  $new->{render}{as} = '_render_as';
-  splice(@{$new->{clauses_of}{update}}, 2, 0, 'from');
-  splice(@{$new->{clauses_of}{delete}}, 1, 0, 'using');
-  $new->{expand_clause}{'update.from'} = '_expand_select_clause_from';
-  $new->{expand_clause}{'delete.using'} = sub {
+  });
+  $self->{expand}{from_list} = '_expand_from_list';
+  $self->{render}{from_list} = '_render_from_list';
+  $self->{expand}{join} = '_expand_join';
+  $self->{render}{join} = '_render_join';
+  $self->{expand_op}{as} = '_expand_op_as';
+  $self->{expand}{as} = '_expand_op_as';
+  $self->{render}{as} = '_render_as';
+  splice(@{$self->{clauses_of}{update}}, 2, 0, 'from');
+  splice(@{$self->{clauses_of}{delete}}, 1, 0, 'using');
+  $self->{expand_clause}{'update.from'} = '_expand_select_clause_from';
+  $self->{expand_clause}{'delete.using'} = sub {
     +(using => $_[0]->_expand_from_list(undef, $_[1]));
   };
-  $new->{expand_clause}{'insert.rowvalues'} = sub {
+  $self->{expand_clause}{'insert.rowvalues'} = sub {
     (from => $_[0]->expand_expr({ -values => $_[1] }));
   };
-  $new->{expand_clause}{'insert.select'} = sub {
+  $self->{expand_clause}{'insert.select'} = sub {
     (from => $_[0]->expand_expr({ -select => $_[1] }));
   };
-  return $new;
+  return $self;
 }
 
 sub _expand_select_clause_from {

@@ -283,7 +283,7 @@ sub expander { shift->_ext_rw(expand => @_) }
 sub op_expander { shift->_ext_rw(expand_op => @_) }
 sub renderer { shift->_ext_rw(render => @_) }
 sub op_renderer { shift->_ext_rw(expand_op => @_) }
-sub clause_expander { shift->_ext_rw(expand_cluse => @_) }
+sub clause_expander { shift->_ext_rw(expand_clause => @_) }
 sub clause_renderer { shift->_ext_rw(render_clause => @_) }
 
 sub clauses_of {
