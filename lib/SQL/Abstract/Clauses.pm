@@ -284,8 +284,16 @@ BEGIN {
     expand op_expand render op_renderer clause_expand clause_render
   )) {
     my $key = join '_', reverse split '_', $type;
-    eval qq{sub ${type}er { shift->_ext_rw($key => \@_) }; 1 }
-      or die "Method builder failed: $@";
+    my $singular = "${type}er";
+    eval qq{sub ${singular} { shift->_ext_rw($key => \@_) }; 1 }
+      or die "Method builder failed for ${type}er: $@";
+    eval qq{sub ${singular}s {
+      my (\$self, \@args) = \@_;
+      while (my (\$this_key, \$this_value) = splice(\@args, 0, 2)) {
+        \$self->{${key}}{\$this_key} = \$this_value;
+      }
+      return \$self;
+    }; 1 } or die "Method builder failed for ${singular}s: $@";
   }
 }
 

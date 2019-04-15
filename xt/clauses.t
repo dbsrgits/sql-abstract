@@ -143,7 +143,6 @@ is_same_sql(
 );
 
 {
-
   my $sqlac = $sqlac->clone
                     ->clauses_of(
                         select => (
