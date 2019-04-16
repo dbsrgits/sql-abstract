@@ -128,6 +128,10 @@ sub _expand_delete_clause_returning {
 sub _expand_statement {
   my ($self, $type, $args) = @_;
   my $ec = $self->{expand_clause};
+  if ($args->{_}) {
+    $args = { %$args };
+    $args->{$type} = delete $args->{_}
+  }
   return +{ "-${type}" => +{
     map {
       my $val = $args->{$_};

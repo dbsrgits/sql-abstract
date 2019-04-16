@@ -138,10 +138,10 @@ sub register_defaults {
   $self->clause_expander('select.with_recursive' => sub {
     my ($self, $with) = @_;
     my $exp = $self->$with_expander($with);
-    return +{
+    return +(with => +{
       %$exp,
       type => 'recursive'
-    };
+    });
   });
   $self->clause_renderer('select.with' => sub {
     my ($self, $with) = @_;
@@ -278,6 +278,11 @@ sub _render_alias {
       )
     : $self->render_aqt($as)
   );
+}
+
+sub _expand_update_clause_target {
+  my ($self, $target) = @_;
+  +(target => $self->_expand_from_list(undef, $target));
 }
 
 1;

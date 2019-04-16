@@ -197,4 +197,71 @@ is_same_sql(
   q{WITH (foo AS (SELECT 1)) SELECT * FROM foo},
 );
 
+$sql = $sqlac->update({
+  _ => [ 'tree_table', -join => {
+      to => { -select => {
+        with_recursive => [
+          [ tree_with_path => qw(id parent_id path) ],
+          { -select => {
+              _ => [
+                qw(id parent_id),
+                { -as => [
+                  { -cast => { -as => [ id => char => 255 ] } },
+                  'path'
+                ] },
+              ],
+              from => 'tree_table',
+              where => { parent_id => undef },
+              union_all => {
+                -select => {
+                  _ => [ qw(t.id t.parent_id),
+                         { -as => [
+                             { -concat => [ 'r.path', \q{'/'}, 't.id' ] },
+                             'path',
+                         ] },
+                       ],
+                  from => [
+                    tree_table => -as => t =>
+                    -join => {
+                      to => 'tree_with_path',
+                      as => 'r',
+                      on => { 't.parent_id' => 'r.id' },
+                    },
+                  ],
+               } },
+          } },
+        ],
+        select => '*',
+        from => 'tree_with_path'
+      } },
+      as => 'tree',
+      on => { 'tree.id' => 'tree_with_path.id' },
+  } ],
+  set => { path => { -ident => [ qw(tree path) ] } },
+});
+
+is_same_sql(
+  $sql,
+  q{
+    UPDATE tree_table JOIN (
+      WITH RECURSIVE (tree_with_path(id, parent_id, path) AS (
+        (
+          SELECT id, parent_id, CAST(id AS char(255)) AS path
+          FROM tree_table
+          WHERE parent_id IS NULL
+        )
+        UNION ALL
+        (
+           SELECT t.id, t.parent_id, CONCAT(r.path, '/', t.id) AS path
+           FROM tree_table AS t
+           JOIN tree_with_path AS r ON t.parent_id = r.id
+        )
+      ))
+      SELECT * FROM tree_with_path
+    ) AS tree
+    ON tree.id = tree_with_path.id
+    SET path = tree.path
+  },
+);
+
 done_testing;
