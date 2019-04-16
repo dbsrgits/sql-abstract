@@ -194,7 +194,7 @@ $sql = $sqlac->select({
 
 is_same_sql(
   $sql,
-  q{WITH (foo AS (SELECT 1)) SELECT * FROM foo},
+  q{WITH foo AS (SELECT 1) SELECT * FROM foo},
 );
 
 $sql = $sqlac->update({
@@ -244,7 +244,7 @@ is_same_sql(
   $sql,
   q{
     UPDATE tree_table JOIN (
-      WITH RECURSIVE (tree_with_path(id, parent_id, path) AS (
+      WITH RECURSIVE tree_with_path(id, parent_id, path) AS (
         (
           SELECT id, parent_id, CAST(id AS char(255)) AS path
           FROM tree_table
@@ -256,7 +256,7 @@ is_same_sql(
            FROM tree_table AS t
            JOIN tree_with_path AS r ON t.parent_id = r.id
         )
-      ))
+      )
       SELECT * FROM tree_with_path
     ) AS tree
     ON tree.id = tree_with_path.id
