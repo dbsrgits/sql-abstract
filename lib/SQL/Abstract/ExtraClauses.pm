@@ -90,14 +90,15 @@ sub register_defaults {
     $self->render_aqt($setop);
   });
 
+  $self->renderer($_ => sub {
+    my ($self, $setop, $args) = @_;
+    $self->join_clauses(
+      ' '.$self->format_keyword(join '_', $setop, ($args->{type}||())).' ',
+      map [ $self->render_aqt($_) ], @{$args->{queries}}
+    );
+  }) for qw(union intersect except);
+
   foreach my $setop (qw(union intersect except)) {
-    $self->renderer($setop => sub {
-      my ($self, undef, $args) = @_;
-      $self->join_clauses(
-        ' '.$self->format_keyword(join '_', $setop, ($args->{type}||())).' ',
-        map [ $self->render_aqt($_) ], @{$args->{queries}}
-      );
-    });
 
     $self->clause_expander("select.${setop}" => sub {
       +(setop => $_[0]->expand_expr({
