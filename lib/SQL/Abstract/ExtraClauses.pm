@@ -155,10 +155,9 @@ sub register_defaults {
         ) ]
       } @{$with->{queries}}
     ) ];
-    return $self->join_clauses('',
-      [ $self->format_keyword(join '_', 'with', ($with->{type}||'')).' (' ],
+    return $self->join_clauses(' ',
+      [ $self->format_keyword(join '_', 'with', ($with->{type}||'')) ],
       $q_part,
-      [ ')' ],
     );
   });
 
