@@ -16,12 +16,12 @@ sub register_defaults {
   my ($self) = @_;
   $self->{clauses_of}{select} = [ qw(select from where order_by) ];
   $self->{expand}{select} = sub { shift->_expand_statement(@_) };
-  $self->{render}{select} = sub { shift->_render_statement(select => @_) };
+  $self->{render}{select} = sub { shift->_render_statement(@_) };
   $self->{expand_clause}{"select.$_"} = "_expand_select_clause_$_"
     for @{$self->{clauses_of}{select}};
   $self->{clauses_of}{update} = [ qw(target set where returning) ];
   $self->{expand}{update} = sub { shift->_expand_statement(@_) };
-  $self->{render}{update} = sub { shift->_render_statement(update => @_) };
+  $self->{render}{update} = sub { shift->_render_statement(@_) };
   $self->{expand_clause}{"update.$_"} = "_expand_update_clause_$_"
     for @{$self->{clauses_of}{update}};
   $self->{expand_clause}{'update.update'} = '_expand_update_clause_target';
@@ -32,7 +32,7 @@ sub register_defaults {
   };
   $self->{clauses_of}{delete} = [ qw(target where returning) ];
   $self->{expand}{delete} = sub { shift->_expand_statement(@_) };
-  $self->{render}{delete} = sub { shift->_render_statement(delete => @_) };
+  $self->{render}{delete} = sub { shift->_render_statement(@_) };
   $self->{expand_clause}{"delete.$_"} = "_expand_delete_clause_$_"
     for @{$self->{clauses_of}{delete}};
   $self->{expand_clause}{"delete.from"} = '_expand_delete_clause_target';
@@ -45,7 +45,7 @@ sub register_defaults {
     'target', 'fields', 'from', 'returning'
   ];
   $self->{expand}{insert} = sub { shift->_expand_statement(@_) };
-  $self->{render}{insert} = sub { shift->_render_statement(insert => @_) };
+  $self->{render}{insert} = sub { shift->_render_statement(@_) };
   $self->{expand_clause}{'insert.into'} = '_expand_insert_clause_target';
   $self->{expand_clause}{'insert.target'} = '_expand_insert_clause_target';
   $self->{expand_clause}{'insert.fields'} = sub {
@@ -263,7 +263,7 @@ sub _expand_values {
 }
 
 sub _render_values {
-  my ($self, $values) = @_;
+  my ($self, undef, $values) = @_;
   my ($v_sql, @bind) = $self->join_clauses(
     ', ',
     map [ $self->render_aqt($_) ],

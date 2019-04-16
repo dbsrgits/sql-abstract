@@ -92,7 +92,7 @@ sub register_defaults {
 
   foreach my $setop (qw(union intersect except)) {
     $self->renderer($setop => sub {
-      my ($self, $args) = @_;
+      my ($self, undef, $args) = @_;
       $self->join_clauses(
         ' '.$self->format_keyword(join '_', $setop, ($args->{type}||())).' ',
         map [ $self->render_aqt($_) ], @{$args->{queries}}
@@ -219,12 +219,12 @@ sub _expand_join {
 }
 
 sub _render_from_list {
-  my ($self, $list) = @_;
+  my ($self, undef, $list) = @_;
   return $self->join_clauses(', ', map [ $self->render_aqt($_) ], @$list);
 }
 
 sub _render_join {
-  my ($self, $args) = @_;
+  my ($self, undef, $args) = @_;
 
   my @parts = (
     [ $self->render_aqt($args->{from}) ],
@@ -252,7 +252,7 @@ sub _expand_op_as {
 }
 
 sub _render_as {
-  my ($self, $args) = @_;
+  my ($self, undef, $args) = @_;
   my ($thing, @alias) = @$args;
   return $self->join_clauses(
     ' ',

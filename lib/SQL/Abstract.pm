@@ -530,7 +530,7 @@ sub render_aqt {
   die "No" if @rest;
   die "Not a node type: $k" unless $k =~ s/^-//;
   if (my $meth = $self->{render}{$k}) {
-    return $self->$meth($v);
+    return $self->$meth($k, $v);
   }
   die "notreached: $k";
 }
@@ -1068,19 +1068,19 @@ sub _recurse_where {
 }
 
 sub _render_ident {
-  my ($self, $ident) = @_;
+  my ($self, undef, $ident) = @_;
 
   return $self->_convert($self->_quote($ident));
 }
 
 sub _render_row {
-  my ($self, $values) = @_;
-  my ($sql, @bind) = $self->_render_op([ ',', @$values ]);
+  my ($self, undef, $values) = @_;
+  my ($sql, @bind) = $self->_render_op(undef, [ ',', @$values ]);
   return "($sql)", @bind;  
 }
 
 sub _render_func {
-  my ($self, $rest) = @_;
+  my ($self, undef, $rest) = @_;
   my ($func, @args) = @$rest;
   if (ref($func) eq 'HASH') {
     $func = $self->render_aqt($func);
@@ -1095,18 +1095,18 @@ sub _render_func {
 }
 
 sub _render_bind {
-  my ($self,  $bind) = @_;
+  my ($self, undef, $bind) = @_;
   return ($self->_convert('?'), $self->_bindtype(@$bind));
 }
 
 sub _render_literal {
-  my ($self, $literal) = @_;
+  my ($self, undef, $literal) = @_;
   $self->_assert_bindval_matches_bindtype(@{$literal}[1..$#$literal]);
   return @$literal;
 }
 
 sub _render_op {
-  my ($self, $v) = @_;
+  my ($self, undef, $v) = @_;
   my ($op, @args) = @$v;
   if (my $r = $self->{render_op}{$op}) {
     return $self->$r($op, \@args);
