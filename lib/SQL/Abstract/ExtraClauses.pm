@@ -98,24 +98,24 @@ sub register_defaults {
     );
   }) for qw(union intersect except);
 
-  foreach my $setop (qw(union intersect except)) {
+  my $setop_expander = sub {
+    my ($self, $setop, $args) = @_;
+    my ($op, $type) = split '_', $setop;
+    +(setop => $self->expand_expr({
+      "-${op}" => {
+        ($type ? (type => $type) : ()),
+        queries => (ref($args) eq 'ARRAY' ? $args : [ $args ])
+      }
+    }));
+  };
 
-    $self->clause_expander("select.${setop}" => sub {
-      +(setop => $_[0]->expand_expr({
-                   "-${setop}" => {
-                     queries => (ref($_[2]) eq 'ARRAY' ? $_[2] : [ $_[2] ]),
-                   }
-                 }));
-    });
-    $self->clause_expander("select.${setop}_all" => sub {
-      +(setop => $_[0]->expand_expr({
-                   "-${setop}" => {
-                     type => 'all',
-                     queries => (ref($_[2]) eq 'ARRAY' ? $_[2] : [ $_[2] ]),
-                   }
-                 }));
-    });
-  }
+  $self->clause_expanders(
+    map +($_ => $setop_expander),
+      map "select.${_}",
+        map +($_, "${_}_all", "${_}_distinct"),
+          qw(union intersect except)
+  );
+
   $self->clause_expander('select.with' => my $with_expander = sub {
     my ($self, undef, $with) = @_;
     if (ref($with) eq 'HASH') {
