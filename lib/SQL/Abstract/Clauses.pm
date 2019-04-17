@@ -311,6 +311,8 @@ BEGIN {
   }
 }
 
+sub statement_list { sort keys ${$_[0]}{clauses_of} }
+
 sub clauses_of {
   my ($self, $of, @clauses) = @_;
   unless (@clauses) {

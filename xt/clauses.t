@@ -6,6 +6,11 @@ use SQL::Abstract::ExtraClauses;
 
 my $sqlac = SQL::Abstract::ExtraClauses->new(unknown_unop_always_func => 1);
 
+is_deeply(
+  [ $sqlac->statement_list ],
+  [ sort qw(select update insert delete) ],
+);
+
 my ($sql, @bind) = $sqlac->select({
   select => [ qw(artist.id artist.name), { -json_agg => 'cd' } ],
   from => [
