@@ -287,17 +287,27 @@ BEGIN {
   foreach my $type (qw(
     expand op_expand render op_render clause_expand clause_render
   )) {
-    my $key = join '_', reverse split '_', $type;
+    my $name = join '_', reverse split '_', $type;
     my $singular = "${type}er";
-    eval qq{sub ${singular} { shift->_ext_rw($key => \@_) }; 1 }
-      or die "Method builder failed for ${type}er: $@";
+    eval qq{sub ${singular} { shift->_ext_rw($name => \@_) }; 1 }
+      or die "Method builder failed for ${singular}: $@";
+    eval qq{sub wrap_${singular} {
+      my (\$self, \$key, \$builder) = \@_;
+      my \$orig = \$self->_ext_rw('${name}', \$key);
+      \$self->_ext_rw(
+        '${name}', \$key,
+        \$builder->(\$orig, '${name}', \$key)
+      );
+    }; 1 } or die "Method builder failed for wrap_${singular}: $@";
     eval qq{sub ${singular}s {
       my (\$self, \@args) = \@_;
       while (my (\$this_key, \$this_value) = splice(\@args, 0, 2)) {
-        \$self->{${key}}{\$this_key} = \$this_value;
+        \$self->{${name}}{\$this_key} = \$this_value;
       }
       return \$self;
     }; 1 } or die "Method builder failed for ${singular}s: $@";
+    eval qq{sub ${singular}_list { sort keys %{\$_[0]->{\$name}} }; 1; }
+     or die "Method builder failed for ${singular}_list: $@";
   }
 }
 

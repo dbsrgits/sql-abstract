@@ -62,9 +62,9 @@ sub register_defaults {
   );
 
   # set ops
-  {
-    my $orig = $self->expander('select');
-    $self->expander(select => sub {
+  $self->wrap_expander(select => sub {
+    my $orig = shift;
+    sub {
       my $self = shift;
       my $exp = $self->$orig(@_);
       return $exp unless my $setop = (my $sel = $exp->{-select})->{setop};
@@ -74,8 +74,8 @@ sub register_defaults {
           { -select => \%inner };
       }
       return $exp;
-    });
-  }
+    }
+  });
   my $expand_setop = sub {
     my ($self, $setop, $args) = @_;
     +{ "-${setop}" => {
