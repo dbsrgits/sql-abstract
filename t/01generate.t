@@ -863,6 +863,7 @@ for my $t (@tests) {
     }
     else {
       lives_ok(sub {
+        alarm(5); local $SIG{ALRM} = sub { die "Timed out" };
         warnings_like(
           sub { $cref->() },
           $t->{warns} || [],

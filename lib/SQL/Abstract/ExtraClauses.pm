@@ -24,9 +24,9 @@ sub register_defaults {
   $self->clauses_of(select => 'with', @clauses);
   $self->clause_expanders(
     'select.group_by', sub {
-      $_[0]->_expand_maybe_list_expr($_[1], -ident)
+      $_[0]->_expand_maybe_list_expr($_[2], -ident)
     },
-    'select.having', 'expand_expr',
+    'select.having', sub { $_[0]->expand_expr($_[2]) },
   );
   foreach my $thing (qw(join from_list)) {
     $self->expander($thing => "_expand_${thing}")
@@ -51,13 +51,13 @@ sub register_defaults {
   $self->clause_expanders(
     'update.from' => '_expand_select_clause_from',
     'delete.using' => sub {
-      +(using => $_[0]->_expand_from_list(undef, $_[1]));
+      +(using => $_[0]->_expand_from_list(undef, $_[2]));
     },
     'insert.rowvalues' => sub {
-      +(from => $_[0]->expand_expr({ -values => $_[1] }));
+      +(from => $_[0]->expand_expr({ -values => $_[2] }));
     },
     'insert.select' => sub {
-      +(from => $_[0]->expand_expr({ -select => $_[1] }));
+      +(from => $_[0]->expand_expr({ -select => $_[2] }));
     },
   );
 
@@ -86,7 +86,7 @@ sub register_defaults {
   $self->expanders(map +($_ => $expand_setop), qw(union intersect except));
 
   $self->clause_renderer('select.setop' => sub {
-    my ($self, $setop) = @_;
+    my ($self, undef, $setop) = @_;
     $self->render_aqt($setop);
   });
 
@@ -103,7 +103,7 @@ sub register_defaults {
     $self->clause_expander("select.${setop}" => sub {
       +(setop => $_[0]->expand_expr({
                    "-${setop}" => {
-                     queries => (ref($_[1]) eq 'ARRAY' ? $_[1] : [ $_[1] ]),
+                     queries => (ref($_[2]) eq 'ARRAY' ? $_[2] : [ $_[2] ]),
                    }
                  }));
     });
@@ -111,13 +111,13 @@ sub register_defaults {
       +(setop => $_[0]->expand_expr({
                    "-${setop}" => {
                      type => 'all',
-                     queries => (ref($_[1]) eq 'ARRAY' ? $_[1] : [ $_[1] ]),
+                     queries => (ref($_[2]) eq 'ARRAY' ? $_[2] : [ $_[2] ]),
                    }
                  }));
     });
   }
   $self->clause_expander('select.with' => my $with_expander = sub {
-    my ($self, $with) = @_;
+    my ($self, undef, $with) = @_;
     if (ref($with) eq 'HASH') {
       return +{
         %$with,
@@ -137,15 +137,15 @@ sub register_defaults {
     return +{ queries => \@exp };
   });
   $self->clause_expander('select.with_recursive' => sub {
-    my ($self, $with) = @_;
-    my $exp = $self->$with_expander($with);
+    my ($self, undef, $with) = @_;
+    my $exp = $self->$with_expander(undef, $with);
     return +(with => +{
       %$exp,
       type => 'recursive'
     });
   });
   $self->clause_renderer('select.with' => sub {
-    my ($self, $with) = @_;
+    my ($self, undef, $with) = @_;
     my $q_part = [ $self->join_clauses(', ',
       map {
         my ($alias, $query) = @$_;
@@ -168,7 +168,7 @@ sub register_defaults {
 sub format_keyword { $_[0]->_sqlcase(join ' ', split '_', $_[1]) }
 
 sub _expand_select_clause_from {
-  my ($self, $from) = @_;
+  my ($self, undef, $from) = @_;
   +(from => $self->_expand_from_list(undef, $from));
 }
 
@@ -281,7 +281,7 @@ sub _render_alias {
 }
 
 sub _expand_update_clause_target {
-  my ($self, $target) = @_;
+  my ($self, undef, $target) = @_;
   +(target => $self->_expand_from_list(undef, $target));
 }
 
