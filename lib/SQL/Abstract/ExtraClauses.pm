@@ -117,7 +117,8 @@ sub register_defaults {
   );
 
   $self->clause_expander('select.with' => my $with_expander = sub {
-    my ($self, undef, $with) = @_;
+    my ($self, $name, $with) = @_;
+    my (undef, $type) = split '_', $name;
     if (ref($with) eq 'HASH') {
       return +{
         %$with,
@@ -134,16 +135,9 @@ sub register_defaults {
         $self->expand_expr($query)
       ];
     }
-    return +{ queries => \@exp };
+    return +(with => { ($type ? (type => $type) : ()), queries => \@exp });
   });
-  $self->clause_expander('select.with_recursive' => sub {
-    my ($self, undef, $with) = @_;
-    my $exp = $self->$with_expander(undef, $with);
-    return +(with => +{
-      %$exp,
-      type => 'recursive'
-    });
-  });
+  $self->clause_expander('select.with_recursive', $with_expander);
   $self->clause_renderer('select.with' => sub {
     my ($self, undef, $with) = @_;
     my $q_part = [ $self->join_clauses(', ',
