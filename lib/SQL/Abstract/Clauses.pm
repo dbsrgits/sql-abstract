@@ -26,7 +26,7 @@ sub register_defaults {
     for @{$self->{clauses_of}{update}};
   $self->{expand_clause}{'update.update'} = '_expand_update_clause_target';
   $self->{render_clause}{'update.target'} = sub {
-    my ($self, $target) = @_;
+    my ($self, undef, $target) = @_;
     my ($sql, @bind) = $self->render_aqt($target);
     ($self->_sqlcase('update ').$sql, @bind);
   };
@@ -37,7 +37,7 @@ sub register_defaults {
     for @{$self->{clauses_of}{delete}};
   $self->{expand_clause}{"delete.from"} = '_expand_delete_clause_target';
   $self->{render_clause}{'delete.target'} = sub {
-    my ($self, $from) = @_;
+    my ($self, undef, $from) = @_;
     my ($sql, @bind) = $self->render_aqt($from);
     ($self->_sqlcase('delete from ').$sql, @bind);
   };
@@ -50,24 +50,24 @@ sub register_defaults {
   $self->{expand_clause}{'insert.target'} = '_expand_insert_clause_target';
   $self->{expand_clause}{'insert.fields'} = sub {
     return +{ -row => [
-      shift->_expand_maybe_list_expr(@_, -ident)
-    ] } if ref($_[1]) eq 'ARRAY';
-    return $_[1]; # should maybe still expand somewhat?
+      shift->_expand_maybe_list_expr($_[2], -ident)
+    ] } if ref($_[2]) eq 'ARRAY';
+    return $_[2]; # should maybe still expand somewhat?
   };
   $self->{expand_clause}{'insert.values'} = '_expand_insert_clause_values';
   $self->{expand_clause}{'insert.returning'} = sub {
     shift->_expand_maybe_list_expr(@_, -ident);
   };
   $self->{render_clause}{'insert.fields'} = sub {
-    return $_[0]->render_aqt($_[1]);
+    return $_[0]->render_aqt($_[2]);
   };
   $self->{render_clause}{'insert.target'} = sub {
-    my ($self, $from) = @_;
+    my ($self, undef, $from) = @_;
     my ($sql, @bind) = $self->render_aqt($from);
     ($self->_sqlcase('insert into ').$sql, @bind);
   };
   $self->{render_clause}{'insert.from'} = sub {
-    return $_[0]->render_aqt($_[1], 1);
+    return $_[0]->render_aqt($_[2], 1);
   };
   $self->{expand}{values} = '_expand_values';
   $self->{render}{values} = '_render_values';
@@ -78,51 +78,51 @@ sub register_defaults {
 }
 
 sub _expand_select_clause_select {
-  my ($self, $select) = @_;
+  my ($self, undef, $select) = @_;
   +(select => $self->_expand_maybe_list_expr($select, -ident));
 }
 
 sub _expand_select_clause_from {
-  my ($self, $from) = @_;
+  my ($self, undef, $from) = @_;
   +(from => $self->_expand_maybe_list_expr($from, -ident));
 }
 
 sub _expand_select_clause_where {
-  my ($self, $where) = @_;
+  my ($self, undef, $where) = @_;
   +(where => $self->expand_expr($where));
 }
 
 sub _expand_select_clause_order_by {
-  my ($self, $order_by) = @_;
+  my ($self, undef, $order_by) = @_;
   +(order_by => $self->_expand_order_by($order_by));
 }
 
 sub _expand_update_clause_target {
-  my ($self, $target) = @_;
+  my ($self, undef, $target) = @_;
   +(target => $self->_expand_maybe_list_expr($target, -ident));
 }
 
 sub _expand_update_clause_set {
-  return $_[1] if ref($_[1]) eq 'HASH' and ($_[1]->{-op}||[''])->[0] eq ',';
-  +(set => shift->_expand_update_set_values(@_));
+  return $_[2] if ref($_[2]) eq 'HASH' and ($_[2]->{-op}||[''])->[0] eq ',';
+  +(set => $_[0]->_expand_update_set_values($_[1], $_[2]));
 }
 
 sub _expand_update_clause_where {
-  +(where => shift->expand_expr(@_));
+  +(where => $_[0]->expand_expr($_[2]));
 }
 
 sub _expand_update_clause_returning {
-  +(returning => shift->_expand_maybe_list_expr(@_, -ident));
+  +(returning => $_[0]->_expand_maybe_list_expr($_[2], -ident));
 }
 
 sub _expand_delete_clause_target {
-  +(target => shift->_expand_maybe_list_expr(@_, -ident));
+  +(target => $_[0]->_expand_maybe_list_expr($_[2], -ident));
 }
 
-sub _expand_delete_clause_where { +(where => shift->expand_expr(@_)); }
+sub _expand_delete_clause_where { +(where => $_[0]->expand_expr($_[2])); }
 
 sub _expand_delete_clause_returning {
-  +(returning => shift->_expand_maybe_list_expr(@_, -ident));
+  +(returning => $_[0]->_expand_maybe_list_expr($_[2], -ident));
 }
 
 sub _expand_statement {
@@ -136,7 +136,7 @@ sub _expand_statement {
     map {
       my $val = $args->{$_};
       if (defined($val) and my $exp = $ec->{"${type}.$_"}) {
-        if ((my (@exp) = $self->$exp($val)) == 1) {
+        if ((my (@exp) = $self->$exp($_ => $val)) == 1) {
           ($_ => $exp[0])
         } else {
           @exp
@@ -156,7 +156,7 @@ sub _render_statement {
     local $self->{convert_where} = $self->{convert} if $clause eq 'where';
     my ($sql) = my @part = do {
       if (my $rdr = $self->{render_clause}{"${type}.${clause}"}) {
-        $self->$rdr($clause_expr);
+        $self->$rdr($clause, $clause_expr);
       } else {
         my ($clause_sql, @bind) = $self->render_aqt($clause_expr, 1);
         my $sql = join ' ',
@@ -238,11 +238,11 @@ sub insert {
 }
 
 sub _expand_insert_clause_target {
-  +(target => shift->_expand_maybe_list_expr(@_, -ident));
+  +(target => $_[0]->_expand_maybe_list_expr($_[2], -ident));
 }
 
 sub _expand_insert_clause_values {
-  my ($self, $data) = @_;
+  my ($self, undef, $data) = @_;
   if (ref($data) eq 'HASH' and (keys(%$data))[0] =~ /^-/) {
     return $self->expand_expr($data);
   }
@@ -326,6 +326,5 @@ sub clone {
     ref($self)
   );
 }
-
 
 1;

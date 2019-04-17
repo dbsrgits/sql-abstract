@@ -393,12 +393,12 @@ sub _update_set_values {
   my ($self, $data) = @_;
 
   return $self->render_aqt(
-    $self->_expand_update_set_values($data),
+    $self->_expand_update_set_values(undef, $data),
   );
 }
 
 sub _expand_update_set_values {
-  my ($self, $data) = @_;
+  my ($self, undef, $data) = @_;
   $self->_expand_maybe_list_expr( [
     map {
       my ($k, $set) = @$_;
