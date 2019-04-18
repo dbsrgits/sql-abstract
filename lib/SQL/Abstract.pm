@@ -1168,14 +1168,11 @@ sub _render_op_in {
 
 sub _render_op_andor {
   my ($self, $op, $args) = @_;
-  my @parts = map [ $self->render_aqt($_) ], @$args;
-  return '' unless @parts;
-  return @{$parts[0]} if @parts == 1;
-  my ($sql, @bind) = $self->join_query_parts(' ',
-    '(', [ $self->join_query_parts(
-           ' '.$self->format_keyword($op).' ',
-           @parts) ],
-    ')');
+  return '' unless @$args;
+  return $self->join_query_parts('', $args->[0]) if @$args == 1;
+  return $self->join_query_parts(
+    ' ' => '(',[  $self->_render_op_multop($op, $args) ], ')'
+  );
 }
 
 sub _render_op_multop {
