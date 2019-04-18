@@ -270,8 +270,7 @@ sub _render_values {
   my ($self, undef, $values) = @_;
   my ($v_sql, @bind) = $self->join_query_parts(
     ', ',
-    map [ $self->render_aqt($_) ],
-      ref($values) eq 'ARRAY' ? @$values : $values
+    ref($values) eq 'ARRAY' ? @$values : $values
   );
   my $sql = $self->_sqlcase('values').' '.$v_sql;
   return (

@@ -94,7 +94,7 @@ sub register_defaults {
     my ($self, $setop, $args) = @_;
     $self->join_query_parts(
       ' '.$self->format_keyword(join '_', $setop, ($args->{type}||())).' ',
-      map [ $self->render_aqt($_) ], @{$args->{queries}}
+      @{$args->{queries}}
     );
   }) for qw(union intersect except);
 
@@ -146,7 +146,7 @@ sub register_defaults {
         [ $self->join_query_parts(' ',
             [ $self->_render_alias($alias) ],
             [ $self->format_keyword('as') ],
-            [ $self->render_aqt($query) ],
+            $query,
         ) ]
       } @{$with->{queries}}
     ) ];
@@ -215,7 +215,7 @@ sub _expand_join {
 
 sub _render_from_list {
   my ($self, undef, $list) = @_;
-  return $self->join_query_parts(', ', map [ $self->render_aqt($_) ], @$list);
+  return $self->join_query_parts(', ', @$list);
 }
 
 sub _render_join {
@@ -262,11 +262,11 @@ sub _render_alias {
   my ($as, @cols) = @$args;
   return (@cols
     ? $self->join_query_parts('',
-         [ $self->render_aqt($as) ],
+         $as,
          [ '(' ],
          [ $self->join_query_parts(
              ', ',
-             map [ $self->render_aqt($_) ], @cols
+             @cols
          ) ],
          [ ')' ],
       )
