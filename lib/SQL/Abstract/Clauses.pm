@@ -154,7 +154,7 @@ sub _render_statement {
   foreach my $clause (@{$self->{clauses_of}{$type}}) {
     next unless my $clause_expr = $args->{$clause};
     local $self->{convert_where} = $self->{convert} if $clause eq 'where';
-    my ($sql) = my @part = do {
+    my @part = do {
       if (my $rdr = $self->{render_clause}{"${type}.${clause}"}) {
         $self->$rdr($clause, $clause_expr);
       } else {
@@ -165,7 +165,6 @@ sub _render_statement {
         ($sql, @bind);
       }
     };
-    next unless defined($sql) and length($sql);
     push @parts, \@part;
   }
   my ($sql, @bind) = $self->join_query_parts(' ', @parts);
