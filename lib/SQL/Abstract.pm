@@ -1645,6 +1645,7 @@ sub AUTOLOAD {
     # This allows us to check for a local, then _form, attr
     my $self = shift;
     my($name) = $AUTOLOAD =~ /.*::(.+)/;
+    puke "AUTOLOAD invoked for method name ${name} and allow_autoload option not set" unless $self->{allow_autoload};
     return $self->generate($name, @_);
 }
 
