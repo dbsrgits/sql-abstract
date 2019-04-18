@@ -27,8 +27,7 @@ sub register_defaults {
   $self->{expand_clause}{'update.update'} = '_expand_update_clause_target';
   $self->{render_clause}{'update.target'} = sub {
     my ($self, undef, $target) = @_;
-    my ($sql, @bind) = $self->render_aqt($target);
-    ($self->_sqlcase('update ').$sql, @bind);
+    $self->join_query_parts(' ', $self->format_keyword('update'), $target);
   };
   $self->{clauses_of}{delete} = [ qw(target where returning) ];
   $self->{expand}{delete} = sub { shift->_expand_statement(@_) };
@@ -38,8 +37,7 @@ sub register_defaults {
   $self->{expand_clause}{"delete.from"} = '_expand_delete_clause_target';
   $self->{render_clause}{'delete.target'} = sub {
     my ($self, undef, $from) = @_;
-    my ($sql, @bind) = $self->render_aqt($from);
-    ($self->_sqlcase('delete from ').$sql, @bind);
+    $self->join_query_parts(' ', $self->format_keyword('delete from'), $from);
   };
   $self->{clauses_of}{insert} = [
     'target', 'fields', 'from', 'returning'
@@ -63,8 +61,7 @@ sub register_defaults {
   };
   $self->{render_clause}{'insert.target'} = sub {
     my ($self, undef, $from) = @_;
-    my ($sql, @bind) = $self->render_aqt($from);
-    ($self->_sqlcase('insert into ').$sql, @bind);
+    $self->join_query_parts(' ', $self->format_keyword('insert into'), $from);
   };
   $self->{render_clause}{'insert.from'} = sub {
     return $_[0]->render_aqt($_[2], 1);
@@ -77,7 +74,7 @@ sub register_defaults {
   $self->{render}{convert_where} = sub {
     my $self = shift;
     local $self->{convert_where} = $self->{convert};
-    $self->render_aqt($_[0]);
+    $self->render_aqt($_[1]);
   };
   return $self;
 }
@@ -95,7 +92,7 @@ sub _expand_select_clause_from {
 sub _expand_select_clause_where {
   my ($self, undef, $where) = @_;
   my $exp = $self->expand_expr($where);
-  +(where => ($self->{convert} ? { -convert_where => $exp } : $exp));
+  +(where => ($self->{convert} ? +{ -convert_where => $exp } : $exp));
 }
 
 sub _expand_select_clause_order_by {
@@ -268,14 +265,16 @@ sub _expand_values {
 
 sub _render_values {
   my ($self, undef, $values) = @_;
-  my ($v_sql, @bind) = $self->join_query_parts(
-    ', ',
-    ref($values) eq 'ARRAY' ? @$values : $values
-  );
-  my $sql = $self->_sqlcase('values').' '.$v_sql;
-  return (
-    (our $Render_Top_Level ? $sql : '('.$sql.')'),
-    @bind
+  my $inner = [
+    $self->join_query_parts(' ',
+      $self->format_keyword('values'),
+      [ $self->join_query_parts(', ',
+        ref($values) eq 'ARRAY' ? @$values : $values
+      ) ],
+    ),
+  ];
+  return $self->join_query_parts('',
+    (our $Render_Top_Level ? $inner : ('(', $inner, ')'))
   );
 }
 
