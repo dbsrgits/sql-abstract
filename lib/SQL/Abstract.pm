@@ -1206,9 +1206,11 @@ sub _render_op_multop {
 
 sub join_query_parts {
   my ($self, $join, @parts) = @_;
+  my @final = map +(ref($_) eq 'HASH' ? [ $self->render_aqt($_) ] : $_),
+                @parts;
   return (
-    join($join, map $_->[0], @parts),
-    (wantarray ? (map @{$_}[1..$#$_], @parts) : ()),
+    join($join, map $_->[0], @final),
+    (wantarray ? (map @{$_}[1..$#$_], @final) : ()),
   );
 }
 
