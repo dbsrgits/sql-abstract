@@ -74,6 +74,11 @@ sub register_defaults {
   $self->{expand}{exists} = sub {
     $_[0]->_expand_op(undef, [ exists => $_[2] ]);
   };
+  $self->{render}{convert_where} = sub {
+    my $self = shift;
+    local $self->{convert_where} = $self->{convert};
+    $self->render_aqt($_[0]);
+  };
   return $self;
 }
 
@@ -89,7 +94,8 @@ sub _expand_select_clause_from {
 
 sub _expand_select_clause_where {
   my ($self, undef, $where) = @_;
-  +(where => $self->expand_expr($where));
+  my $exp = $self->expand_expr($where);
+  +(where => ($self->{convert} ? { -convert_where => $exp } : $exp));
 }
 
 sub _expand_select_clause_order_by {
@@ -153,7 +159,6 @@ sub _render_statement {
   my @parts;
   foreach my $clause (@{$self->{clauses_of}{$type}}) {
     next unless my $clause_expr = $args->{$clause};
-    local $self->{convert_where} = $self->{convert} if $clause eq 'where';
     my @part = do {
       if (my $rdr = $self->{render_clause}{"${type}.${clause}"}) {
         $self->$rdr($clause, $clause_expr);
