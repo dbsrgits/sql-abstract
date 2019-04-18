@@ -863,7 +863,13 @@ for my $t (@tests) {
     }
     else {
       lives_ok(sub {
-        alarm(5); local $SIG{ALRM} = sub { die "Timed out" };
+        alarm(1); local $SIG{ALRM} = sub {
+          no warnings 'redefine';
+          my $orig = Carp->can('caller_info');
+          local *Carp::caller_info = sub { return if $_[0] > 20; &$orig };
+          print STDERR "ARGH ($SQL::Abstract::Default_Scalar_To): ".Carp::longmess();
+          die "timed out";
+        };
         warnings_like(
           sub { $cref->() },
           $t->{warns} || [],

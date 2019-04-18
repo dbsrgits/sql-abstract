@@ -48,13 +48,13 @@ sub register_defaults {
   $self->{expand_clause}{'insert.target'} = '_expand_insert_clause_target';
   $self->{expand_clause}{'insert.fields'} = sub {
     return +{ -row => [
-      shift->_expand_maybe_list_expr($_[2], -ident)
+      $_[0]->_expand_maybe_list_expr($_[2], -ident)
     ] } if ref($_[2]) eq 'ARRAY';
     return $_[2]; # should maybe still expand somewhat?
   };
   $self->{expand_clause}{'insert.values'} = '_expand_insert_clause_values';
   $self->{expand_clause}{'insert.returning'} = sub {
-    shift->_expand_maybe_list_expr(@_, -ident);
+    $_[0]->_expand_maybe_list_expr($_[2], -ident);
   };
   $self->{render_clause}{'insert.fields'} = sub {
     return $_[0]->render_aqt($_[2]);
