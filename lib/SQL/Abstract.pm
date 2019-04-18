@@ -1152,7 +1152,7 @@ sub _render_op_between {
   return $self->join_query_parts(' ',
     [ '(' ],
     $left,
-    [ $self->_sqlcase(join ' ', split '_', $op) ],
+    [ $self->format_keyword($op) ],
     @rh,
     [ ')' ],
   );
