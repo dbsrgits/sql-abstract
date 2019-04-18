@@ -1082,16 +1082,12 @@ sub _render_row {
 sub _render_func {
   my ($self, undef, $rest) = @_;
   my ($func, @args) = @$rest;
-  if (ref($func) eq 'HASH') {
-    $func = $self->render_aqt($func);
-  }
-  my @arg_sql;
-  my @bind = map {
-    my @x = @$_;
-    push @arg_sql, shift @x;
-    @x
-  } map [ $self->render_aqt($_) ], @args;
-  return ($self->_sqlcase($func).'('.join(', ', @arg_sql).')', @bind);
+  return $self->join_query_parts('',
+    [ $self->_sqlcase($func) ],
+    [ '(' ],
+    [ $self->join_query_parts(', ', @args) ],
+    [ ')' ]
+  );
 }
 
 sub _render_bind {
