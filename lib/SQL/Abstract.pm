@@ -1076,7 +1076,7 @@ sub _render_ident {
 sub _render_row {
   my ($self, undef, $values) = @_;
   my ($sql, @bind) = $self->_render_op(undef, [ ',', @$values ]);
-  return "($sql)", @bind;  
+  return $self->join_query_parts('', [ '(' ], [ $sql, @bind ], [ ')' ]);
 }
 
 sub _render_func {
@@ -1139,25 +1139,22 @@ sub _render_op {
 sub _render_op_between {
   my ($self, $op, $args) = @_;
   my ($left, $low, $high) = @$args;
-  my ($rhsql, @rhbind) = do {
+  my @rh = do {
     if (@$args == 2) {
       puke "Single arg to between must be a literal"
         unless $low->{-literal};
-      @{$low->{-literal}}
+      $low;
     } else {
-      my ($l, $h) = map [ $self->render_aqt($_) ], $low, $high;
-      (join(' ', $l->[0], $self->_sqlcase('and'), $h->[0]),
-       @{$l}[1..$#$l], @{$h}[1..$#$h])
+      +($low, [ $self->_sqlcase('and') ], $high);
     }
   };
   my ($lhsql, @lhbind) = $self->render_aqt($left);
-  return (
-    join(' ',
-      '(', $lhsql,
-       $self->_sqlcase(join ' ', split '_', $op),
-      $rhsql, ')'
-    ),
-    @lhbind, @rhbind
+  return $self->join_query_parts(' ',
+    [ '(' ],
+    $left,
+    [ $self->_sqlcase(join ' ', split '_', $op) ],
+    @rh,
+    [ ')' ],
   );
 }
 
