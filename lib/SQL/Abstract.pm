@@ -1145,34 +1145,24 @@ sub _render_op_between {
         unless $low->{-literal};
       $low;
     } else {
-      +($low, [ $self->_sqlcase('and') ], $high);
+      +($low, $self->format_keyword('and'), $high);
     }
   };
-  my ($lhsql, @lhbind) = $self->render_aqt($left);
   return $self->join_query_parts(' ',
-    [ '(' ],
-    $left,
-    [ $self->format_keyword($op) ],
-    @rh,
-    [ ')' ],
+    '(', $left, $self->format_keyword($op), @rh, ')',
   );
 }
 
 sub _render_op_in {
   my ($self, $op, $args) = @_;
   my ($lhs, @rhs) = @$args;
-  my @in_bind;
-  my @in_sql = map {
-    my ($sql, @bind) = $self->render_aqt($_);
-    push @in_bind, @bind;
-    $sql;
-  } @rhs;
-  my ($lhsql, @lbind) = $self->render_aqt($lhs);
-  return (
-    $lhsql.' '.$self->_sqlcase(join ' ', split '_', $op).' ( '
-    .join(', ', @in_sql)
-    .' )',
-    @lbind, @in_bind
+
+  return $self->join_query_parts(' ',
+    $lhs,
+    $self->format_keyword($op),
+    '(',
+    [ $self->join_query_parts(', ', @rhs) ],
+    ')'
   );
 }
 
