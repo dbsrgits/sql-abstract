@@ -92,7 +92,7 @@ sub register_defaults {
 
   $self->renderer($_ => sub {
     my ($self, $setop, $args) = @_;
-    $self->join_clauses(
+    $self->join_query_parts(
       ' '.$self->format_keyword(join '_', $setop, ($args->{type}||())).' ',
       map [ $self->render_aqt($_) ], @{$args->{queries}}
     );
@@ -140,17 +140,17 @@ sub register_defaults {
   $self->clause_expander('select.with_recursive', $with_expander);
   $self->clause_renderer('select.with' => sub {
     my ($self, undef, $with) = @_;
-    my $q_part = [ $self->join_clauses(', ',
+    my $q_part = [ $self->join_query_parts(', ',
       map {
         my ($alias, $query) = @$_;
-        [ $self->join_clauses(' ',
+        [ $self->join_query_parts(' ',
             [ $self->_render_alias($alias) ],
             [ $self->format_keyword('as') ],
             [ $self->render_aqt($query) ],
         ) ]
       } @{$with->{queries}}
     ) ];
-    return $self->join_clauses(' ',
+    return $self->join_query_parts(' ',
       [ $self->format_keyword(join '_', 'with', ($with->{type}||'')) ],
       $q_part,
     );
@@ -215,7 +215,7 @@ sub _expand_join {
 
 sub _render_from_list {
   my ($self, undef, $list) = @_;
-  return $self->join_clauses(', ', map [ $self->render_aqt($_) ], @$list);
+  return $self->join_query_parts(', ', map [ $self->render_aqt($_) ], @$list);
 }
 
 sub _render_join {
@@ -236,7 +236,7 @@ sub _render_join {
       [ $self->render_aqt($args->{using}) ],
     ) : ()),
   );
-  return $self->join_clauses(' ', @parts);
+  return $self->join_query_parts(' ', @parts);
 }
 
 sub _expand_op_as {
@@ -249,7 +249,7 @@ sub _expand_op_as {
 sub _render_as {
   my ($self, undef, $args) = @_;
   my ($thing, @alias) = @$args;
-  return $self->join_clauses(
+  return $self->join_query_parts(
     ' ',
     [ $self->render_aqt($thing) ],
     [ $self->format_keyword('as') ],
@@ -261,10 +261,10 @@ sub _render_alias {
   my ($self, $args) = @_;
   my ($as, @cols) = @$args;
   return (@cols
-    ? $self->join_clauses('',
+    ? $self->join_query_parts('',
          [ $self->render_aqt($as) ],
          [ '(' ],
-         [ $self->join_clauses(
+         [ $self->join_query_parts(
              ', ',
              map [ $self->render_aqt($_) ], @cols
          ) ],
