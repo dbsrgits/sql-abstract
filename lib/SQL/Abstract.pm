@@ -1182,7 +1182,7 @@ sub _render_op_multop {
   return @{$parts[0]} if @parts == 1;
   my $join = ($op eq ','
                 ? ', '
-                :  ' '.$self->_sqlcase(join ' ', split '_', $op).' '
+                :  ' '.$self->format_keyword($op).' '
              );
   return $self->join_query_parts($join, @parts);
 }
@@ -1202,23 +1202,23 @@ sub join_query_parts {
 
 sub _render_unop_paren {
   my ($self, $op, $v) = @_;
-  my ($sql, @bind) = $self->_render_unop_prefix($op, $v);
-  return "(${sql})", @bind;
+  return $self->join_query_parts('',
+    '(', [ $self->_render_unop_prefix($op, $v) ], ')'
+  );
 }
 
 sub _render_unop_prefix {
   my ($self, $op, $v) = @_;
-  my ($expr_sql, @bind) = $self->render_aqt($v->[0]);
-
-  my $op_sql = $self->_sqlcase($op); # join ' ', split '_', $op);
-  return ("${op_sql} ${expr_sql}", @bind);
+  return $self->join_query_parts(' ',
+    $self->_sqlcase($op), $v->[0]
+  );
 }
 
 sub _render_unop_postfix {
   my ($self, $op, $v) = @_;
-  my ($expr_sql, @bind) = $self->render_aqt($v->[0]);
-  my $op_sql = $self->_sqlcase(join ' ', split '_', $op);
-  return ($expr_sql.' '.$op_sql, @bind);
+  return $self->join_query_parts(' ',
+    $v->[0], $self->format_keyword($op),
+  );
 }
 
 # Some databases (SQLite) treat col IN (1, 2) different from
