@@ -44,18 +44,10 @@ sub register_defaults {
   ];
   $self->{expand}{insert} = sub { shift->_expand_statement(@_) };
   $self->{render}{insert} = sub { shift->_render_statement(@_) };
+  $self->{expand_clause}{"insert.$_"} = "_expand_insert_clause_$_"
+    for @{$self->{clauses_of}{insert}};
   $self->{expand_clause}{'insert.into'} = '_expand_insert_clause_target';
-  $self->{expand_clause}{'insert.target'} = '_expand_insert_clause_target';
-  $self->{expand_clause}{'insert.fields'} = sub {
-    return +{ -row => [
-      $_[0]->_expand_maybe_list_expr($_[2], -ident)
-    ] } if ref($_[2]) eq 'ARRAY';
-    return $_[2]; # should maybe still expand somewhat?
-  };
-  $self->{expand_clause}{'insert.values'} = '_expand_insert_clause_values';
-  $self->{expand_clause}{'insert.returning'} = sub {
-    $_[0]->_expand_maybe_list_expr($_[2], -ident);
-  };
+  $self->{expand_clause}{'insert.values'} = '_expand_insert_clause_from';
   $self->{render_clause}{'insert.fields'} = sub {
     return $_[0]->render_aqt($_[2]);
   };
@@ -242,7 +234,14 @@ sub _expand_insert_clause_target {
   +(target => $_[0]->_expand_maybe_list_expr($_[2], -ident));
 }
 
-sub _expand_insert_clause_values {
+sub _expand_insert_clause_fields {
+  return +{ -row => [
+    $_[0]->_expand_maybe_list_expr($_[2], -ident)
+  ] } if ref($_[2]) eq 'ARRAY';
+  return $_[2]; # should maybe still expand somewhat?
+}
+
+sub _expand_insert_clause_from {
   my ($self, undef, $data) = @_;
   if (ref($data) eq 'HASH' and (keys(%$data))[0] =~ /^-/) {
     return $self->expand_expr($data);
@@ -250,6 +249,10 @@ sub _expand_insert_clause_values {
   return $data if ref($data) eq 'HASH' and $data->{-row};
   my ($f_aqt, $v_aqt) = $self->_expand_insert_values($data);
   return (from => { -values => $v_aqt }, ($f_aqt ? (fields => $f_aqt) : ()));
+}
+
+sub _expand_insert_clause_returning {
+  +(returning => $_[0]->_expand_maybe_list_expr($_[2], -ident));
 }
 
 sub _expand_values {
