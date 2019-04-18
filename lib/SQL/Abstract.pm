@@ -1185,7 +1185,7 @@ sub _render_op_in {
 
 sub _render_op_andor {
   my ($self, $op, $args) = @_;
-  my @parts = grep length($_->[0]), map [ $self->render_aqt($_) ], @$args;
+  my @parts = map [ $self->render_aqt($_) ], @$args;
   return '' unless @parts;
   return @{$parts[0]} if @parts == 1;
   my ($sql, @bind) = $self->join_clauses(' '.$self->_sqlcase($op).' ', @parts);
@@ -1194,7 +1194,7 @@ sub _render_op_andor {
 
 sub _render_op_multop {
   my ($self, $op, $args) = @_;
-  my @parts = grep length($_->[0]), map [ $self->render_aqt($_) ], @$args;
+  my @parts = map [ $self->render_aqt($_) ], @$args;
   return '' unless @parts;
   return @{$parts[0]} if @parts == 1;
   my $join = ($op eq ','
