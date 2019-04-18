@@ -1468,6 +1468,7 @@ sub _sqlcase {
   return $_[0]->{case} ? $_[1] : uc($_[1]);
 }
 
+sub format_keyword { $_[0]->_sqlcase(join ' ', split '_', $_[1]) }
 
 #======================================================================
 # DISPATCHING FROM REFKIND

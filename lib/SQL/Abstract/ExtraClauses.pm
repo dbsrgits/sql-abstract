@@ -159,8 +159,6 @@ sub register_defaults {
   return $self;
 }
 
-sub format_keyword { $_[0]->_sqlcase(join ' ', split '_', $_[1]) }
-
 sub _expand_select_clause_from {
   my ($self, undef, $from) = @_;
   +(from => $self->_expand_from_list(undef, $from));
