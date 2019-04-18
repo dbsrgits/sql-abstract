@@ -1171,8 +1171,11 @@ sub _render_op_andor {
   my @parts = map [ $self->render_aqt($_) ], @$args;
   return '' unless @parts;
   return @{$parts[0]} if @parts == 1;
-  my ($sql, @bind) = $self->join_query_parts(' '.$self->_sqlcase($op).' ', @parts);
-  return '( '.$sql.' )', @bind;
+  my ($sql, @bind) = $self->join_query_parts(' ',
+    '(', [ $self->join_query_parts(
+           ' '.$self->format_keyword($op).' ',
+           @parts) ],
+    ')');
 }
 
 sub _render_op_multop {
