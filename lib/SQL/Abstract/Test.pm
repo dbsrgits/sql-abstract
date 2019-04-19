@@ -24,9 +24,9 @@ use SQL::Abstract::Tree;
       my $e1 = $self->$orig(@args);
       my $e2 = $self->$orig($e1);
       (our $tb)->is_eq(
-        (map Data::Dumper::Concise::Dumper($_), $e1, $e2),
+        (map Data::Dumper::Concise::Dumper($_), $e2, $e1),
         'expand_expr stability ok'
-      );
+      );# or die;
       return $e1;
     };
     no strict 'refs'; no warnings 'redefine';

@@ -402,7 +402,7 @@ sub _expand_update_set_values {
     map {
       my ($k, $set) = @$_;
       $set = { -bind => $_ } unless defined $set;
-      +{ -op => [ '=', $self->_expand_ident(-ident => $k), $set ] };
+      +{ -op => [ '=', { -ident => $k }, $set ] };
     }
     map {
       my $k = $_;
@@ -755,7 +755,7 @@ sub _expand_hashpair_cmp {
 sub _expand_hashtriple {
   my ($self, $k, $vk, $vv) = @_;
 
-  my $ik = $self->_expand_ident(-ident => $k);
+  my $ik = $self->_expand_expr({ -ident => $k });
 
   my $op = $self->_normalize_op($vk);
   $self->_assert_pass_injection_guard($op);
@@ -851,7 +851,7 @@ sub _dwim_op_to_is {
 sub _expand_func {
   my ($self, undef, $args) = @_;
   my ($func, @args) = @$args;
-  return { -func => [ $func, map $self->expand_expr($_), @args ] };
+  return +{ -func => [ $func, map $self->expand_expr($_), @args ] };
 }
 
 sub _expand_ident {
@@ -902,7 +902,7 @@ sub _expand_bool {
     return $self->_expand_expr($v);
   }
   puke "-bool => undef not supported" unless defined($v);
-  return $self->_expand_ident(-ident => $v);
+  return $self->_expand_expr({ -ident => $v });
 }
 
 sub _expand_op_andor {
