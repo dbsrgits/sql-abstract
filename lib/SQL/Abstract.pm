@@ -1175,9 +1175,9 @@ sub _render_op_andor {
 
 sub _render_op_multop {
   my ($self, $op, $args) = @_;
-  my @parts = map [ $self->render_aqt($_) ], @$args;
+  my @parts = @$args;
   return '' unless @parts;
-  return @{$parts[0]} if @parts == 1;
+  return @{[ $self->render_aqt($parts[0])]} if @parts == 1;
   my $join = ($op eq ','
                 ? ', '
                 :  ' '.$self->format_keyword($op).' '
