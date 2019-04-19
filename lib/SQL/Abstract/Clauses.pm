@@ -49,14 +49,14 @@ sub register_defaults {
   $self->{expand_clause}{'insert.into'} = '_expand_insert_clause_target';
   $self->{expand_clause}{'insert.values'} = '_expand_insert_clause_from';
   $self->{render_clause}{'insert.fields'} = sub {
-    return @{ $_[0]->render_aqt($_[2]) };
+    return $_[0]->render_aqt($_[2]);
   };
   $self->{render_clause}{'insert.target'} = sub {
     my ($self, undef, $from) = @_;
     $self->join_query_parts(' ', $self->format_keyword('insert into'), $from);
   };
   $self->{render_clause}{'insert.from'} = sub {
-    return @{ $_[0]->render_aqt($_[2], 1) };
+    return $_[0]->render_aqt($_[2], 1);
   };
   $self->{expand}{values} = '_expand_values';
   $self->{render}{values} = '_render_values';
@@ -66,7 +66,7 @@ sub register_defaults {
   $self->{render}{convert_where} = sub {
     my $self = shift;
     local $self->{convert_where} = $self->{convert};
-    @{ $self->render_aqt($_[1]) };
+    $self->render_aqt($_[1]);
   };
   return $self;
 }
@@ -148,24 +148,23 @@ sub _render_statement {
   my @parts;
   foreach my $clause (@{$self->{clauses_of}{$type}}) {
     next unless my $clause_expr = $args->{$clause};
-    my @part = do {
+    my $part = do {
       if (my $rdr = $self->{render_clause}{"${type}.${clause}"}) {
         $self->$rdr($clause, $clause_expr);
       } else {
-        my ($clause_sql, @bind) = @{ $self->render_aqt($clause_expr, 1) };
-        my $sql = join ' ',
-          $self->_sqlcase(join ' ', split '_', $clause),
-          $clause_sql;
-        ($sql, @bind);
+        $self->join_query_parts(' ',
+          $self->format_keyword($clause),
+          $self->render_aqt($clause_expr, 1)
+        );
       }
     };
-    push @parts, \@part;
+    push @parts, $part;
   }
-  my ($sql, @bind) = $self->join_query_parts(' ', @parts);
-  return (
+  my ($sql, @bind) = @{ $self->join_query_parts(' ', @parts) };
+  return [
     (our $Render_Top_Level ? $sql : '('.$sql.')'),
     @bind
-  );
+  ];
 }
 
 sub render_aqt {
@@ -176,27 +175,32 @@ sub render_aqt {
 
 sub render_statement {
   my ($self, $expr, $default_scalar_to) = @_;
-  my ($sql, @bind) = @{ $self->render_aqt(
+  $self->render_aqt(
     $self->expand_expr($expr, $default_scalar_to), 1
-  ) };
-  return (wantarray ? ($sql, @bind) : $sql);
+  );
 }
 
 sub select {
   my ($self, @args) = @_;
 
-  return $self->render_statement({ -select => $_[1] }) if ref($_[1]) eq 'HASH';
+  my $stmt = do {
+    if (ref(my $sel = $args[0]) eq 'HASH') {
+      $self->render_statement({ -select => $sel });
+    } else {
+      my %clauses;
+      @clauses{qw(from select where order_by)} = @args;
 
-  my %clauses;
-  @clauses{qw(from select where order_by)} = @args;
+      # This oddity is to literalify since historically SQLA doesn't quote
+      # a single identifier argument, so we convert it into a literal
 
-  # This oddity is to literalify since historically SQLA doesn't quote
-  # a single identifier argument, so we convert it into a literal
+      $clauses{select} = { -literal => [ $clauses{select}||'*' ] }
+        unless ref($clauses{select});
+      \%clauses;
+    }
+  };
 
-  $clauses{select} = { -literal => [ $clauses{select}||'*' ] }
-    unless ref($clauses{select});
-
-  return $self->render_statement({ -select => \%clauses });
+  my $rendered = $self->render_statement({ -select => $stmt });
+  return wantarray ? @$rendered : $rendered->[0];
 }
 
 sub update {
@@ -271,9 +275,9 @@ sub _render_values {
   my $inner = [
     $self->join_query_parts(' ',
       $self->format_keyword('values'),
-      [ $self->join_query_parts(', ',
+      $self->join_query_parts(', ',
         ref($values) eq 'ARRAY' ? @$values : $values
-      ) ],
+      ),
     ),
   ];
   return $self->join_query_parts('',
