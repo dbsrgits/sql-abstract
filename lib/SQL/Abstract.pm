@@ -277,7 +277,8 @@ sub insert {
     push @parts, [ $self->_insert_returning($options) ];
   }
 
-  return $self->join_query_parts(' ', @parts);
+  my ($sql, @bind) = @{ $self->join_query_parts(' ', @parts) };
+  return wantarray ? ($sql, @bind) : $sql;
 }
 
 sub _expand_insert_values {
@@ -528,7 +529,7 @@ sub render_aqt {
   die "No" if @rest;
   die "Not a node type: $k" unless $k =~ s/^-//;
   if (my $meth = $self->{render}{$k}) {
-    return [ $self->$meth($k, $v) ];
+    return $self->$meth($k, $v);
   }
   die "notreached: $k";
 }
@@ -1052,7 +1053,7 @@ sub _recurse_where {
 
   # dispatch expanded expression
 
-  my ($sql, @bind) = defined($where_exp) ? @{ $self->render_aqt($where_exp) } : (undef);
+  my ($sql, @bind) = defined($where_exp) ? @{ $self->render_aqt($where_exp) || [] } : ();
   # DBIx::Class used to call _recurse_where in scalar context
   # something else might too...
   if (wantarray) {
@@ -1067,35 +1068,38 @@ sub _recurse_where {
 sub _render_ident {
   my ($self, undef, $ident) = @_;
 
-  return $self->_convert($self->_quote($ident));
+  return [ $self->_convert($self->_quote($ident)) ];
 }
 
 sub _render_row {
   my ($self, undef, $values) = @_;
-  my ($sql, @bind) = $self->_render_op(undef, [ ',', @$values ]);
-  return $self->join_query_parts('', [ '(' ], [ $sql, @bind ], [ ')' ]);
+  return $self->join_query_parts('',
+    '(',
+    $self->_render_op(undef, [ ',', @$values ]),
+    ')'
+  );
 }
 
 sub _render_func {
   my ($self, undef, $rest) = @_;
   my ($func, @args) = @$rest;
   return $self->join_query_parts('',
-    [ $self->_sqlcase($func) ],
-    [ '(' ],
-    [ $self->join_query_parts(', ', @args) ],
-    [ ')' ]
+    $self->_sqlcase($func),
+    '(',
+    $self->join_query_parts(', ', @args),
+    ')'
   );
 }
 
 sub _render_bind {
   my ($self, undef, $bind) = @_;
-  return ($self->_convert('?'), $self->_bindtype(@$bind));
+  return [ $self->_convert('?'), $self->_bindtype(@$bind) ];
 }
 
 sub _render_literal {
   my ($self, undef, $literal) = @_;
   $self->_assert_bindval_matches_bindtype(@{$literal}[1..$#$literal]);
-  return @$literal;
+  return $literal;
 }
 
 sub _render_op {
@@ -1115,10 +1119,10 @@ sub _render_op {
         unless my ($ident) = map $_->{-ident}, grep ref($_) eq 'HASH', $args[0];
       my $k = join(($self->{name_sep}||'.'), @$ident);
       local our $Expand_Depth = 1;
-      return $self->${\($ss->{handler})}($k, $op, $args[1]);
+      return [ $self->${\($ss->{handler})}($k, $op, $args[1]) ];
     }
     if (my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{unary_ops}}) {
-      return $self->${\($us->{handler})}($op, $args[0]);
+      return [ $self->${\($us->{handler})}($op, $args[0]) ];
     }
     if ($ss) {
       return $self->_render_unop_paren($op, \@args);
@@ -1158,25 +1162,25 @@ sub _render_op_in {
     $lhs,
     $self->format_keyword($op),
     '(',
-    [ $self->join_query_parts(', ', @rhs) ],
+    $self->join_query_parts(', ', @rhs),
     ')'
   );
 }
 
 sub _render_op_andor {
   my ($self, $op, $args) = @_;
-  return '' unless @$args;
+  return undef unless @$args;
   return $self->join_query_parts('', $args->[0]) if @$args == 1;
   return $self->join_query_parts(
-    ' ' => '(',[  $self->_render_op_multop($op, $args) ], ')'
+    ' ' => '(', $self->_render_op_multop($op, $args), ')'
   );
 }
 
 sub _render_op_multop {
   my ($self, $op, $args) = @_;
   my @parts = @$args;
-  return '' unless @parts;
-  return @{$self->render_aqt($parts[0])} if @parts == 1;
+  return undef unless @parts;
+  return $self->render_aqt($parts[0]) if @parts == 1;
   my $join = ($op eq ','
                 ? ', '
                 :  ' '.$self->format_keyword($op).' '
@@ -1189,18 +1193,18 @@ sub join_query_parts {
   my @final = map +(
     ref($_) eq 'HASH'
       ? $self->render_aqt($_)
-      : ref($_) eq 'ARRAY' ? $_ : [ $_ ]),
-         @parts;
-  return (
+      : ((ref($_) eq 'ARRAY') ? $_ : [ $_ ])
+  ), @parts;
+  return [
     join($join, map $_->[0], @final),
     (map @{$_}[1..$#$_], @final),
-  );
+  ];
 }
 
 sub _render_unop_paren {
   my ($self, $op, $v) = @_;
   return $self->join_query_parts('',
-    '(', [ $self->_render_unop_prefix($op, $v) ], ')'
+    '(', $self->_render_unop_prefix($op, $v), ')'
   );
 }
 
@@ -1334,9 +1338,9 @@ sub _chunkify_order_by {
 sub _table  {
   my $self = shift;
   my $from = shift;
-  ($self->render_aqt(
+  $self->render_aqt(
     $self->_expand_maybe_list_expr($from, -ident)
-  ))->[0];
+  )->[0];
 }
 
 
@@ -1404,8 +1408,11 @@ sub _quote {
 # Conversion, if applicable
 sub _convert {
   #my ($self, $arg) = @_;
-  if ($_[0]->{convert_where}) {
-    return $_[0]->_sqlcase($_[0]->{convert_where}) .'(' . $_[1] . ')';
+  if (my $conv = $_[0]->{convert_where}) {
+    return @{ $_[0]->join_query_parts('',
+      $_[0]->format_keyword($conv),
+      '(' , $_[1] , ')'
+    ) };
   }
   return $_[1];
 }
