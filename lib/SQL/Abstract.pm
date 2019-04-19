@@ -270,8 +270,8 @@ sub insert {
   my ($f_aqt, $v_aqt) = $self->_expand_insert_values($data);
 
   my @parts = ([ $self->_sqlcase('insert into').' '.$table ]);
-  push @parts, [ $self->render_aqt($f_aqt) ] if $f_aqt;
-  push @parts, [ $self->_sqlcase('values') ], [ $self->render_aqt($v_aqt) ];
+  push @parts, $self->render_aqt($f_aqt) if $f_aqt;
+  push @parts, [ $self->_sqlcase('values') ], $self->render_aqt($v_aqt);
 
   if ($options->{returning}) {
     push @parts, [ $self->_insert_returning($options) ];
@@ -319,9 +319,9 @@ sub _returning {
 
   my $f = $options->{returning};
 
-  my ($sql, @bind) = $self->render_aqt(
+  my ($sql, @bind) = @{ $self->render_aqt(
     $self->_expand_maybe_list_expr($f, -ident)
-  );
+  ) };
   return ($self->_sqlcase(' returning ').$sql, @bind);
 }
 
@@ -390,9 +390,9 @@ sub update {
 sub _update_set_values {
   my ($self, $data) = @_;
 
-  return $self->render_aqt(
+  return @{ $self->render_aqt(
     $self->_expand_update_set_values(undef, $data),
-  );
+  ) };
 }
 
 sub _expand_update_set_values {
@@ -452,9 +452,9 @@ sub select {
 sub _select_fields {
   my ($self, $fields) = @_;
   return $fields unless ref($fields);
-  return $self->render_aqt(
+  return @{ $self->render_aqt(
     $self->_expand_maybe_list_expr($fields, '-ident')
-  );
+  ) };
 }
 
 #======================================================================
@@ -528,17 +528,16 @@ sub render_aqt {
   die "No" if @rest;
   die "Not a node type: $k" unless $k =~ s/^-//;
   if (my $meth = $self->{render}{$k}) {
-    return $self->$meth($k, $v);
+    return [ $self->$meth($k, $v) ];
   }
   die "notreached: $k";
 }
 
 sub render_expr {
   my ($self, $expr, $default_scalar_to) = @_;
-  my ($sql, @bind) = $self->render_aqt(
+  return @{ $self->render_aqt(
     $self->expand_expr($expr, $default_scalar_to)
-  );
-  return ($sql, @bind);
+  ) };
 }
 
 sub _normalize_op {
@@ -1053,7 +1052,7 @@ sub _recurse_where {
 
   # dispatch expanded expression
 
-  my ($sql, @bind) = defined($where_exp) ? $self->render_aqt($where_exp) : (undef);
+  my ($sql, @bind) = defined($where_exp) ? @{ $self->render_aqt($where_exp) } : (undef);
   # DBIx::Class used to call _recurse_where in scalar context
   # something else might too...
   if (wantarray) {
@@ -1177,7 +1176,7 @@ sub _render_op_multop {
   my ($self, $op, $args) = @_;
   my @parts = @$args;
   return '' unless @parts;
-  return @{[ $self->render_aqt($parts[0])]} if @parts == 1;
+  return @{$self->render_aqt($parts[0])} if @parts == 1;
   my $join = ($op eq ','
                 ? ', '
                 :  ' '.$self->format_keyword($op).' '
@@ -1189,7 +1188,7 @@ sub join_query_parts {
   my ($self, $join, @parts) = @_;
   my @final = map +(
     ref($_) eq 'HASH'
-      ? [ $self->render_aqt($_) ]
+      ? $self->render_aqt($_)
       : ref($_) eq 'ARRAY' ? $_ : [ $_ ]),
          @parts;
   return (
@@ -1294,7 +1293,7 @@ sub _order_by {
 
   return '' unless defined(my $expanded = $self->_expand_order_by($arg));
 
-  my ($sql, @bind) = $self->render_aqt($expanded);
+  my ($sql, @bind) = @{ $self->render_aqt($expanded) };
 
   return '' unless length($sql);
 
@@ -1316,7 +1315,7 @@ sub _order_by_chunks {
 sub _chunkify_order_by {
   my ($self, $expanded) = @_;
 
-  return grep length, $self->render_aqt($expanded)
+  return grep length, @{ $self->render_aqt($expanded) }
     if $expanded->{-ident} or @{$expanded->{-literal}||[]} == 1;
 
   for ($expanded) {
@@ -1324,7 +1323,7 @@ sub _chunkify_order_by {
       my ($comma, @list) = @{$_->{-op}};
       return map $self->_chunkify_order_by($_), @list;
     }
-    return [ $self->render_aqt($_) ];
+    return $self->render_aqt($_);
   }
 }
 
@@ -1337,7 +1336,7 @@ sub _table  {
   my $from = shift;
   ($self->render_aqt(
     $self->_expand_maybe_list_expr($from, -ident)
-  ))[0];
+  ))->[0];
 }
 
 
