@@ -220,18 +220,16 @@ sub _render_join {
   my ($self, undef, $args) = @_;
 
   my @parts = (
-    [ $self->render_aqt($args->{from}) ],
-    [ $self->format_keyword(join '_', ($args->{type}||()), 'join') ],
-    [ $self->render_aqt(
-        map +($_->{-ident} || $_->{-as} ? $_ : { -row => [ $_ ] }), $args->{to}
-    ) ],
+    $args->{from},
+    $self->format_keyword(join '_', ($args->{type}||()), 'join'),
+    (map +($_->{-ident} || $_->{-as} ? $_ : { -row => [ $_ ] }), $args->{to}),
     ($args->{on} ? (
-      [ $self->format_keyword('on') ],
-      [ $self->render_aqt($args->{on}) ],
+      $self->format_keyword('on') ,
+      $args->{on},
     ) : ()),
     ($args->{using} ? (
-      [ $self->format_keyword('using') ],
-      [ $self->render_aqt($args->{using}) ],
+      $self->format_keyword('using'),
+      $args->{using},
     ) : ()),
   );
   return $self->join_query_parts(' ', @parts);
