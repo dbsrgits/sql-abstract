@@ -160,11 +160,10 @@ sub _render_statement {
     };
     push @parts, $part;
   }
-  my ($sql, @bind) = @{ $self->join_query_parts(' ', @parts) };
-  return [
-    (our $Render_Top_Level ? $sql : '('.$sql.')'),
-    @bind
-  ];
+  my $q = $self->join_query_parts(' ', @parts);
+  return $self->join_query_parts('',
+    (our $Render_Top_Level ? $q : ('(', $q, ')'))
+  );
 }
 
 sub render_aqt {
