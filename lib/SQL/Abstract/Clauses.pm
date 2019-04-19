@@ -63,11 +63,6 @@ sub register_defaults {
   $self->{expand}{exists} = sub {
     $_[0]->_expand_op(undef, [ exists => $_[2] ]);
   };
-  $self->{render}{convert_where} = sub {
-    my $self = shift;
-    local $self->{convert_where} = $self->{convert};
-    $self->render_aqt($_[1]);
-  };
   return $self;
 }
 
@@ -83,8 +78,41 @@ sub _expand_select_clause_from {
 
 sub _expand_select_clause_where {
   my ($self, undef, $where) = @_;
+
+  local (@{$self->{expand}}{qw(ident value)},
+         @{$self->{expand_op}}{qw(ident value)},
+         $self->{expand_op}{bind})
+     = (map {
+      my $orig = $self->{expand}{$_};
+      sub {
+        my $self = shift;
+        +{ -func => [
+          $self->{convert},
+          $self->$orig(@_)
+        ] };
+      }
+    } qw(ident value ident value bind)
+  ) if $self->{convert};
+
+  local $self->{expand}{func} = do {
+    my $orig = $self->{expand}{func};
+    sub {
+      my ($self, $type, $thing) = @_;
+      if (ref($thing) eq 'ARRAY' and $thing->[0] eq $self->{convert}
+          and @$thing == 2 and ref($thing->[1]) eq 'HASH'
+          and (
+            $thing->[1]{-ident}
+            or $thing->[1]{-value}
+            or $thing->[1]{-bind})
+          ) {
+        return { -func => $thing }; # already went through our expander
+      }
+      return $self->$orig($type, $thing);
+    }
+  } if $self->{convert};
+
   my $exp = $self->expand_expr($where);
-  +(where => ($self->{convert} ? +{ -convert_where => $exp } : $exp));
+  +(where => $exp);
 }
 
 sub _expand_select_clause_order_by {
@@ -269,7 +297,10 @@ sub _expand_insert_clause_from {
   }
   return $data if ref($data) eq 'HASH' and $data->{-row};
   my ($f_aqt, $v_aqt) = $self->_expand_insert_values($data);
-  return (from => { -values => $v_aqt }, ($f_aqt ? (fields => $f_aqt) : ()));
+  return (
+    from => { -values => [ $v_aqt ] },
+    ($f_aqt ? (fields => $f_aqt) : ()),
+  );
 }
 
 sub _expand_insert_clause_returning {
