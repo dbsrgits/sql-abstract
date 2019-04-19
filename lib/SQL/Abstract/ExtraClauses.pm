@@ -87,7 +87,7 @@ sub register_defaults {
 
   $self->clause_renderer('select.setop' => sub {
     my ($self, undef, $setop) = @_;
-    @{ $self->render_aqt($setop) };
+    $self->render_aqt($setop);
   });
 
   $self->renderer($_ => sub {
@@ -140,16 +140,16 @@ sub register_defaults {
   $self->clause_expander('select.with_recursive', $with_expander);
   $self->clause_renderer('select.with' => sub {
     my ($self, undef, $with) = @_;
-    my $q_part = [ $self->join_query_parts(', ',
+    my $q_part = $self->join_query_parts(', ',
       map {
         my ($alias, $query) = @$_;
-        [ $self->join_query_parts(' ',
+        $self->join_query_parts(' ',
             $self->_render_alias($alias),
             $self->format_keyword('as'),
             $query,
-        ) ]
+        )
       } @{$with->{queries}}
-    ) ];
+    );
     return $self->join_query_parts(' ',
       $self->format_keyword(join '_', 'with', ($with->{type}||'')),
       $q_part,
@@ -259,12 +259,12 @@ sub _render_alias {
   return (@cols
     ? $self->join_query_parts('',
          $as,
-         [ '(' ],
-         [ $self->join_query_parts(
-             ', ',
-             @cols
-         ) ],
-         [ ')' ],
+         '(',
+         $self->join_query_parts(
+           ', ',
+           @cols
+         ),
+         ')',
       )
     : $self->render_aqt($as)
   );
