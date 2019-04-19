@@ -322,9 +322,7 @@ sub _returning {
   my ($sql, @bind) = $self->render_aqt(
     $self->_expand_maybe_list_expr($f, -ident)
   );
-  return wantarray
-    ? $self->_sqlcase(' returning ') . $sql
-    : ($self->_sqlcase(' returning ').$sql, @bind);
+  return ($self->_sqlcase(' returning ').$sql, @bind);
 }
 
 sub _expand_insert_value {
@@ -540,7 +538,7 @@ sub render_expr {
   my ($sql, @bind) = $self->render_aqt(
     $self->expand_expr($expr, $default_scalar_to)
   );
-  return (wantarray ? ($sql, @bind) : $sql);
+  return ($sql, @bind);
 }
 
 sub _normalize_op {
@@ -1196,7 +1194,7 @@ sub join_query_parts {
          @parts;
   return (
     join($join, map $_->[0], @final),
-    (wantarray ? (map @{$_}[1..$#$_], @final) : ()),
+    (map @{$_}[1..$#$_], @final),
   );
 }
 
@@ -1302,7 +1300,7 @@ sub _order_by {
 
   my $final_sql = $self->_sqlcase(' order by ').$sql;
 
-  return wantarray ? ($final_sql, @bind) : $final_sql;
+  return ($final_sql, @bind);
 }
 
 # _order_by no longer needs to call this so doesn't but DBIC uses it.
