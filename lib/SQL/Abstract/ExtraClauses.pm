@@ -87,7 +87,7 @@ sub register_defaults {
 
   $self->clause_renderer('select.setop' => sub {
     my ($self, undef, $setop) = @_;
-    $self->render_aqt($setop);
+    @{ $self->render_aqt($setop) };
   });
 
   $self->renderer($_ => sub {
@@ -144,14 +144,14 @@ sub register_defaults {
       map {
         my ($alias, $query) = @$_;
         [ $self->join_query_parts(' ',
-            [ $self->_render_alias($alias) ],
-            [ $self->format_keyword('as') ],
+            $self->_render_alias($alias),
+            $self->format_keyword('as'),
             $query,
         ) ]
       } @{$with->{queries}}
     ) ];
     return $self->join_query_parts(' ',
-      [ $self->format_keyword(join '_', 'with', ($with->{type}||'')) ],
+      $self->format_keyword(join '_', 'with', ($with->{type}||'')),
       $q_part,
     );
   });
@@ -247,9 +247,9 @@ sub _render_as {
   my ($thing, @alias) = @$args;
   return $self->join_query_parts(
     ' ',
-    [ $self->render_aqt($thing) ],
-    [ $self->format_keyword('as') ],
-    [ $self->_render_alias(\@alias) ],
+    $self->render_aqt($thing),
+    $self->format_keyword('as'),
+    $self->_render_alias(\@alias),
   );
 }
 
