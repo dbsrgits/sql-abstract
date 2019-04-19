@@ -185,7 +185,7 @@ sub select {
 
   my $stmt = do {
     if (ref(my $sel = $args[0]) eq 'HASH') {
-      $self->render_statement({ -select => $sel });
+      $sel
     } else {
       my %clauses;
       @clauses{qw(from select where order_by)} = @args;
@@ -206,32 +206,50 @@ sub select {
 sub update {
   my ($self, $table, $set, $where, $options) = @_;
 
-  return $self->render_statement({ -update => $_[1] }) if ref($_[1]) eq 'HASH';
-
-  my %clauses;
-  @clauses{qw(target set where)} = ($table, $set, $where);
-  puke "Unsupported data type specified to \$sql->update"
-    unless ref($clauses{set}) eq 'HASH';
-  @clauses{keys %$options} = values %$options;
-  return $self->render_statement({ -update => \%clauses });
+  my $stmt = do {
+    if (ref($table) eq 'HASH') {
+      $table
+    } else {
+      my %clauses;
+      @clauses{qw(target set where)} = ($table, $set, $where);
+      puke "Unsupported data type specified to \$sql->update"
+        unless ref($clauses{set}) eq 'HASH';
+      @clauses{keys %$options} = values %$options;
+      \%clauses;
+    }
+  };
+  my $rendered = $self->render_statement({ -update => $stmt });
+  return wantarray ? @$rendered : $rendered->[0];
 }
 
 sub delete {
   my ($self, $table, $where, $options) = @_;
 
-  return $self->render_statement({ -delete => $_[1] }) if ref($_[1]) eq 'HASH';
-
-  my %clauses = (target => $table, where => $where, %{$options||{}});
-  return $self->render_statement({ -delete => \%clauses });
+  my $stmt = do {
+    if (ref($table) eq 'HASH') {
+      $table;
+    } else {
+      my %clauses = (target => $table, where => $where, %{$options||{}});
+      \%clauses;
+    }
+  };
+  my $rendered = $self->render_statement({ -delete => $stmt });
+  return wantarray ? @$rendered : $rendered->[0];
 }
 
 sub insert {
   my ($self, $table, $data, $options) = @_;
 
-  return $self->render_statement({ -insert => $_[1] }) if ref($_[1]) eq 'HASH';
-
-  my %clauses = (target => $table, values => $data, %{$options||{}});
-  return $self->render_statement({ -insert => \%clauses });
+  my $stmt = do {
+    if (ref($table) eq 'HASH') {
+      $table;
+    } else {
+      my %clauses = (target => $table, values => $data, %{$options||{}});
+      \%clauses;
+    }
+  };
+  my $rendered = $self->render_statement({ -insert => $stmt });
+  return wantarray ? @$rendered : $rendered->[0];
 }
 
 sub _expand_insert_clause_target {
@@ -272,14 +290,12 @@ sub _expand_values {
 
 sub _render_values {
   my ($self, undef, $values) = @_;
-  my $inner = [
-    $self->join_query_parts(' ',
-      $self->format_keyword('values'),
-      $self->join_query_parts(', ',
-        ref($values) eq 'ARRAY' ? @$values : $values
-      ),
+  my $inner = $self->join_query_parts(' ',
+    $self->format_keyword('values'),
+    $self->join_query_parts(', ',
+      ref($values) eq 'ARRAY' ? @$values : $values
     ),
-  ];
+  );
   return $self->join_query_parts('',
     (our $Render_Top_Level ? $inner : ('(', $inner, ')'))
   );
