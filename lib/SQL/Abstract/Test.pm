@@ -22,11 +22,19 @@ use SQL::Abstract::Tree;
     my $wrapped = sub {
       my ($self, @args) = @_;
       my $e1 = $self->$orig(@args);
+      return $e1 if our $Stab_Check_Rec;
+      local $Stab_Check_Rec = 1;
       my $e2 = $self->$orig($e1);
+      my ($d1, $d2) = map Data::Dumper::Concise::Dumper($_), $e1, $e2;
       (our $tb)->is_eq(
-        (map Data::Dumper::Concise::Dumper($_), $e2, $e1),
+        $d2, $d1,
         'expand_expr stability ok'
-      );# or die;
+      ) or do {
+        require Path::Tiny;
+        Path::Tiny->new('e1')->spew($d1);
+        Path::Tiny->new('e2')->spew($d2);
+        die "Wrote e1 and e2, bailing out";
+      };
       return $e1;
     };
     no strict 'refs'; no warnings 'redefine';
