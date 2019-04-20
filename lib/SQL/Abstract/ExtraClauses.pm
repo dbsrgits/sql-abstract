@@ -116,22 +116,33 @@ sub register_defaults {
           qw(union intersect except)
   );
 
+  my $expand_alias = sub {
+    my ($self, $to_expand) = @_;
+    [ map $self->expand_expr($_, -ident),
+        ref($to_expand) eq 'ARRAY'
+          ? @$to_expand
+          : $to_expand
+    ]
+  };
   $self->clause_expander('select.with' => my $with_expander = sub {
     my ($self, $name, $with) = @_;
     my (undef, $type) = split '_', $name;
     if (ref($with) eq 'HASH') {
       return +{
         %$with,
-        queries => [ map $self->expand_expr($_), @{$with->{queries}} ]
+        queries => [
+          map +[
+            $self->$expand_alias($_->[0]),
+            $self->expand_expr($_->[1]),
+          ], @{$with->{queries}}
+        ]
       }
     }
     my @with = @$with;
     my @exp;
-    while (my ($name, $query) = splice @with, 0, 2) {
-      my @n = map $self->expand_expr($_, -ident),
-                ref($name) eq 'ARRAY' ? @$name : $name;
+    while (my ($alias, $query) = splice @with, 0, 2) {
       push @exp, [
-        \@n,
+        $self->$expand_alias($alias),
         $self->expand_expr($query)
       ];
     }
@@ -167,6 +178,7 @@ sub _expand_select_clause_from {
 sub _expand_from_list {
   my ($self, undef, $args) = @_;
   if (ref($args) eq 'HASH') {
+    return $args if $args->{-from_list};
     return { -from_list => [ $self->expand_expr($args) ] };
   }
   my @list;
