@@ -357,10 +357,21 @@ BEGIN {
     eval qq{sub ${singular}s {
       my (\$self, \@args) = \@_;
       while (my (\$this_key, \$this_value) = splice(\@args, 0, 2)) {
-        \$self->{${name}}{\$this_key} = \$this_value;
+        \$self->_ext_rw('${name}', \$this_key, \$this_value);
       }
       return \$self;
     }; 1 } or die "Method builder failed for ${singular}s: $@";
+    eval qq{sub wrap_${singular}s {
+      my (\$self, \@args) = \@_;
+      while (my (\$this_key, \$this_builder) = splice(\@args, 0, 2)) {
+        my \$orig = \$self->_ext_rw('${name}', \$this_key);
+        \$self->_ext_rw(
+          '${name}', \$this_key,
+           \$this_builder->(\$orig, '${name}', \$this_key),
+        );
+      }
+      return \$self;
+    }; 1 } or die "Method builder failed for wrap_${singular}s: $@";
     eval qq{sub ${singular}_list { sort keys %{\$_[0]->{\$name}} }; 1; }
      or die "Method builder failed for ${singular}_list: $@";
   }
