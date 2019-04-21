@@ -35,6 +35,18 @@ sub register_defaults {
   $self->op_expander(as => '_expand_op_as');
   $self->expander(as => '_expand_op_as');
   $self->renderer(as => '_render_as');
+  $self->expander(alias => sub {
+    my ($self, undef, $args) = @_;
+    if (ref($args) eq 'HASH' and my $alias = $args->{-alias}) {
+      $args = $alias;
+    }
+    +{ -alias => [
+        map $self->expand_expr($_, -ident),
+        ref($args) eq 'ARRAY' ? @{$args} : $args
+      ]
+    }
+  });
+  $self->renderer(alias => '_render_alias');
 
   $self->clauses_of(update => sub {
     my ($self, @clauses) = @_;
@@ -116,14 +128,6 @@ sub register_defaults {
           qw(union intersect except)
   );
 
-  my $expand_alias = sub {
-    my ($self, $to_expand) = @_;
-    [ map $self->expand_expr($_, -ident),
-        ref($to_expand) eq 'ARRAY'
-          ? @$to_expand
-          : $to_expand
-    ]
-  };
   $self->clause_expander('select.with' => my $with_expander = sub {
     my ($self, $name, $with) = @_;
     my (undef, $type) = split '_', $name;
@@ -132,7 +136,7 @@ sub register_defaults {
         %$with,
         queries => [
           map +[
-            $self->$expand_alias($_->[0]),
+            $self->expand_expr({ -alias => $_->[0] }, -ident),
             $self->expand_expr($_->[1]),
           ], @{$with->{queries}}
         ]
@@ -142,7 +146,7 @@ sub register_defaults {
     my @exp;
     while (my ($alias, $query) = splice @with, 0, 2) {
       push @exp, [
-        $self->$expand_alias($alias),
+        $self->expand_expr({ -alias => $alias }, -ident),
         $self->expand_expr($query)
       ];
     }
@@ -155,7 +159,7 @@ sub register_defaults {
       map {
         my ($alias, $query) = @$_;
         $self->join_query_parts(' ',
-            $self->_render_alias($alias),
+            $alias,
             $self->format_keyword('as'),
             $query,
         )
@@ -210,7 +214,7 @@ sub _expand_join {
       : (to => $args->[0], @{$args}[1..$#$args])
   );
   if (my $as = delete $proto{as}) {
-    $proto{to} = { -as => [ $proto{to}, ref($as) eq 'ARRAY' ? @$as : $as ] };
+    $proto{to} = $self->expand_expr({ -as => [ $proto{to}, $as ] });
   }
   if (defined($proto{using}) and ref(my $using = $proto{using}) ne 'HASH') {
     $proto{using} = { -row => [
@@ -249,24 +253,29 @@ sub _render_join {
 
 sub _expand_op_as {
   my ($self, undef, $vv, $k) = @_;
-  my @as = map $self->expand_expr($_, -ident),
-             (defined($k) ? ($k) : ()), ref($vv) eq 'ARRAY' ? @$vv : $vv;
-  return { -as => \@as };
+  my @vv = (ref($vv) eq 'ARRAY' ? @$vv : $vv);
+  $k ||= shift @vv;
+  my $ik = $self->expand_expr($k, -ident);
+  return +{ -as => [ $ik, $self->expand_expr($vv[0], -alias) ] }
+    if @vv == 1 and ref($vv[0]) eq 'HASH';
+
+  my @as = map $self->expand_expr($_, -ident), @vv;
+  return { -as => [ $ik, { -alias => \@as } ] };
 }
 
 sub _render_as {
   my ($self, undef, $args) = @_;
-  my ($thing, @alias) = @$args;
+  my ($thing, $alias) = @$args;
   return $self->join_query_parts(
     ' ',
-    $self->render_aqt($thing),
+    $thing,
     $self->format_keyword('as'),
-    $self->_render_alias(\@alias),
+    $alias,
   );
 }
 
 sub _render_alias {
-  my ($self, $args) = @_;
+  my ($self, undef, $args) = @_;
   my ($as, @cols) = @$args;
   return (@cols
     ? $self->join_query_parts('',
