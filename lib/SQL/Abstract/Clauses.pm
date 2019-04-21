@@ -79,40 +79,43 @@ sub _expand_select_clause_from {
 sub _expand_select_clause_where {
   my ($self, undef, $where) = @_;
 
-  local (@{$self->{expand}}{qw(ident value)},
-         @{$self->{expand_op}}{qw(ident value)},
-         $self->{expand_op}{bind})
-     = (map {
-      my $orig = $self->{expand}{$_};
-      sub {
-        my $self = shift;
-        +{ -func => [
-          $self->{convert},
-          $self->$orig(@_)
-        ] };
-      }
-    } qw(ident value ident value bind)
-  ) if $self->{convert};
-
-  local $self->{expand}{func} = do {
-    my $orig = $self->{expand}{func};
-    sub {
-      my ($self, $type, $thing) = @_;
-      if (ref($thing) eq 'ARRAY' and $thing->[0] eq $self->{convert}
-          and @$thing == 2 and ref($thing->[1]) eq 'HASH'
-          and (
-            $thing->[1]{-ident}
-            or $thing->[1]{-value}
-            or $thing->[1]{-bind})
-          ) {
-        return { -func => $thing }; # already went through our expander
-      }
-      return $self->$orig($type, $thing);
+  my $sqla = do {
+    if (my $conv = $self->{convert}) {
+      my $_wrap = sub {
+        my $orig = shift;
+        sub {
+          my $self = shift;
+          +{ -func => [
+            $conv,
+            $self->$orig(@_)
+          ] };
+        };
+      };
+      $self->clone
+           ->wrap_expanders(map +($_ => $_wrap), qw(ident value bind))
+           ->wrap_op_expanders(map +($_ => $_wrap), qw(ident value bind))
+           ->wrap_expander(func => sub {
+               my $orig = shift;
+               sub {
+                 my ($self, $type, $thing) = @_;
+                 if (ref($thing) eq 'ARRAY' and $thing->[0] eq $conv
+                     and @$thing == 2 and ref($thing->[1]) eq 'HASH'
+                     and (
+                       $thing->[1]{-ident}
+                       or $thing->[1]{-value}
+                       or $thing->[1]{-bind})
+                     ) {
+                   return { -func => $thing }; # already went through our expander
+                 }
+                 return $self->$orig($type, $thing);
+               }
+             });
+    } else {
+      $self;
     }
-  } if $self->{convert};
+  };
 
-  my $exp = $self->expand_expr($where);
-  +(where => $exp);
+  return +(where => $sqla->expand_expr($where));
 }
 
 sub _expand_select_clause_order_by {
