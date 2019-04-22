@@ -238,7 +238,7 @@ sub _render_join {
   my @parts = (
     $args->{from},
     $self->format_keyword(join '_', ($args->{type}||()), 'join'),
-    (map +($_->{-ident} || $_->{-as} ? $_ : { -row => [ $_ ] }), $args->{to}),
+    (map +($_->{-ident} || $_->{-as} ? $_ : ('(', $_, ')')), $args->{to}),
     ($args->{on} ? (
       $self->format_keyword('on') ,
       $args->{on},
