@@ -217,10 +217,10 @@ sub _expand_join {
     $proto{to} = $self->expand_expr({ -as => [ $proto{to}, $as ] });
   }
   if (defined($proto{using}) and ref(my $using = $proto{using}) ne 'HASH') {
-    $proto{using} = { -row => [
+    $proto{using} = [
       map [ $self->expand_expr($_, -ident) ],
         ref($using) eq 'ARRAY' ? @$using: $using
-    ] };
+    ];
   }
   my %ret = map +($_ => $self->expand_expr($proto{$_}, -ident)),
               sort keys %proto;
@@ -245,7 +245,7 @@ sub _render_join {
     ) : ()),
     ($args->{using} ? (
       $self->format_keyword('using'),
-      $args->{using},
+      '(', $args->{using}, ')',
     ) : ()),
   );
   return $self->join_query_parts(' ', @parts);
