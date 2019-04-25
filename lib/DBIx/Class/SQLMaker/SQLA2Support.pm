@@ -13,9 +13,10 @@ sub select {
   my $self = shift;
   my ($sql, @bind) = $self->next::method(@_);
   my (undef, undef, undef, $attrs) = @_;
-  if (my $with = delete $attrs->{with}) {
+  if (my $with = delete $attrs->{with} or my $wrec = delete $attrs->{with_recursive}) {
+    die "Can't have with and with_recursive at once" if $with and $wrec;
     my ($wsql, @wbind) = @{ $self->render_statement({
-      -select => { with => $with }
+      -select => ($with ? { with => $with } : { with_recursive => $wrec })
     }) };
     unshift @bind, @wbind;
     $sql = "${wsql} ${sql}";
