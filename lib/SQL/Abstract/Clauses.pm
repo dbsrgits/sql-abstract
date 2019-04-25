@@ -63,6 +63,21 @@ sub register_defaults {
   $self->{expand}{exists} = sub {
     $_[0]->_expand_op(undef, [ exists => $_[2] ]);
   };
+
+  # check for overriden methods
+  if ($self->can('_table') ne SQL::Abstract->can('_table')) {
+    $self->{expand_clause}{'select.from'} = sub {
+      return +{ -literal => [ $_[0]->_table($_[2]) ] };
+    };
+  }
+  if ($self->can('_order_by') ne SQL::Abstract->can('_order_by')) {
+    $self->{expand_clause}{'select.order_by'} = sub {
+      my ($osql, @obind) = $_[0]->_order_by($_[2]);
+      $osql =~ s/^order by //i;
+      return undef unless length($osql);
+      return +{ -literal => [ $osql, @obind ] };
+    };
+  }
   return $self;
 }
 
@@ -212,7 +227,6 @@ sub render_statement {
 
 sub select {
   my ($self, @args) = @_;
-
   my $stmt = do {
     if (ref(my $sel = $args[0]) eq 'HASH') {
       $sel

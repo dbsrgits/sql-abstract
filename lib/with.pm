@@ -18,8 +18,9 @@ sub components {
   Class::C3::Componentised->ensure_class_loaded($_) for @comp_classes;
   Class::C3::Componentised->inject_base(
     $new_class,
-    @comp_classes, $class,
+    @comp_classes, $class
   );
+  mro::set_mro($new_class, 'c3');
   return $new_class unless ref($inv);
   return bless($inv, $new_class);
 }
