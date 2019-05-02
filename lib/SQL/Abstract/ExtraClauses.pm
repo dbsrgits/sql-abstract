@@ -153,7 +153,7 @@ sub register_defaults {
     return +(with => { ($type ? (type => $type) : ()), queries => \@exp });
   });
   $self->clause_expander('select.with_recursive', $with_expander);
-  $self->clause_renderer('select.with' => sub {
+  $self->clause_renderer('select.with' => my $with_renderer = sub {
     my ($self, undef, $with) = @_;
     my $q_part = $self->join_query_parts(', ',
       map {
@@ -170,6 +170,12 @@ sub register_defaults {
       $q_part,
     );
   });
+  foreach my $stmt (qw(insert update delete)) {
+    $self->clauses_of($stmt => 'with', $self->clauses_of($stmt));
+    $self->clause_expander("${stmt}.$_", $with_expander)
+      for qw(with with_recursive);
+    $self->clause_renderer("${stmt}.with", $with_renderer);
+  }
 
   return $self;
 }
