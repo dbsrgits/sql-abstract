@@ -296,7 +296,7 @@ is_same_sql(
     },
   ],
   into => 'license_person',
-  fields => [ qw(person_id, license_id) ],
+  fields => [ qw(person_id license_id) ],
   select => {
     _ => ['person_id', 'license_id'],
     from => ['grandfather'],
@@ -320,7 +320,7 @@ is_same_sql_bind(
       INSERT INTO license (kind, expires_on, valid_from)
       SELECT 'grandfather', '2017-06-30', '2016-07-01'
         FROM faculty RETURNING license_id
-    ) INSERT INTO license_person (person_id,, license_id)
+    ) INSERT INTO license_person (person_id, license_id)
       SELECT person_id, license_id FROM grandfather WHERE a.index = b.index
   },
   [ qw(pending faculty) ],
