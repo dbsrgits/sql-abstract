@@ -269,4 +269,61 @@ is_same_sql(
   },
 );
 
+
+($sql, @bind) = $sqlac->insert({
+  with => [ 
+    faculty => {
+      -select => {
+        _ => [qw /p.person p.email/],
+        from => [ person => -as => 'p' ],
+        where => {
+          'p.person_type' => 'faculty',
+          'p.person_status' => { '!=' => 'pending' },
+          'p.default_license_id' => undef,
+        },
+      },
+    },
+    grandfather => {
+      -insert => {
+        into => 'license',
+        fields => [ qw(kind expires_on valid_from) ],
+        select => {
+          select => [\(qw('grandfather' '2017-06-30' '2016-07-01'))], 
+          from => 'faculty',
+        },
+        returning => 'license_id',
+      }
+    },
+  ],
+  into => 'license_person',
+  fields => [ qw(person_id, license_id) ],
+  select => {
+    _ => ['person_id', 'license_id'],
+    from => ['grandfather'],
+    where => {
+      'a.index' => { -ident => 'b.index' },
+    },
+  },
+});
+
+is_same_sql_bind(
+  $sql, \@bind,
+  q{
+    WITH faculty AS (
+      SELECT p.person, p.email FROM person AS p
+      WHERE (
+        p.default_license_id IS NULL
+        AND p.person_status != ?
+        AND p.person_type = ?
+      )
+    ), grandfather AS (
+      INSERT INTO license (kind, expires_on, valid_from)
+      SELECT 'grandfather', '2017-06-30', '2016-07-01'
+        FROM faculty RETURNING license_id
+    ) INSERT INTO license_person (person_id,, license_id)
+      SELECT person_id, license_id FROM grandfather WHERE a.index = b.index
+  },
+  [ qw(pending faculty) ],
+);
+
 done_testing;
