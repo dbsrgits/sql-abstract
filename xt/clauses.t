@@ -326,4 +326,101 @@ is_same_sql_bind(
   [ qw(pending faculty) ],
 );
 
+
+($sql, @bind) = $sqlac->delete({
+  with => [ 
+    instructors => {
+      -select => {
+        _ => [qw/p.person_id email default_license_id/],
+        from => [
+          person => -as => 'p',
+          -join => {
+            to => 'license_person',
+            as => 'lp',
+            on => { 'lp.person_id' => 'p.person_id' },
+          },  
+          -join => {
+            to => 'license',
+            as => 'l',
+            on => { 'l.license_id' => 'lp.license_id' },
+          },  
+        ],
+        where => {
+          'p.person_type' => 'faculty',
+          'p.person_status' => { '!=' => 'pending' },
+          'l.kind' => 'pending',
+        },
+        group_by => [qw/ p.person_id /],
+        having => { '>' => [ { -count => 'l.license_id' }, 1 ] }
+      },
+    },
+    deletable_licenses => {
+      -select => {
+        _ => [qw/lp.ctid lp.person_id lp.license_id/],
+        from => [
+          instructors => -as => 'i',
+          -join => {
+            to => 'license_person',
+            as => 'lp',
+            on => { 'lp.person_id' => 'i.person_id' },
+          },  
+          -join => {
+            to => 'license',
+            as => 'l',
+            on => { 'l.license_id' => 'lp.license_id' },
+          },  
+        ],
+        where => {
+          'lp.license_id' => { 
+            '<>' => {-ident => 'i.default_license_id'}
+          },
+          'l.kind' => 'pending',
+        },
+      },
+    },
+  ],
+  from => 'license_person',
+  where => {
+    ctid => { -in => 
+      {
+        -select => {
+          _ => ['ctid'], 
+          from => 'deletable_licenses',
+        }
+      }
+    }
+  }
+});
+
+is_same_sql_bind(
+  $sql, \@bind,
+  q{
+    with instructors as (
+      select p.person_id, email, default_license_id
+      from person as p
+      join license_person as lp on lp.person_id = p.person_id
+      join license as l on l.license_id = lp.license_id
+      where l.kind = ? 
+      AND p.person_status != ? 
+      AND p.person_type = ?
+      group by p.person_id
+      having COUNT(l.license_id) > ?),
+    deletable_licenses as (
+      select lp.ctid, lp.person_id, lp.license_id
+      from instructors as i
+      join license_person as lp on lp.person_id = i.person_id
+      join license as l on l.license_id = lp.license_id
+      where l.kind = ?
+      and lp.license_id <> i.default_license_id
+    )
+    delete from license_person 
+    where ctid IN (
+      (select ctid from deletable_licenses)
+    )
+  },
+  [qw(
+    pending pending faculty 1 pending
+    )]
+);
+
 done_testing;
