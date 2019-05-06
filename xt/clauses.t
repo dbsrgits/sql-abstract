@@ -423,4 +423,55 @@ is_same_sql_bind(
     )]
 );
 
+($sql, @bind) = $sqlac->update({
+  _ => ['survey'],
+  set => {
+    license_id => { -ident => 'info.default_license_id' },
+  },
+  from => [ 
+    -select => {
+      select => [qw( s.survey_id p.default_license_id p.person_id)],
+      from => [
+        person => -as => 'p',
+        -join => {
+          to => 'class',
+          as => 'c',
+          on => { 'c.faculty_id' => 'p.person_id' },
+        }, 
+        -join => {
+          to => 'survey',
+          as => 's',
+          on => { 's.class_id' => 'c.class_id' },
+        }, 
+      ],
+      where => { 'p.institution_id' => { -value => 15031 } },
+    },
+    -as => 'info',
+  ],
+  where => {
+    'info.survey_id' => { -ident => 'survey.survey_id' },
+  }
+});
+
+is_same_sql_bind(
+  $sql, \@bind,
+  q{
+    update survey
+    set license_id=info.default_license_id
+    from (
+      select s.survey_id, p.default_license_id, p.person_id
+      from person AS p
+      join class AS c on c.faculty_id = p.person_id
+      join survey AS s on s.class_id = c.class_id
+      where p.institution_id = ?
+    ) AS info
+    where info.survey_id=survey.survey_id
+  },
+  [qw(
+    15031
+    )]
+);
+
+
+
 done_testing;
