@@ -584,7 +584,7 @@ sub _expand_hashpair {
     }
     puke "Supplying an empty left hand side argument is not supported";
   }
-  if ($k =~ /^-/) {
+  if ($k =~ /^-./) {
     return $self->_expand_hashpair_op($k, $v);
   } elsif ($k =~ /^[^\w]/i) {
     my ($lhs, @rhs) = @$v;
