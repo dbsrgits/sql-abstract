@@ -1,12 +1,13 @@
+use strictures 2;
 use SQL::Abstract::ExtraClauses;
-use Devel::Dwarn;
+use Devel::DDCWarn;
 
 warn $ARGV[1];
 
-my @args = eval '('.$ARGV[1].')';
+my $sqlac = SQL::Abstract::ExtraClauses->new(unknown_unop_always_func => 1);
+
+my @args = ($ARGV[1] =~ /^\.\// ? do $ARGV[1] : eval '+('.$ARGV[1].')');
 
 die $@ if $@;
-
-my $sqlac = SQL::Abstract::ExtraClauses->new(unknown_unop_always_func => 1);
 
 Dwarn([ $sqlac->${\$ARGV[0]}(@args) ]);
