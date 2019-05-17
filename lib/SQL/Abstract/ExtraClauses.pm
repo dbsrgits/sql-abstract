@@ -176,6 +176,13 @@ sub register_defaults {
       for qw(with with_recursive);
     $self->clause_renderer("${stmt}.with", $with_renderer);
   }
+  $self->expander(cast => sub {
+    my ($cast, $to) = @{$_[2]};
+    +{ -func => [ cast => { -as => [
+      $self->expand_expr($cast),
+      $self->expand_expr($to, -ident),
+    ] } ] };
+  });
 
   return $self;
 }
