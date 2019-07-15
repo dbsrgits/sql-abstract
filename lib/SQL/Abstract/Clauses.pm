@@ -394,6 +394,8 @@ BEGIN {
   }
 }
 
+sub register_op { $_[0]->{is_op}{$_[1]} = 1; $_[0] }
+
 sub statement_list { sort keys %{$_[0]->{clauses_of}} }
 
 sub clauses_of {

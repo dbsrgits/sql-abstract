@@ -543,7 +543,9 @@ sub render_expr {
 
 sub _normalize_op {
   my ($self, $raw) = @_;
-  s/^-(?=.)//, s/\s+/_/g for my $op = lc $raw;
+  my $op = lc $raw;
+  return $op if grep $_->{$op}, @{$self}{qw(is_op expand_op render_op)};
+  s/^-(?=.)//, s/\s+/_/g for $op;
   $op;
 }
 
