@@ -2,6 +2,7 @@ package SQL::Abstract; # see doc at end of file
 
 use strict;
 use warnings;
+use Module::Runtime ();
 use Carp ();
 use List::Util ();
 use Scalar::Util ();
@@ -238,6 +239,13 @@ sub new {
     (map +($_ => '_render_op_andor'), qw(and or)),
     ',' => '_render_op_multop',
   };
+
+  if ($opt{lazy_join_sql_parts}) {
+    my $mod = Module::Runtime::use_module('SQL::Abstract::Parts');
+    $opt{join_sql_parts} ||= sub { $mod->new(@_) };
+  }
+
+  $opt{join_sql_parts} ||= sub { join $_[0], @_[1..$#_] };
 
   return bless \%opt, $class;
 }
@@ -1198,7 +1206,7 @@ sub join_query_parts {
       : ((ref($_) eq 'ARRAY') ? $_ : [ $_ ])
   ), @parts;
   return [
-    join($join, map $_->[0], @final),
+    $self->{join_sql_parts}->($join, map $_->[0], @final),
     (map @{$_}[1..$#$_], @final),
   ];
 }
@@ -1315,7 +1323,9 @@ sub _order_by_chunks {
 
   return () unless defined(my $expanded = $self->_expand_order_by($arg));
 
-  return $self->_chunkify_order_by($expanded);
+  my @res = $self->_chunkify_order_by($expanded);
+  (ref() ? $_->[0] : $_) .= '' for @res;
+  return @res;
 }
 
 sub _chunkify_order_by {
