@@ -18,4 +18,4 @@ my ($q, @bind) = $sqlac->${\$ARGV[0]}(@args);
 Dwarn [ Q => @$q ];
 
 print STDERR $q->format."\n";
-Dwarn \@bind;
+Dwarn [ 0, @bind ];
