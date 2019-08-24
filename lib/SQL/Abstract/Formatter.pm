@@ -17,7 +17,7 @@ sub format {
   my $sql = $self->_join($join, @parts);
   return $sql unless length($sql) > $self->max_width;
   local $self->{max_width} = $self->{max_width} - length($self->indent_by);
-  return join("\n", map $self->format(@$_), @parts);
+  return join("\n", map ref() ? $self->format(@$_) : $_, @parts);
 }
 
 1;  
