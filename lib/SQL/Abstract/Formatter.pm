@@ -14,7 +14,6 @@ sub _join {
 
 sub format {
   my ($self, $join, @parts) = @_;
-::Dwarn [ J => $join => @parts ];
   my $sql = $self->_join($join, @parts);
   return $sql unless length($sql) > $self->max_width;
   local $self->{max_width} = $self->{max_width} - length($self->indent_by);
