@@ -4,10 +4,17 @@ use Devel::DDCWarn;
 
 warn $ARGV[1];
 
-my $sqlac = SQL::Abstract::ExtraClauses->new(unknown_unop_always_func => 1);
+my $sqlac = SQL::Abstract::ExtraClauses->new(
+  unknown_unop_always_func => 1,
+  lazy_join_sql_parts => 1,
+);
 
 my @args = ($ARGV[1] =~ /^\.\// ? do $ARGV[1] : eval '+('.$ARGV[1].')');
 
 die $@ if $@;
 
-Dwarn([ $sqlac->${\$ARGV[0]}(@args) ]);
+my ($q, @bind) = $sqlac->${\$ARGV[0]}(@args);
+
+Dwarn [ Q => @$q ];
+
+Dwarn [ $q->format, @bind ];

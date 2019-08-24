@@ -1095,9 +1095,11 @@ sub _render_func {
   my ($func, @args) = @$rest;
   return $self->join_query_parts('',
     $self->_sqlcase($func),
-    '(',
-    $self->join_query_parts(', ', @args),
-    ')'
+    $self->join_query_parts('',
+      '(',
+      $self->join_query_parts(', ', @args),
+      ')'
+    ),
   );
 }
 
@@ -1171,9 +1173,11 @@ sub _render_op_in {
   return $self->join_query_parts(' ',
     $lhs,
     $self->format_keyword($op),
-    '(',
-    $self->join_query_parts(', ', @rhs),
-    ')'
+    $self->join_query_parts(' ',
+      '(',
+      $self->join_query_parts(', ', @rhs),
+      ')'
+    ),
   );
 }
 
@@ -1181,8 +1185,8 @@ sub _render_op_andor {
   my ($self, $op, $args) = @_;
   return undef unless @$args;
   return $self->join_query_parts('', $args->[0]) if @$args == 1;
-  return $self->join_query_parts(
-    ' ' => '(', $self->_render_op_multop($op, $args), ')'
+  return $self->join_query_parts(' ',
+    '(', $self->_render_op_multop($op, $args), ')'
   );
 }
 
