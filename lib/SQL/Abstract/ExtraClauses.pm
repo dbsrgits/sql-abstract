@@ -177,6 +177,7 @@ sub register_defaults {
     $self->clause_renderer("${stmt}.with", $with_renderer);
   }
   $self->expander(cast => sub {
+    return { -func => [ cast => $_[2] ] } if ref($_[2]) eq 'HASH';
     my ($cast, $to) = @{$_[2]};
     +{ -func => [ cast => { -as => [
       $self->expand_expr($cast),
