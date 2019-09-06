@@ -16,17 +16,23 @@ sub new {
 
 sub stringify {
   my ($self) = @_;
+::Dwarn([ STR => $self ]);
   my ($join, @parts) = @$self;
-  return join $join, map ref() ? stringify($_) : $_, @parts;
+  return join($join, map +(ref() ? stringify($_) : $_), @parts);
 }
 
 sub to_array { return @{$_[0]} }
 
-sub format {
+sub formatter {
   my ($self, %opts) = @_;
   Module::Runtime::use_module('SQL::Abstract::Formatter')
     ->new(%opts)
-    ->format($self->to_array);
+}
+
+sub format {
+  my ($self, %opts) = @_;
+  $self->formatter(%opts)
+       ->format($self->to_array);
 }
 
 1;

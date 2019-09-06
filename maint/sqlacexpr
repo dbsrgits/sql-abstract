@@ -1,6 +1,6 @@
 use strictures 2;
 use SQL::Abstract::ExtraClauses;
-use Devel::DDCWarn;
+#use Devel::DDCWarn;
 
 warn $ARGV[1];
 
@@ -15,7 +15,5 @@ die $@ if $@;
 
 my ($q, @bind) = $sqlac->${\$ARGV[0]}(@args);
 
-Dwarn [ Q => @$q ];
-
 print STDERR $q->format."\n";
-Dwarn [ 0, @bind ];
+Dwarn [ @bind ];

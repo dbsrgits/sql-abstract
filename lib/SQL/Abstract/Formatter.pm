@@ -9,15 +9,55 @@ has max_width => (is => 'ro', default => 78);
 
 sub _join {
   shift;
-  SQL::Abstract::Parts::stringify(\@_);
+::Dwarn [ JOIN => @_ ];
+  return ::Dwarn SQL::Abstract::Parts::stringify(\@_);
 }
 
 sub format {
   my ($self, $join, @parts) = @_;
-  my $sql = $self->_join($join, @parts);
-  return $sql unless length($sql) > $self->max_width;
-  local $self->{max_width} = $self->{max_width} - length($self->indent_by);
-  return join("\n", map ref() ? $self->format(@$_) : $_, @parts);
+  $self->_fold_sql('', '', @{$self->_simplify($join, @parts)});
+}
+
+sub _simplify {
+  my ($self, $join, @parts) = @_;
+  return '' unless @parts;
+  return $parts[0] if @parts == 1 and !ref($parts[0]);
+  return $self->_simplify(@{$parts[0]}) if @parts == 1;
+  return [ $join, map ref() ? $self->_simplify(@$_) : $_, @parts ];
+}
+
+sub _fold_sql {
+::Dwarn \@_;
+  my ($self, $indent0, $indent, $join, @parts) = @_;
+  my @res;
+  my $w = $self->max_width;
+  my $join_len = 0;
+  (s/, \Z/,\n/ and $join_len = 1)
+    or s/\A /\n/
+    or $_ = "\n"
+      for my $line_join = $join;
+  my ($nl_pre, $nl_post) = split "\n", $line_join;
+  my $line = $indent0;
+  my $next_indent = $indent.$self->indent_by;
+  PART: foreach my $idx (0..$#parts) {
+    ::Dwarn [ PARTSTART => $idx, \@parts, $line, \@res ];
+    my $p = $parts[$idx];
+    my $pre = $idx ? $join : '';
+    my $j_part = $pre.(my $j = ref($p) ? $self->_join(@$p) : $p);
+    if (length($j_part) + length($line) + $join_len <= $w) {
+      $line .= $j_part;
+    } else {
+      push @res, $line.$nl_pre."\n";
+      if (length($line = $indent.$nl_post.$j) <= $w) {
+        next PART;
+      }
+      my $folded = $self->_fold_sql($indent, $next_indent, @$p);
+      push @res, $folded.$pre."\n";
+      $line = $indent.$nl_post;
+    }
+    ::Dwarn [ PART => $idx => $line => $j_part => \@res ];
+  }
+  return +(::Dwarn [ join '', @res, $line ])->[0];
 }
 
 1;  
