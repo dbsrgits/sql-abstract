@@ -45,7 +45,7 @@ sub _fold_sql {
       $line .= $j_part;
     } else {
       if (ref($p) and $p->[1] eq '(' and $p->[-1] eq ')') {
-        push @res, $line.'('."\n";
+        push @res, $line.$join.'('."\n";
         my (undef, undef, $inner) = @$p;
         my $folded = $self->_fold_sql($indent, $indent, @$inner);
         push @res, $nl_post.$folded."\n";
