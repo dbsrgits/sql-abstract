@@ -9,8 +9,7 @@ has max_width => (is => 'ro', default => 78);
 
 sub _join {
   shift;
-::Dwarn [ JOIN => @_ ];
-  return ::Dwarn SQL::Abstract::Parts::stringify(\@_);
+  return SQL::Abstract::Parts::stringify(\@_);
 }
 
 sub format {
@@ -27,7 +26,6 @@ sub _simplify {
 }
 
 sub _fold_sql {
-::Dwarn \@_;
   my ($self, $indent0, $indent, $join, @parts) = @_;
   my @res;
   my $w = $self->max_width;
@@ -40,13 +38,20 @@ sub _fold_sql {
   my $line = $indent0;
   my $next_indent = $indent.$self->indent_by;
   PART: foreach my $idx (0..$#parts) {
-    ::Dwarn [ PARTSTART => $idx, \@parts, $line, \@res ];
     my $p = $parts[$idx];
     my $pre = $idx ? $join : '';
     my $j_part = $pre.(my $j = ref($p) ? $self->_join(@$p) : $p);
     if (length($j_part) + length($line) + $join_len <= $w) {
       $line .= $j_part;
     } else {
+      if ($p->[1] eq '(' and $p->[-1] eq ')') {
+        push @res, $line.$pre.'('."\n";
+        my (undef, undef, $inner) = @$p;
+        my $folded = $self->_fold_sql($indent, $indent, @$inner);
+        push @res, $nl_post.$folded."\n";
+        $line = $indent0.')';
+        next PART;
+      }
       push @res, $line.$nl_pre."\n";
       if (length($line = $indent.$nl_post.$j) <= $w) {
         next PART;
@@ -55,9 +60,8 @@ sub _fold_sql {
       push @res, $folded.$pre."\n";
       $line = $indent.$nl_post;
     }
-    ::Dwarn [ PART => $idx => $line => $j_part => \@res ];
   }
-  return +(::Dwarn [ join '', @res, $line ])->[0];
+  return join '', @res, $line;
 }
 
 1;  

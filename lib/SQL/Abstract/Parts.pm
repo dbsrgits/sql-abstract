@@ -16,7 +16,6 @@ sub new {
 
 sub stringify {
   my ($self) = @_;
-::Dwarn([ STR => $self ]);
   my ($join, @parts) = @$self;
   return join($join, map +(ref() ? stringify($_) : $_), @parts);
 }
