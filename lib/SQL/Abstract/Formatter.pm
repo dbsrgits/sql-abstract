@@ -44,8 +44,8 @@ sub _fold_sql {
     if (length($j_part) + length($line) + $join_len <= $w) {
       $line .= $j_part;
     } else {
-      if ($p->[1] eq '(' and $p->[-1] eq ')') {
-        push @res, $line.$pre.'('."\n";
+      if (ref($p) and $p->[1] eq '(' and $p->[-1] eq ')') {
+        push @res, $line.'('."\n";
         my (undef, undef, $inner) = @$p;
         my $folded = $self->_fold_sql($indent, $indent, @$inner);
         push @res, $nl_post.$folded."\n";
