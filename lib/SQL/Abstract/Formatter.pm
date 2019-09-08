@@ -52,13 +52,14 @@ sub _fold_sql {
         $line = $indent0.')';
         next PART;
       }
-      push @res, $line.$nl_pre."\n";
+      push @res, $line.$nl_pre."\n" if $line =~ /\S/;
       if (length($line = $indent.$nl_post.$j) <= $w) {
         next PART;
       }
       my $folded = $self->_fold_sql($indent, $next_indent, @$p);
+      $folded =~ s/\n\Z//;
       push @res, $folded.$pre."\n";
-      $line = $indent.$nl_post;
+      $line = $idx == $#parts ? '' : $indent.$nl_post;
     }
   }
   return join '', @res, $line;
