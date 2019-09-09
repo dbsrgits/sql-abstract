@@ -281,9 +281,8 @@ sub _render_as {
   my ($self, undef, $args) = @_;
   my ($thing, $alias) = @$args;
   return $self->join_query_parts(
-    ' ',
+    ' '.$self->format_keyword('as').' ',
     $thing,
-    $self->format_keyword('as'),
     $alias,
   );
 }
