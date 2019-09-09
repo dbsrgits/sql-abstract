@@ -56,9 +56,9 @@ sub _fold_sql {
       if (length($line = $indent.$nl_post.$j) <= $w) {
         next PART;
       }
-      my $folded = $self->_fold_sql($indent, $next_indent, @$p);
+      my $folded = $self->_fold_sql($indent.$nl_post, $next_indent, @$p);
       $folded =~ s/\n\Z//;
-      push @res, $folded.$pre."\n";
+      push @res, $folded.$nl_pre."\n";
       $line = $idx == $#parts ? '' : $indent.$nl_post;
     }
   }
