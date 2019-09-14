@@ -44,31 +44,31 @@ sub _fold_sql {
     my $j_part = $pre.(my $j = ref($p) ? $self->_join(@$p) : $p);
     if (length($j_part) + length($line) + $join_len <= $w) {
       $line .= $j_part;
-    } else {
-      if (ref($p) and $p->[1] eq '(' and $p->[-1] eq ')') {
-        my $already = !($line eq $indent0 or $line eq $line_orig);
-        push @res, $line.($already ? $join : '').'('."\n";
-        my (undef, undef, $inner) = @$p;
-        my $folded = $self->_fold_sql($next_indent, $next_indent, @$inner);
-        $folded =~ s/\n\Z//;
-        push @res, $folded."\n";
-        $line_orig = $line
-           = $indent0.')'.(
-             ($nl_post and $idx < $#parts) ? ' '.$nl_post : ' '
-           );
-        next PART;
-      }
-      push @res, $line.$nl_pre."\n" if $line ne $line_orig;
-      if (length($line = $line_proto.$j) <= $w) {
-        $line_proto = $line;
-        next PART;
-      }
-      my $innerdent = @res ? $indent : $next_indent;
-      my $folded = $self->_fold_sql($line_proto, $innerdent, @$p);
-      $folded =~ s/\n\Z//;
-      push @res, $folded.$nl_pre."\n";
-      $line_orig = $line = $idx == $#parts ? '' : $line_proto;
+      next PART;
     }
+    if (ref($p) and $p->[1] eq '(' and $p->[-1] eq ')') {
+      my $already = !($line eq $indent0 or $line eq $line_orig);
+      push @res, $line.($already ? $join : '').'('."\n";
+      my (undef, undef, $inner) = @$p;
+      my $folded = $self->_fold_sql($next_indent, $next_indent, @$inner);
+      $folded =~ s/\n\Z//;
+      push @res, $folded."\n";
+      $line_orig = $line
+         = $indent0.')'.(
+           ($nl_post and $idx < $#parts) ? ' '.$nl_post : ' '
+         );
+      next PART;
+    }
+    push @res, $line.$nl_pre."\n" if $line ne $line_orig;
+    if (length($line = $line_proto.$j) <= $w) {
+      $line_proto = $line;
+      next PART;
+    }
+    my $innerdent = @res ? $indent : $next_indent;
+    my $folded = $self->_fold_sql($line_proto, $innerdent, @$p);
+    $folded =~ s/\n\Z//;
+    push @res, $folded.$nl_pre."\n";
+    $line_orig = $line = $idx == $#parts ? '' : $line_proto;
   }
   return join '', @res, $line;
 }
