@@ -49,11 +49,13 @@ sub _fold_sql {
         my $already = !($line eq $indent0 or $line eq $line_orig);
         push @res, $line.($already ? $join : '').'('."\n";
         my (undef, undef, $inner) = @$p;
-        my $fold_indent = $already ? $indent : $next_indent;
-        my $folded = $self->_fold_sql($fold_indent, $fold_indent, @$inner);
+        my $folded = $self->_fold_sql($next_indent, $next_indent, @$inner);
+        $folded =~ s/\n\Z//;
         push @res, $folded."\n";
         $line_orig = $line
-           = $indent0.')'.($nl_post and $idx < $#parts ? ' '.$nl_post : '');
+           = $indent0.')'.(
+             ($nl_post and $idx < $#parts) ? ' '.$nl_post : ' '
+           );
         next PART;
       }
       push @res, $line.$nl_pre."\n" if $line ne $line_orig;
@@ -61,7 +63,8 @@ sub _fold_sql {
         $line_proto = $line;
         next PART;
       }
-      my $folded = $self->_fold_sql($line_proto, $next_indent, @$p);
+      my $innerdent = @res ? $indent : $next_indent;
+      my $folded = $self->_fold_sql($line_proto, $innerdent, @$p);
       $folded =~ s/\n\Z//;
       push @res, $folded.$nl_pre."\n";
       $line_orig = $line = $idx == $#parts ? '' : $line_proto;
