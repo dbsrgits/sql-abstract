@@ -55,7 +55,7 @@ sub _fold_sql {
       push @res, $folded."\n";
       $line_orig = $line
          = $indent0.')'.(
-           ($nl_post and $idx < $#parts) ? ' '.$nl_post : ' '
+           ($nl_post and $idx < $#parts) ? $nl_post : ''
          );
       next PART;
     }
