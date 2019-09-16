@@ -54,12 +54,12 @@ sub _fold_sql {
       $folded =~ s/\n\Z//;
       push @res, $folded."\n";
       $line_orig = $line
-         = $indent0.')'.(
-           ($nl_post and $idx < $#parts) ? $nl_post : ''
-         );
+         = $indent0.')'.($idx == $#parts ? '' : $nl_post);
       next PART;
     }
-    push @res, $line.$nl_pre."\n" if $line ne $line_orig;
+    if ($line ne $line_orig) {
+      push @res, $line.($idx == $#parts ? '' : $nl_pre)."\n";
+    }
     if (length($line = $line_proto.$j) <= $w) {
       $line_proto = $line;
       next PART;
@@ -67,7 +67,7 @@ sub _fold_sql {
     my $innerdent = @res ? $indent : $next_indent;
     my $folded = $self->_fold_sql($line_proto, $innerdent, @$p);
     $folded =~ s/\n\Z//;
-    push @res, $folded.$nl_pre."\n";
+    push @res, $folded.($idx == $#parts ? '' : $nl_pre)."\n";
     $line_orig = $line = $idx == $#parts ? '' : $line_proto;
   }
   return join '', @res, $line;
