@@ -54,14 +54,13 @@ sub _fold_sql {
       $folded =~ s/\n\Z//;
       push @res, $folded."\n";
       $line_orig = $line
-         = $indent0.')'.($idx == $#parts ? '' : $nl_post);
+         = $indent0.')'.($idx == $#parts ? '' : $join);
       next PART;
     }
     if ($line ne $line_orig) {
       push @res, $line.($idx == $#parts ? '' : $nl_pre)."\n";
     }
     if (length($line = $line_proto.$j) <= $w) {
-      $line_proto = $line;
       next PART;
     }
     my $innerdent = @res ? $indent : $next_indent;
