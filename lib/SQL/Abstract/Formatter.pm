@@ -46,11 +46,11 @@ sub _fold_sql {
       $line .= $j_part;
       next PART;
     }
+    my $innerdent = @res
+                      ? $next_indent
+                      : $indent0.$self->indent_by;
     if (ref($p) and $p->[1] eq '(' and $p->[-1] eq ')') {
       my $already = !($line eq $indent0 or $line eq $line_orig);
-      my $innerdent = @res
-                        ? $next_indent
-                        : $indent0.$self->indent_by;
       push @res, $line.($already ? $join : '').'('."\n";
       my (undef, undef, $inner) = @$p;
       my $folded = $self->_fold_sql($innerdent, $innerdent, @$inner);
@@ -66,7 +66,6 @@ sub _fold_sql {
     if (length($line = $line_proto.$j) <= $w) {
       next PART;
     }
-    my $innerdent = @res ? $indent : $next_indent;
     my $folded = $self->_fold_sql($line_proto, $innerdent, @$p);
     $folded =~ s/\n\Z//;
     push @res, $folded.($idx == $#parts ? '' : $nl_pre)."\n";
