@@ -795,7 +795,7 @@ sub _expand_hashtriple {
   if (ref($vv) eq 'ARRAY') {
     my @raw = @$vv;
     my $logic = (defined($raw[0]) and $raw[0] =~ /^-(and|or)$/i)
-      ? (shift(@raw), $1) : 'or';
+      ? (shift(@raw), lc $1) : 'or';
     my @values = map +{ $vk => $_ }, @raw;
     if (
       $op =~ $self->{inequality_op}
