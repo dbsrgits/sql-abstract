@@ -402,7 +402,12 @@ my @handle_tests = (
         where => { artistid => {} },
         stmt => '',
         bind => [ ],
-    }
+    },
+    {
+        where => [ -and => [ {}, [] ], -or => [ {}, [] ] ],
+        stmt => '',
+        bind => [ ],
+    },
 );
 
 for my $case (@handle_tests) {
