@@ -1,3 +1,5 @@
+#!/usr/bin/env perl
+
 use strictures 2;
 use SQL::Abstract::ExtraClauses;
 #use Devel::DDCWarn;
