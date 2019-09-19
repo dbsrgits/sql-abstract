@@ -40,6 +40,7 @@ sub _fold_sql {
   my $line_proto = $indent.$nl_post;
   PART: foreach my $idx (0..$#parts) {
     my $p = $parts[$idx];
+#::DwarnT STARTPART => $p, \@res, $line, $line_orig;
     my $pre = ($line ne $line_orig ? $join : '');
     my $j_part = $pre.(my $j = ref($p) ? $self->_join(@$p) : $p);
     if (length($j_part) + length($line) + $join_len <= $w) {
@@ -70,6 +71,8 @@ sub _fold_sql {
     $folded =~ s/\n\Z//;
     push @res, $folded.($idx == $#parts ? '' : $nl_pre)."\n";
     $line_orig = $line = $idx == $#parts ? '' : $line_proto;
+  } continue {
+#::DwarnT ENDPART => $parts[$idx], \@res, $line, $line_orig;
   }
   return join '', @res, $line;
 }
