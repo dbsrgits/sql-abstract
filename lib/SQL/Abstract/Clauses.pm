@@ -220,9 +220,9 @@ sub render_aqt {
 
 sub render_statement {
   my ($self, $expr, $default_scalar_to) = @_;
-  $self->render_aqt(
+  @{$self->render_aqt(
     $self->expand_expr($expr, $default_scalar_to), 1
-  );
+  )};
 }
 
 sub select {
@@ -243,8 +243,8 @@ sub select {
     }
   };
 
-  my $rendered = $self->render_statement({ -select => $stmt });
-  return wantarray ? @$rendered : $rendered->[0];
+  my @rendered = $self->render_statement({ -select => $stmt });
+  return wantarray ? @rendered : $rendered[0];
 }
 
 sub update {
@@ -262,8 +262,8 @@ sub update {
       \%clauses;
     }
   };
-  my $rendered = $self->render_statement({ -update => $stmt });
-  return wantarray ? @$rendered : $rendered->[0];
+  my @rendered = $self->render_statement({ -update => $stmt });
+  return wantarray ? @rendered : $rendered[0];
 }
 
 sub delete {
@@ -277,8 +277,8 @@ sub delete {
       \%clauses;
     }
   };
-  my $rendered = $self->render_statement({ -delete => $stmt });
-  return wantarray ? @$rendered : $rendered->[0];
+  my @rendered = $self->render_statement({ -delete => $stmt });
+  return wantarray ? @rendered : $rendered[0];
 }
 
 sub insert {
@@ -292,8 +292,8 @@ sub insert {
       \%clauses;
     }
   };
-  my $rendered = $self->render_statement({ -insert => $stmt });
-  return wantarray ? @$rendered : $rendered->[0];
+  my @rendered = $self->render_statement({ -insert => $stmt });
+  return wantarray ? @rendered : $rendered[0];
 }
 
 sub _expand_insert_clause_target {
