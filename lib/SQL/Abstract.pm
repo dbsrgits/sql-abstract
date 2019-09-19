@@ -1185,8 +1185,10 @@ sub _render_op_andor {
   my ($self, $op, $args) = @_;
   return undef unless @$args;
   return $self->join_query_parts('', $args->[0]) if @$args == 1;
+  my $inner = $self->_render_op_multop($op, $args);
+  return undef unless defined($inner->[0]) and length($inner->[0]);
   return $self->join_query_parts(' ',
-    '(', $self->_render_op_multop($op, $args), ')'
+    '(', $inner, ')'
   );
 }
 
@@ -1210,7 +1212,7 @@ sub join_query_parts {
       : ((ref($_) eq 'ARRAY') ? $_ : [ $_ ])
   ), @parts;
   return [
-    $self->{join_sql_parts}->($join, map $_->[0], @final),
+    $self->{join_sql_parts}->($join, grep defined, map $_->[0], @final),
     (map @{$_}[1..$#$_], @final),
   ];
 }
