@@ -1,5 +1,6 @@
 #!/usr/bin/env perl
 
+use lib 'lib';
 use strictures 2;
 use Data::Dumper::Compact;
 use SQL::Abstract::Formatter;
