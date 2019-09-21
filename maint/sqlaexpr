@@ -1,5 +1,6 @@
 #!/usr/bin/env perl
 
+use lib 'lib';
 use SQL::Abstract;
 use Devel::Dwarn;
 
