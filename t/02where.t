@@ -408,6 +408,11 @@ my @handle_tests = (
         stmt => '',
         bind => [ ],
     },
+    {
+        where => { '=' => \'bozz' },
+        stmt => 'WHERE = bozz',
+        bind => [ ],
+    },
 );
 
 for my $case (@handle_tests) {
