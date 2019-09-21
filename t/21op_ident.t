@@ -17,6 +17,16 @@ for my $q ('', '"') {
     $sql_maker->where({ foo => { -ident => undef } })
   } qr/-ident requires a single plain scalar argument/;
 
+  throws_ok {
+    local $sql_maker->{disable_old_special_ops} = 1;
+    $sql_maker->where({'-or' => [{'-ident' => 'foo'},'foo']})
+  } qr/Illegal.*top-level/;
+
+  throws_ok {
+    local $sql_maker->{disable_old_special_ops} = 1;
+    $sql_maker->where({'-or' => [{'-ident' => 'foo'},{'=' => \'bozz'}]})
+  } qr/Illegal.*top-level/;
+
   my ($sql, @bind) = $sql_maker->select('artist', '*', { 'artist.name' => { -ident => 'artist.pseudonym' } } );
   is_same_sql_bind (
     $sql,

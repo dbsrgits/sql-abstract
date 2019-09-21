@@ -686,19 +686,6 @@ sub _expand_hashpair_op {
 
   my $op = $self->_normalize_op($k);
 
-  if (my $exp = $self->{expand}{$op}) {
-    return $self->$exp($op, $v);
-  }
-
-  # Ops prefixed with -not_ get converted
-
-  if (my ($rest) = $op =~/^not_(.*)$/) {
-    return +{ -op => [
-      'not',
-      $self->_expand_expr({ "-${rest}", $v })
-    ] };
-  }
-
   { # Old SQLA compat
 
     my $op = join(' ', split '_', $op);
@@ -717,8 +704,26 @@ sub _expand_hashpair_op {
     ) {
       puke "Illegal use of top-level '-$op'"
     }
+  }
+
+  if (my $exp = $self->{expand}{$op}) {
+    return $self->$exp($op, $v);
+  }
+
+  # Ops prefixed with -not_ get converted
+
+  if (my ($rest) = $op =~/^not_(.*)$/) {
+    return +{ -op => [
+      'not',
+      $self->_expand_expr({ "-${rest}", $v })
+    ] };
+  }
+
+  { # Old SQLA compat
 
     # the old unary op system means we should touch nothing and let it work
+
+    my $op = join(' ', split '_', $op);
 
     if (my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{unary_ops}}) {
       return { -op => [ $op, $v ] };
