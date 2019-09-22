@@ -180,7 +180,24 @@ our %Defaults = (
     (map +($_ => '_render_op_andor'), qw(and or)),
     ',' => '_render_op_multop',
   },
+  clauses_of => {
+    delete => [ qw(target where returning) ],
+  },
+  expand_clause => {
+    'delete.target' => '_expand_delete_clause_target',
+    'delete.from' => '_expand_delete_clause_target',
+    'delete.where' => '_expand_delete_clause_where',
+    'delete.returning' => '_expand_delete_clause_returning',
+  },
+  render_clause => {
+    'delete.target' => '_render_delete_clause_target',
+  },
 );
+
+foreach my $stmt (keys %{$Defaults{clauses_of}}) {
+  $Defaults{expand}{$stmt} = '_expand_statement';
+  $Defaults{render}{$stmt} = '_render_statement';
+}
 
 sub new {
   my $self = shift;
@@ -472,30 +489,39 @@ sub _select_fields {
 # DELETE
 #======================================================================
 
-
 sub delete {
-  my $self    = shift;
-  my $table   = $self->_table(shift);
-  my $where   = shift;
-  my $options = shift;
+  my ($self, $table, $where, $options) = @_;
 
-  my($where_sql, @bind) = $self->where($where);
-  my $sql = $self->_sqlcase('delete from ') . $table . $where_sql;
-
-  if ($options->{returning}) {
-    my ($returning_sql, @returning_bind) = $self->_delete_returning($options);
-    $sql .= $returning_sql;
-    push @bind, @returning_bind;
-  }
-
-  return wantarray ? ($sql, @bind) : $sql;
+  my $stmt = do {
+    if (ref($table) eq 'HASH') {
+      $table;
+    } else {
+      my %clauses = (target => $table, where => $where, %{$options||{}});
+      \%clauses;
+    }
+  };
+  my @rendered = $self->render_statement({ -delete => $stmt });
+  return wantarray ? @rendered : $rendered[0];
 }
 
 # So that subclasses can override DELETE ... RETURNING separately from
 # INSERT and UPDATE
 sub _delete_returning { shift->_returning(@_) }
 
+sub _expand_delete_clause_target {
+  +(target => $_[0]->_expand_maybe_list_expr($_[2], -ident));
+}
 
+sub _expand_delete_clause_where { +(where => $_[0]->expand_expr($_[2])); }
+
+sub _expand_delete_clause_returning {
+  +(returning => $_[0]->_expand_maybe_list_expr($_[2], -ident));
+}
+
+sub _render_delete_clause_target {
+   my ($self, undef, $from) = @_;
+   $self->join_query_parts(' ', $self->format_keyword('delete from'), $from);
+}
 
 #======================================================================
 # WHERE: entry point
@@ -534,11 +560,12 @@ sub expand_expr {
 }
 
 sub render_aqt {
-  my ($self, $aqt) = @_;
+  my ($self, $aqt, $top_level) = @_;
   my ($k, $v, @rest) = %$aqt;
   die "No" if @rest;
   die "Not a node type: $k" unless $k =~ s/^-//;
   if (my $meth = $self->{render}{$k}) {
+    local our $Render_Top_Level = $top_level;
     return $self->$meth($k, $v);
   }
   die "notreached: $k";
@@ -549,6 +576,61 @@ sub render_expr {
   return @{ $self->render_aqt(
     $self->expand_expr($expr, $default_scalar_to)
   ) };
+}
+
+sub render_statement {
+  my ($self, $expr, $default_scalar_to) = @_;
+  @{$self->render_aqt(
+    $self->expand_expr($expr, $default_scalar_to), 1
+  )};
+}
+
+sub _expand_statement {
+  my ($self, $type, $args) = @_;
+  my $ec = $self->{expand_clause};
+  if ($args->{_}) {
+    $args = { %$args };
+    $args->{$type} = delete $args->{_}
+  }
+  return +{ "-${type}" => +{
+    map {
+      my $val = $args->{$_};
+      if (defined($val) and my $exp = $ec->{"${type}.$_"}) {
+        if ((my (@exp) = $self->$exp($_ => $val)) == 1) {
+          ($_ => $exp[0])
+        } else {
+          @exp
+        }
+      } else {
+        ($_ => $self->expand_expr($val))
+      }
+    } sort keys %$args
+  } };
+}
+
+sub _render_statement {
+  my ($self, $type, $args) = @_;
+  my @parts;
+  foreach my $clause (@{$self->{clauses_of}{$type}}) {
+    next unless my $clause_expr = $args->{$clause};
+    my $part = do {
+      if (my $rdr = $self->{render_clause}{"${type}.${clause}"}) {
+        $self->$rdr($clause, $clause_expr);
+      } else {
+        my $r = $self->render_aqt($clause_expr, 1);
+        next unless defined $r->[0] and length $r->[0];
+        $self->join_query_parts(' ',
+          $self->format_keyword($clause),
+          $r
+        );
+      }
+    };
+    push @parts, $part;
+  }
+  my $q = $self->join_query_parts(' ', @parts);
+  return $self->join_query_parts('',
+    (our $Render_Top_Level ? $q : ('(', $q, ')'))
+  );
 }
 
 sub _normalize_op {
