@@ -155,6 +155,7 @@ our %Defaults = (
     ident => '_expand_ident',
     value => '_expand_value',
     func => '_expand_func',
+    values => '_expand_values',
   },
   expand_op => {
     'between' => '_expand_between',
@@ -168,7 +169,7 @@ our %Defaults = (
     'value' => '_expand_value',
   },
   render => {
-    (map +($_, "_render_$_"), qw(op func bind ident literal row)),
+    (map +($_, "_render_$_"), qw(op func bind ident literal row values)),
   },
   render_op => {
     (map +($_ => '_render_op_between'), 'between', 'not_between'),
@@ -183,14 +184,20 @@ our %Defaults = (
   clauses_of => {
     delete => [ qw(target where returning) ],
     update => [ qw(target set where returning) ],
+    insert => [ qw(target fields from returning) ],
   },
   expand_clause => {
     'delete.from' => '_expand_delete_clause_target',
     'update.update' => '_expand_update_clause_target',
+    'insert.into' => '_expand_insert_clause_target',
+    'insert.values' => '_expand_insert_clause_from',
   },
   render_clause => {
     'delete.target' => '_render_delete_clause_target',
     'update.target' => '_render_update_clause_target',
+    'insert.target' => '_render_insert_clause_target',
+    'insert.fields' => '_render_insert_clause_fields',
+    'insert.from' => '_render_insert_clause_from',
   },
 );
 
@@ -291,25 +298,46 @@ sub _assert_pass_injection_guard {
 #======================================================================
 
 sub insert {
-  my $self    = shift;
-  my $table   = $self->_table(shift);
-  my $data    = shift || return;
-  my $options = shift;
+  my ($self, $table, $data, $options) = @_;
 
-  my $fields;
+  my $stmt = do {
+    if (ref($table) eq 'HASH') {
+      $table;
+    } else {
+      my %clauses = (target => $table, values => $data, %{$options||{}});
+      \%clauses;
+    }
+  };
+  my @rendered = $self->render_statement({ -insert => $stmt });
+  return wantarray ? @rendered : $rendered[0];
+}
 
-  my ($f_aqt, $v_aqt) = $self->_expand_insert_values($data);
+sub _expand_insert_clause_target {
+  +(target => $_[0]->_expand_maybe_list_expr($_[2], -ident));
+}
 
-  my @parts = ([ $self->_sqlcase('insert into').' '.$table ]);
-  push @parts, $self->render_aqt($f_aqt) if $f_aqt;
-  push @parts, [ $self->_sqlcase('values') ], $self->render_aqt($v_aqt);
+sub _expand_insert_clause_fields {
+  return +{ -row => [
+    $_[0]->_expand_maybe_list_expr($_[2], -ident)
+  ] } if ref($_[2]) eq 'ARRAY';
+  return $_[2]; # should maybe still expand somewhat?
+}
 
-  if ($options->{returning}) {
-    push @parts, [ $self->_insert_returning($options) ];
+sub _expand_insert_clause_from {
+  my ($self, undef, $data) = @_;
+  if (ref($data) eq 'HASH' and (keys(%$data))[0] =~ /^-/) {
+    return $self->expand_expr($data);
   }
+  return $data if ref($data) eq 'HASH' and $data->{-row};
+  my ($f_aqt, $v_aqt) = $self->_expand_insert_values($data);
+  return (
+    from => { -values => [ $v_aqt ] },
+    ($f_aqt ? (fields => $f_aqt) : ()),
+  );
+}
 
-  my ($sql, @bind) = @{ $self->join_query_parts(' ', @parts) };
-  return wantarray ? ($sql, @bind) : $sql;
+sub _expand_insert_clause_returning {
+  +(returning => $_[0]->_expand_maybe_list_expr($_[2], -ident));
 }
 
 sub _expand_insert_values {
@@ -342,9 +370,27 @@ sub _expand_insert_values {
   }
 }
 
+sub _render_insert_clause_fields {
+  return $_[0]->render_aqt($_[2]);
+}
+
+sub _render_insert_clause_target {
+  my ($self, undef, $from) = @_;
+  $self->join_query_parts(' ', $self->format_keyword('insert into'), $from);
+}
+
+sub _render_insert_clause_from {
+  return $_[0]->render_aqt($_[2], 1);
+}
+
 # So that subclasses can override INSERT ... RETURNING separately from
 # UPDATE and DELETE (e.g. DBIx::Class::SQLMaker::Oracle does this)
 sub _insert_returning { shift->_returning(@_) }
+
+sub _redispatch_returning {
+  my ($self, $type, undef, $returning) = @_;
+  [ $self->${\"_${type}_returning"}({ returning => $returning }) ];
+}
 
 sub _returning {
   my ($self, $options) = @_;
@@ -1156,6 +1202,17 @@ sub _expand_bind {
   return { -bind => $bind };
 }
 
+sub _expand_values {
+  my ($self, undef, $values) = @_;
+  return { -values => [
+    map +(
+      ref($_) eq 'HASH'
+        ? $self->expand_expr($_)
+        : +{ -row => [ map $self->expand_expr($_), @$_ ] }
+    ), ref($values) eq 'ARRAY' ? @$values : $values
+  ] };
+}
+
 sub _recurse_where {
   my ($self, $where, $logic) = @_;
 
@@ -1306,6 +1363,19 @@ sub _render_op_multop {
                 :  ' '.$self->format_keyword($op).' '
              );
   return $self->join_query_parts($join, @parts);
+}
+
+sub _render_values {
+  my ($self, undef, $values) = @_;
+  my $inner = $self->join_query_parts(' ',
+    $self->format_keyword('values'),
+    $self->join_query_parts(', ',
+      ref($values) eq 'ARRAY' ? @$values : $values
+    ),
+  );
+  return $self->join_query_parts('',
+    (our $Render_Top_Level ? $inner : ('(', $inner, ')'))
+  );
 }
 
 sub join_query_parts {
