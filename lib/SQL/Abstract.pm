@@ -182,12 +182,15 @@ our %Defaults = (
   },
   clauses_of => {
     delete => [ qw(target where returning) ],
+    update => [ qw(target set where returning) ],
   },
   expand_clause => {
     'delete.from' => '_expand_delete_clause_target',
+    'update.update' => '_expand_update_clause_target',
   },
   render_clause => {
     'delete.target' => '_render_delete_clause_target',
+    'update.target' => '_render_update_clause_target',
   },
 );
 
@@ -385,35 +388,28 @@ sub _expand_insert_value {
 # UPDATE methods
 #======================================================================
 
-
 sub update {
-  my $self    = shift;
-  my $table   = $self->_table(shift);
-  my $data    = shift || return;
-  my $where   = shift;
-  my $options = shift;
+  my ($self, $table, $set, $where, $options) = @_;
 
-  # first build the 'SET' part of the sql statement
-  puke "Unsupported data type specified to \$sql->update"
-    unless ref $data eq 'HASH';
+  my $stmt = do {
+    if (ref($table) eq 'HASH') {
+      $table
+    } else {
+      my %clauses;
+      @clauses{qw(target set where)} = ($table, $set, $where);
+      puke "Unsupported data type specified to \$sql->update"
+        unless ref($clauses{set}) eq 'HASH';
+      @clauses{keys %$options} = values %$options;
+      \%clauses;
+    }
+  };
+  my @rendered = $self->render_statement({ -update => $stmt });
+  return wantarray ? @rendered : $rendered[0];
+}
 
-  my ($sql, @all_bind) = $self->_update_set_values($data);
-  $sql = $self->_sqlcase('update ') . $table . $self->_sqlcase(' set ')
-          . $sql;
-
-  if ($where) {
-    my($where_sql, @where_bind) = $self->where($where);
-    $sql .= $where_sql;
-    push @all_bind, @where_bind;
-  }
-
-  if ($options->{returning}) {
-    my ($returning_sql, @returning_bind) = $self->_update_returning($options);
-    $sql .= $returning_sql;
-    push @all_bind, @returning_bind;
-  }
-
-  return wantarray ? ($sql, @all_bind) : $sql;
+sub _render_update_clause_target {
+  my ($self, undef, $target) = @_;
+  $self->join_query_parts(' ', $self->format_keyword('update'), $target);
 }
 
 sub _update_set_values {
@@ -446,6 +442,24 @@ sub _expand_update_set_values {
       );
     } sort keys %$data
   ] );
+}
+
+sub _expand_update_clause_target {
+  my ($self, undef, $target) = @_;
+  +(target => $self->_expand_maybe_list_expr($target, -ident));
+}
+
+sub _expand_update_clause_set {
+  return $_[2] if ref($_[2]) eq 'HASH' and ($_[2]->{-op}||[''])->[0] eq ',';
+  +(set => $_[0]->_expand_update_set_values($_[1], $_[2]));
+}
+
+sub _expand_update_clause_where {
+  +(where => $_[0]->expand_expr($_[2]));
+}
+
+sub _expand_update_clause_returning {
+  +(returning => $_[0]->_expand_maybe_list_expr($_[2], -ident));
 }
 
 # So that subclasses can override UPDATE ... RETURNING separately from
