@@ -243,11 +243,6 @@ sub new {
   # special operators
   $opt{special_ops} ||= [];
 
-  if ($class->isa('DBIx::Class::SQLMaker')) {
-    $opt{warn_once_on_nest} = 1;
-    $opt{disable_old_special_ops} = 1;
-  }
-
   # unary operators
   $opt{unary_ops} ||= [];
 
@@ -271,14 +266,38 @@ sub new {
     $opt{$name} = { %{$Defaults{$name}}, %{$opt{$name}||{}} };
   }
 
-  foreach my $type (qw(insert update delete)) {
-    my $method = "_${type}_returning";
-    if ($class ne __PACKAGE__
-      and __PACKAGE__->can($method) ne $class->can($method)) {
-      my $clause = "${type}.returning";
-      $opt{expand_clause}{$clause} = sub { $_[2] },
-      $opt{render_clause}{$clause}
-        = sub { [ $_[0]->$method($_[3]) ] };
+  if ($class ne __PACKAGE__) {
+
+    # check for overriden methods
+
+    foreach my $type (qw(insert update delete)) {
+      my $method = "_${type}_returning";
+      if (__PACKAGE__->can($method) ne $class->can($method)) {
+        my $clause = "${type}.returning";
+        $opt{expand_clause}{$clause} = sub { $_[2] },
+        $opt{render_clause}{$clause}
+          = sub { [ $_[0]->$method($_[3]) ] };
+      }
+    }
+    if (__PACKAGE__->can('_table') ne $class->can('_table')) {
+      $opt{expand_clause}{'select.from'} = sub {
+        return +{ -literal => [ $_[0]->_table($_[2]) ] };
+      };
+    }
+    if (__PACKAGE__->can('_order_by') ne $class->can('_order_by')) {
+      $opt{expand_clause}{'select.order_by'} = sub { $_[2] };
+      $opt{render_clause}{'select.order_by'} = sub {
+        [ $_[0]->_order_by($_[2]) ];
+      };
+    }
+    if ($class->isa('DBIx::Class::SQLMaker')) {
+      $opt{warn_once_on_nest} = 1;
+      $opt{disable_old_special_ops} = 1;
+      $opt{render_clause}{'select.where'} = sub {
+        my ($sql, @bind) = $_[0]->where($_[2]);
+        s/\A\s+//, s/\s+\Z// for $sql;
+        return [ $sql, @bind ];
+      };
     }
   }
 
@@ -1536,7 +1555,9 @@ sub join_query_parts {
       : ((ref($_) eq 'ARRAY') ? $_ : [ $_ ])
   ), @parts;
   return [
-    $self->{join_sql_parts}->($join, grep defined, map $_->[0], @final),
+    $self->{join_sql_parts}->(
+      $join, grep defined && length, map $_->[0], @final
+    ),
     (map @{$_}[1..$#$_], @final),
   ];
 }
