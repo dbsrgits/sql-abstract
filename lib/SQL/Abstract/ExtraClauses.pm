@@ -4,13 +4,12 @@ use strict;
 use warnings;
 use if $] < '5.010', 'MRO::Compat';
 use mro 'c3';
-use base qw(SQL::Abstract::Clauses);
+use base qw(SQL::Abstract);
 
 BEGIN { *puke = \&SQL::Abstract::puke }
 
-sub register_defaults {
-  my $self = shift;
-  $self->next::method(@_);
+sub new {
+  my $self = shift->next::method(@_);
   my @clauses = $self->clauses_of('select');
   my @before_setop;
   CLAUSE: foreach my $idx (0..$#clauses) {
