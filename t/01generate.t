@@ -630,6 +630,13 @@ my @tests = (
               stmt_q => 'DELETE FROM `test` WHERE ( `requestor` IS NULL ) RETURNING `id`, `created_at`',
               bind   => []
       },
+      {
+              func   => 'delete',
+              args   => ['test', \[ undef ] ],
+              stmt   => 'DELETE FROM test',
+              stmt_q => 'DELETE FROM `test`',
+              bind   => []
+      },
 );
 
 # check is( not) => undef
