@@ -185,6 +185,7 @@ our %Defaults = (
     delete => [ qw(target where returning) ],
     update => [ qw(target set where returning) ],
     insert => [ qw(target fields from returning) ],
+    select => [ qw(select from where order_by) ],
   },
   expand_clause => {
     'delete.from' => '_expand_delete_clause_target',
@@ -289,6 +290,82 @@ sub new {
   $opt{join_sql_parts} ||= sub { join $_[0], @_[1..$#_] };
 
   return bless \%opt, $class;
+}
+
+sub _ext_rw {
+  my ($self, $name, $key, $value) = @_;
+  return $self->{$name}{$key} unless @_ > 3;
+  $self->{$name}{$key} = $value;
+  return $self;
+}
+
+BEGIN {
+  foreach my $type (qw(
+    expand op_expand render op_render clause_expand clause_render
+  )) {
+    my $name = join '_', reverse split '_', $type;
+    my $singular = "${type}er";
+    eval qq{sub ${singular} { shift->_ext_rw($name => \@_) }; 1 }
+      or die "Method builder failed for ${singular}: $@";
+    eval qq{sub wrap_${singular} {
+      my (\$self, \$key, \$builder) = \@_;
+      my \$orig = \$self->_ext_rw('${name}', \$key);
+      \$self->_ext_rw(
+        '${name}', \$key,
+        \$builder->(\$orig, '${name}', \$key)
+      );
+    }; 1 } or die "Method builder failed for wrap_${singular}: $@";
+    eval qq{sub ${singular}s {
+      my (\$self, \@args) = \@_;
+      while (my (\$this_key, \$this_value) = splice(\@args, 0, 2)) {
+        \$self->_ext_rw('${name}', \$this_key, \$this_value);
+      }
+      return \$self;
+    }; 1 } or die "Method builder failed for ${singular}s: $@";
+    eval qq{sub wrap_${singular}s {
+      my (\$self, \@args) = \@_;
+      while (my (\$this_key, \$this_builder) = splice(\@args, 0, 2)) {
+        my \$orig = \$self->_ext_rw('${name}', \$this_key);
+        \$self->_ext_rw(
+          '${name}', \$this_key,
+           \$this_builder->(\$orig, '${name}', \$this_key),
+        );
+      }
+      return \$self;
+    }; 1 } or die "Method builder failed for wrap_${singular}s: $@";
+    eval qq{sub ${singular}_list { sort keys %{\$_[0]->{\$name}} }; 1; }
+     or die "Method builder failed for ${singular}_list: $@";
+  }
+}
+
+sub register_op { $_[0]->{is_op}{$_[1]} = 1; $_[0] }
+
+sub statement_list { sort keys %{$_[0]->{clauses_of}} }
+
+sub clauses_of {
+  my ($self, $of, @clauses) = @_;
+  unless (@clauses) {
+    return @{$self->{clauses_of}{$of}||[]};
+  }
+  if (ref($clauses[0]) eq 'CODE') {
+    @clauses = $self->${\($clauses[0])}(@{$self->{clauses_of}{$of}||[]});
+  }
+  $self->{clauses_of}{$of} = \@clauses;
+  return $self;
+}
+
+sub clone {
+  my ($self) = @_;
+  bless(
+    {
+      (map +($_ => (
+        ref($self->{$_}) eq 'HASH'
+          ? { %{$self->{$_}} }
+          : $self->{$_}
+      )), keys %$self),
+    },
+    ref($self)
+  );
 }
 
 sub sqltrue { +{ -literal => [ $_[0]->{sqltrue} ] } }
@@ -529,24 +606,83 @@ sub _update_returning { shift->_returning(@_) }
 # SELECT
 #======================================================================
 
-
 sub select {
-  my $self   = shift;
-  my $table  = $self->_table(shift);
-  my $fields = shift || '*';
-  my $where  = shift;
-  my $order  = shift;
+  my ($self, @args) = @_;
+  my $stmt = do {
+    if (ref(my $sel = $args[0]) eq 'HASH') {
+      $sel
+    } else {
+      my %clauses;
+      @clauses{qw(from select where order_by)} = @args;
 
-  my ($fields_sql, @bind) = $self->_select_fields($fields);
+      # This oddity is to literalify since historically SQLA doesn't quote
+      # a single identifier argument, so we convert it into a literal
 
-  my ($where_sql, @where_bind) = $self->where($where, $order);
-  push @bind, @where_bind;
+      $clauses{select} = { -literal => [ $clauses{select}||'*' ] }
+        unless ref($clauses{select});
+      \%clauses;
+    }
+  };
 
-  my $sql = join(' ', $self->_sqlcase('select'), $fields_sql,
-                      $self->_sqlcase('from'),   $table)
-          . $where_sql;
+  my @rendered = $self->render_statement({ -select => $stmt });
+  return wantarray ? @rendered : $rendered[0];
+}
 
-  return wantarray ? ($sql, @bind) : $sql;
+sub _expand_select_clause_select {
+  my ($self, undef, $select) = @_;
+  +(select => $self->_expand_maybe_list_expr($select, -ident));
+}
+
+sub _expand_select_clause_from {
+  my ($self, undef, $from) = @_;
+  +(from => $self->_expand_maybe_list_expr($from, -ident));
+}
+
+sub _expand_select_clause_where {
+  my ($self, undef, $where) = @_;
+
+  my $sqla = do {
+    if (my $conv = $self->{convert}) {
+      my $_wrap = sub {
+        my $orig = shift;
+        sub {
+          my $self = shift;
+          +{ -func => [
+            $conv,
+            $self->$orig(@_)
+          ] };
+        };
+      };
+      $self->clone
+           ->wrap_expanders(map +($_ => $_wrap), qw(ident value bind))
+           ->wrap_op_expanders(map +($_ => $_wrap), qw(ident value bind))
+           ->wrap_expander(func => sub {
+               my $orig = shift;
+               sub {
+                 my ($self, $type, $thing) = @_;
+                 if (ref($thing) eq 'ARRAY' and $thing->[0] eq $conv
+                     and @$thing == 2 and ref($thing->[1]) eq 'HASH'
+                     and (
+                       $thing->[1]{-ident}
+                       or $thing->[1]{-value}
+                       or $thing->[1]{-bind})
+                     ) {
+                   return { -func => $thing }; # already went through our expander
+                 }
+                 return $self->$orig($type, $thing);
+               }
+             });
+    } else {
+      $self;
+    }
+  };
+
+  return +(where => $sqla->expand_expr($where));
+}
+
+sub _expand_select_clause_order_by {
+  my ($self, undef, $order_by) = @_;
+  +(order_by => $self->_expand_order_by($order_by));
 }
 
 sub _select_fields {
