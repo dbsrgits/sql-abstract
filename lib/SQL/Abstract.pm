@@ -137,6 +137,51 @@ sub is_plain_value ($) {
 # NEW
 #======================================================================
 
+our %Defaults = (
+  expand => {
+    not => '_expand_not',
+    bool => '_expand_bool',
+    and => '_expand_op_andor',
+    or => '_expand_op_andor',
+    nest => '_expand_nest',
+    bind => '_expand_bind',
+    in => '_expand_in',
+    not_in => '_expand_in',
+    row => '_expand_row',
+    between => '_expand_between',
+    not_between => '_expand_between',
+    op => '_expand_op',
+    (map +($_ => '_expand_op_is'), ('is', 'is_not')),
+    ident => '_expand_ident',
+    value => '_expand_value',
+    func => '_expand_func',
+  },
+  expand_op => {
+    'between' => '_expand_between',
+    'not_between' => '_expand_between',
+    'in' => '_expand_in',
+    'not_in' => '_expand_in',
+    'nest' => '_expand_nest',
+    (map +($_ => '_expand_op_andor'), ('and', 'or')),
+    (map +($_ => '_expand_op_is'), ('is', 'is_not')),
+    'ident' => '_expand_ident',
+    'value' => '_expand_value',
+  },
+  render => {
+    (map +($_, "_render_$_"), qw(op func bind ident literal row)),
+  },
+  render_op => {
+    (map +($_ => '_render_op_between'), 'between', 'not_between'),
+    (map +($_ => '_render_op_in'), 'in', 'not_in'),
+    (map +($_ => '_render_unop_postfix'),
+      'is_null', 'is_not_null', 'asc', 'desc',
+    ),
+    (not => '_render_unop_paren'),
+    (map +($_ => '_render_op_andor'), qw(and or)),
+    ',' => '_render_op_multop',
+  },
+);
+
 sub new {
   my $self = shift;
   my $class = ref($self) || $self;
@@ -193,52 +238,9 @@ sub new {
 
   $opt{expand_unary} = {};
 
-  $opt{expand} = {
-    not => '_expand_not',
-    bool => '_expand_bool',
-    and => '_expand_op_andor',
-    or => '_expand_op_andor',
-    nest => '_expand_nest',
-    bind => '_expand_bind',
-    in => '_expand_in',
-    not_in => '_expand_in',
-    row => '_expand_row',
-    between => '_expand_between',
-    not_between => '_expand_between',
-    op => '_expand_op',
-    (map +($_ => '_expand_op_is'), ('is', 'is_not')),
-    ident => '_expand_ident',
-    value => '_expand_value',
-    func => '_expand_func',
-  };
-
-  $opt{expand_op} = {
-    'between' => '_expand_between',
-    'not_between' => '_expand_between',
-    'in' => '_expand_in',
-    'not_in' => '_expand_in',
-    'nest' => '_expand_nest',
-    (map +($_ => '_expand_op_andor'), ('and', 'or')),
-    (map +($_ => '_expand_op_is'), ('is', 'is_not')),
-    'ident' => '_expand_ident',
-    'value' => '_expand_value',
-  };
-
-  $opt{render} = {
-    (map +($_, "_render_$_"), qw(op func bind ident literal row)),
-    %{$opt{render}||{}}
-  };
-
-  $opt{render_op} = {
-    (map +($_ => '_render_op_between'), 'between', 'not_between'),
-    (map +($_ => '_render_op_in'), 'in', 'not_in'),
-    (map +($_ => '_render_unop_postfix'),
-      'is_null', 'is_not_null', 'asc', 'desc',
-    ),
-    (not => '_render_unop_paren'),
-    (map +($_ => '_render_op_andor'), qw(and or)),
-    ',' => '_render_op_multop',
-  };
+  foreach my $name (sort keys %Defaults) {
+    $opt{$name} = { %{$Defaults{$name}} };
+  }
 
   if ($opt{lazy_join_sql_parts}) {
     my $mod = Module::Runtime::use_module('SQL::Abstract::Parts');
