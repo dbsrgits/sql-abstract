@@ -184,10 +184,7 @@ our %Defaults = (
     delete => [ qw(target where returning) ],
   },
   expand_clause => {
-    'delete.target' => '_expand_delete_clause_target',
     'delete.from' => '_expand_delete_clause_target',
-    'delete.where' => '_expand_delete_clause_where',
-    'delete.returning' => '_expand_delete_clause_returning',
   },
   render_clause => {
     'delete.target' => '_render_delete_clause_target',
@@ -197,6 +194,10 @@ our %Defaults = (
 foreach my $stmt (keys %{$Defaults{clauses_of}}) {
   $Defaults{expand}{$stmt} = '_expand_statement';
   $Defaults{render}{$stmt} = '_render_statement';
+  foreach my $clause (@{$Defaults{clauses_of}{$stmt}}) {
+    $Defaults{expand_clause}{"${stmt}.${clause}"}
+      = "_expand_${stmt}_clause_${clause}";
+  }
 }
 
 sub new {
