@@ -267,7 +267,18 @@ sub new {
   $opt{expand_unary} = {};
 
   foreach my $name (sort keys %Defaults) {
-    $opt{$name} = { %{$Defaults{$name}} };
+    $opt{$name} = { %{$Defaults{$name}}, %{$opt{$name}||{}} };
+  }
+
+  foreach my $type (qw(insert update delete)) {
+    my $method = "_${type}_returning";
+    if ($class ne __PACKAGE__
+      and __PACKAGE__->can($method) ne $class->can($method)) {
+      my $clause = "${type}.returning";
+      $opt{expand_clause}{$clause} = sub { $_[2] },
+      $opt{render_clause}{$clause}
+        = sub { [ $_[0]->$method($_[3]) ] };
+    }
   }
 
   if ($opt{lazy_join_sql_parts}) {
@@ -653,6 +664,7 @@ sub _expand_statement {
     $args = { %$args };
     $args->{$type} = delete $args->{_}
   }
+  my %has_clause = map +($_ => 1), @{$self->{clauses_of}{$type}};
   return +{ "-${type}" => +{
     map {
       my $val = $args->{$_};
@@ -662,8 +674,10 @@ sub _expand_statement {
         } else {
           @exp
         }
-      } else {
+      } elsif ($has_clause{$_}) {
         ($_ => $self->expand_expr($val))
+      } else {
+        ($_ => $val)
       }
     } sort keys %$args
   } };
@@ -676,7 +690,7 @@ sub _render_statement {
     next unless my $clause_expr = $args->{$clause};
     my $part = do {
       if (my $rdr = $self->{render_clause}{"${type}.${clause}"}) {
-        $self->$rdr($clause, $clause_expr);
+        $self->$rdr($clause, $clause_expr, $args);
       } else {
         my $r = $self->render_aqt($clause_expr, 1);
         next unless defined $r->[0] and length $r->[0];
