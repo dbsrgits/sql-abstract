@@ -101,13 +101,8 @@ sub apply_to {
     $self->render_aqt($setop);
   }));
 
-  $sqla->renderer($_ => $self->cb(sub {
-    my ($self, $setop, $args) = @_;
-    $self->join_query_parts(
-      ' '.$self->format_keyword(join '_', $setop, ($args->{type}||())).' ',
-      @{$args->{queries}}
-    );
-  })) for qw(union intersect except);
+  $sqla->renderer($_ => $self->cb('_render_setop'))
+    for qw(union intersect except);
 
   my $setop_expander = $self->cb(sub {
     my ($self, $setop, $args) = @_;
@@ -335,6 +330,14 @@ sub _render_with {
   return $self->join_query_parts(' ',
     $self->format_keyword(join '_', 'with', ($with->{type}||'')),
     $q_part,
+  );
+}
+
+sub _render_setop {
+  my ($self, $setop, $args) = @_;
+  $self->join_query_parts(
+    ' '.$self->format_keyword(join '_', $setop, ($args->{type}||())).' ',
+    @{$args->{queries}}
   );
 }
 
