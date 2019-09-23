@@ -76,10 +76,9 @@ sub apply_to {
     $self->cb('_expand_select', $_[0], \@before_setop);
   });
 
-  $sqla->clause_renderer('select.setop' => $self->cb(sub {
-    my ($self, undef, $setop) = @_;
-    $self->render_aqt($setop);
-  }));
+  $sqla->clause_renderer(
+    'select.setop' => $self->cb(sub { $_[0]->render_aqt($_[2]); })
+  );
 
   foreach my $setop (qw(union intersect except)) {
     $sqla->expander($setop => $self->cb('_expand_setop'));
