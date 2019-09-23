@@ -5,7 +5,7 @@ use Moo;
 has sqla => (
   is => 'ro', init_arg => undef,
   handles => [ qw(
-    expand_expr render_aqt
+    expand_expr expand_maybe_list_expr render_aqt
     format_keyword join_query_parts
   ) ],
 );
@@ -33,7 +33,7 @@ sub apply_to {
   $sqla->clauses_of(select => 'with', @clauses);
   $sqla->clause_expanders(
     'select.group_by', $self->cb(sub {
-      $_[0]->sqla->_expand_maybe_list_expr($_[2], -ident)
+      $_[0]->expand_maybe_list_expr($_[2], -ident)
     }),
     'select.having', $self->cb(sub { $_[0]->expand_expr($_[2]) }),
   );
