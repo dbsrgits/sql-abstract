@@ -6,11 +6,6 @@ has sqla => (
   is => 'ro', init_arg => undef,
   handles => [ qw(
     expand_expr render_aqt
-    clauses_of clause_expander clause_expanders
-    clause_renderer clause_renderers
-    expander expanders op_expander op_expanders
-    renderer renderers op_renderer op_renderers
-    wrap_expander wrap_renderer wrap_op_expander wrap_op_renderer
     format_keyword join_query_parts
   ) ],
 );
@@ -25,8 +20,7 @@ sub cb {
 sub apply_to {
   my ($self, $sqla) = @_;
   $self = $self->new unless ref($self);
-  local $self->{sqla} = $sqla;
-  my @clauses = $self->clauses_of('select');
+  my @clauses = $sqla->clauses_of('select');
   my @before_setop;
   CLAUSE: foreach my $idx (0..$#clauses) {
     if ($clauses[$idx] eq 'order_by') {
@@ -36,21 +30,21 @@ sub apply_to {
     }
   }
   die "Huh?" unless @before_setop;
-  $self->clauses_of(select => 'with', @clauses);
-  $self->clause_expanders(
+  $sqla->clauses_of(select => 'with', @clauses);
+  $sqla->clause_expanders(
     'select.group_by', $self->cb(sub {
       $_[0]->sqla->_expand_maybe_list_expr($_[2], -ident)
     }),
     'select.having', $self->cb(sub { $_[0]->expand_expr($_[2]) }),
   );
   foreach my $thing (qw(join from_list)) {
-    $self->expander($thing => $self->cb("_expand_${thing}"))
+    $sqla->expander($thing => $self->cb("_expand_${thing}"))
          ->renderer($thing => $self->cb("_render_${thing}"))
   }
-  $self->op_expander(as => $self->cb('_expand_op_as'));
-  $self->expander(as => $self->cb('_expand_op_as'));
-  $self->renderer(as => $self->cb('_render_as'));
-  $self->expander(alias => $self->cb(sub {
+  $sqla->op_expander(as => $self->cb('_expand_op_as'));
+  $sqla->expander(as => $self->cb('_expand_op_as'));
+  $sqla->renderer(as => $self->cb('_render_as'));
+  $sqla->expander(alias => $self->cb(sub {
     my ($self, undef, $args) = @_;
     if (ref($args) eq 'HASH' and my $alias = $args->{-alias}) {
       $args = $alias;
@@ -61,21 +55,21 @@ sub apply_to {
       ]
     }
   }));
-  $self->renderer(alias => $self->cb('_render_alias'));
+  $sqla->renderer(alias => $self->cb('_render_alias'));
 
-  $self->clauses_of(update => sub {
+  $sqla->clauses_of(update => sub {
     my ($self, @clauses) = @_;
     splice(@clauses, 2, 0, 'from');
     @clauses;
   });
 
-  $self->clauses_of(delete => sub {
+  $sqla->clauses_of(delete => sub {
     my ($self, @clauses) = @_;
     splice(@clauses, 1, 0, 'using');
     @clauses;
   });
 
-  $self->clause_expanders(
+  $sqla->clause_expanders(
     'update.from' => $self->cb('_expand_select_clause_from'),
     'delete.using' => $self->cb(sub {
       +(using => $_[0]->_expand_from_list(undef, $_[2]));
@@ -89,7 +83,7 @@ sub apply_to {
   );
 
   # set ops
-  $self->wrap_expander(select => sub {
+  $sqla->wrap_expander(select => sub {
     my $orig = shift;
     $self->cb(sub {
       my $self = shift;
@@ -110,14 +104,14 @@ sub apply_to {
          queries => [ map $self->expand_expr($_), @{$args->{queries}} ],
     } };
   });
-  $self->expanders(map +($_ => $expand_setop), qw(union intersect except));
+  $sqla->expanders(map +($_ => $expand_setop), qw(union intersect except));
 
-  $self->clause_renderer('select.setop' => $self->cb(sub {
+  $sqla->clause_renderer('select.setop' => $self->cb(sub {
     my ($self, undef, $setop) = @_;
     $self->render_aqt($setop);
   }));
 
-  $self->renderer($_ => $self->cb(sub {
+  $sqla->renderer($_ => $self->cb(sub {
     my ($self, $setop, $args) = @_;
     $self->join_query_parts(
       ' '.$self->format_keyword(join '_', $setop, ($args->{type}||())).' ',
@@ -136,14 +130,14 @@ sub apply_to {
     }));
   });
 
-  $self->clause_expanders(
+  $sqla->clause_expanders(
     map +($_ => $setop_expander),
       map "select.${_}",
         map +($_, "${_}_all", "${_}_distinct"),
           qw(union intersect except)
   );
 
-  $self->clause_expander('select.with' => my $with_expander = $self->cb(sub {
+  $sqla->clause_expander('select.with' => my $with_expander = $self->cb(sub {
     my ($self, $name, $with) = @_;
     my (undef, $type) = split '_', $name;
     if (ref($with) eq 'HASH') {
@@ -167,8 +161,8 @@ sub apply_to {
     }
     return +(with => { ($type ? (type => $type) : ()), queries => \@exp });
   }));
-  $self->clause_expander('select.with_recursive', $with_expander);
-  $self->clause_renderer('select.with' => my $with_renderer = $self->cb(sub {
+  $sqla->clause_expander('select.with_recursive', $with_expander);
+  $sqla->clause_renderer('select.with' => my $with_renderer = $self->cb(sub {
     my ($self, undef, $with) = @_;
     my $q_part = $self->join_query_parts(', ',
       map {
@@ -186,12 +180,12 @@ sub apply_to {
     );
   }));
   foreach my $stmt (qw(insert update delete)) {
-    $self->clauses_of($stmt => 'with', $self->clauses_of($stmt));
-    $self->clause_expander("${stmt}.$_", $with_expander)
+    $sqla->clauses_of($stmt => 'with', $sqla->clauses_of($stmt));
+    $sqla->clause_expander("${stmt}.$_", $with_expander)
       for qw(with with_recursive);
-    $self->clause_renderer("${stmt}.with", $with_renderer);
+    $sqla->clause_renderer("${stmt}.with", $with_renderer);
   }
-  $self->expander(cast => $self->cb(sub {
+  $sqla->expander(cast => $self->cb(sub {
     return { -func => [ cast => $_[2] ] } if ref($_[2]) eq 'HASH';
     my ($cast, $to) = @{$_[2]};
     +{ -func => [ cast => { -as => [
@@ -200,13 +194,13 @@ sub apply_to {
     ] } ] };
   }));
 
-  $self->clause_expanders(
+  $sqla->clause_expanders(
     "select.from", $self->cb('_expand_select_clause_from'),
     "update.target", $self->cb('_expand_update_clause_target'),
     "update.update", $self->cb('_expand_update_clause_target'),
   );
 
-  return $self;
+  return $sqla;
 }
 
 sub _expand_select_clause_from {
