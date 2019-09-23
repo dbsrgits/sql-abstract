@@ -122,8 +122,8 @@ sub apply_to {
 }
 
 sub _expand_select {
-  my ($self, $orig, $before_setop) = (shift, shift, shift);
-  my $exp = $self->sqla->$orig(@_);
+  my ($self, $orig, $before_setop, @args) = @_;
+  my $exp = $self->sqla->$orig(@args);
   return $exp unless my $setop = (my $sel = $exp->{-select})->{setop};
   if (my @keys = grep $sel->{$_}, @$before_setop) {
     my %inner; @inner{@keys} = delete @{$sel}{@keys};
