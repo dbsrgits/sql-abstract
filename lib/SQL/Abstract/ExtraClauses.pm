@@ -87,22 +87,16 @@ sub apply_to {
       return $exp;
     });
   });
-  my $expand_setop = $self->cb(sub {
-    my ($self, $setop, $args) = @_;
-    +{ "-${setop}" => {
-         %$args,
-         queries => [ map $self->expand_expr($_), @{$args->{queries}} ],
-    } };
-  });
-  $sqla->expanders(map +($_ => $expand_setop), qw(union intersect except));
 
   $sqla->clause_renderer('select.setop' => $self->cb(sub {
     my ($self, undef, $setop) = @_;
     $self->render_aqt($setop);
   }));
 
-  $sqla->renderer($_ => $self->cb('_render_setop'))
-    for qw(union intersect except);
+  foreach my $setop (qw(union intersect except)) {
+    $sqla->expander($setop => $self->cb('_expand_setop'));
+    $sqla->renderer($setop => $self->cb('_render_setop'));
+  }
 
   my $setop_expander = $self->cb(sub {
     my ($self, $setop, $args) = @_;
@@ -331,6 +325,14 @@ sub _render_with {
     $self->format_keyword(join '_', 'with', ($with->{type}||'')),
     $q_part,
   );
+}
+
+sub _expand_setop {
+  my ($self, $setop, $args) = @_;
+  +{ "-${setop}" => {
+       %$args,
+       queries => [ map $self->expand_expr($_), @{$args->{queries}} ],
+  } };
 }
 
 sub _render_setop {
