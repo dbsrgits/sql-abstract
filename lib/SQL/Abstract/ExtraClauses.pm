@@ -10,8 +10,6 @@ has sqla => (
   ) ],
 );
 
-BEGIN { *puke = \&SQL::Abstract::puke }
-
 sub cb {
   my ($self, $method) = @_;
   return sub { local $self->{sqla} = shift; $self->$method(@_) };
