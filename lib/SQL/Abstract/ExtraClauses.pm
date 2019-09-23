@@ -44,17 +44,7 @@ sub apply_to {
   $sqla->op_expander(as => $self->cb('_expand_op_as'));
   $sqla->expander(as => $self->cb('_expand_op_as'));
   $sqla->renderer(as => $self->cb('_render_as'));
-  $sqla->expander(alias => $self->cb(sub {
-    my ($self, undef, $args) = @_;
-    if (ref($args) eq 'HASH' and my $alias = $args->{-alias}) {
-      $args = $alias;
-    }
-    +{ -alias => [
-        map $self->expand_expr($_, -ident),
-        ref($args) eq 'ARRAY' ? @{$args} : $args
-      ]
-    }
-  }));
+  $sqla->expander(alias => $self->cb('_expand_alias'));
   $sqla->renderer(alias => $self->cb('_render_alias'));
 
   $sqla->clauses_of(update => sub {
@@ -137,62 +127,20 @@ sub apply_to {
           qw(union intersect except)
   );
 
-  $sqla->clause_expander('select.with' => my $with_expander = $self->cb(sub {
-    my ($self, $name, $with) = @_;
-    my (undef, $type) = split '_', $name;
-    if (ref($with) eq 'HASH') {
-      return +{
-        %$with,
-        queries => [
-          map +[
-            $self->expand_expr({ -alias => $_->[0] }, -ident),
-            $self->expand_expr($_->[1]),
-          ], @{$with->{queries}}
-        ]
-      }
-    }
-    my @with = @$with;
-    my @exp;
-    while (my ($alias, $query) = splice @with, 0, 2) {
-      push @exp, [
-        $self->expand_expr({ -alias => $alias }, -ident),
-        $self->expand_expr($query)
-      ];
-    }
-    return +(with => { ($type ? (type => $type) : ()), queries => \@exp });
-  }));
-  $sqla->clause_expander('select.with_recursive', $with_expander);
-  $sqla->clause_renderer('select.with' => my $with_renderer = $self->cb(sub {
-    my ($self, undef, $with) = @_;
-    my $q_part = $self->join_query_parts(', ',
-      map {
-        my ($alias, $query) = @$_;
-        $self->join_query_parts(' ',
-            $alias,
-            $self->format_keyword('as'),
-            $query,
-        )
-      } @{$with->{queries}}
-    );
-    return $self->join_query_parts(' ',
-      $self->format_keyword(join '_', 'with', ($with->{type}||'')),
-      $q_part,
-    );
-  }));
+  my $w_exp = $self->cb('_expand_with');
+  my $w_rdr = $self->cb('_render_with');
+  $sqla->clause_expander('select.with' => $w_exp);
+  $sqla->clause_expander('select.with_recursive' => $w_exp);
+  $sqla->clause_renderer('select.with' => $w_rdr);
+
   foreach my $stmt (qw(insert update delete)) {
     $sqla->clauses_of($stmt => 'with', $sqla->clauses_of($stmt));
-    $sqla->clause_expander("${stmt}.$_", $with_expander)
+    $sqla->clause_expander("${stmt}.$_" => $w_exp)
       for qw(with with_recursive);
-    $sqla->clause_renderer("${stmt}.with", $with_renderer);
+    $sqla->clause_renderer("${stmt}.with" => $w_rdr);
   }
-  $sqla->expander(cast => $self->cb(sub {
-    return { -func => [ cast => $_[2] ] } if ref($_[2]) eq 'HASH';
-    my ($cast, $to) = @{$_[2]};
-    +{ -func => [ cast => { -as => [
-      $self->expand_expr($cast),
-      $self->expand_expr($to, -ident),
-    ] } ] };
-  }));
+
+  $sqla->expander(cast => $self->cb('_expand_cast'));
 
   $sqla->clause_expanders(
     "select.from", $self->cb('_expand_select_clause_from'),
@@ -323,6 +271,71 @@ sub _render_alias {
 sub _expand_update_clause_target {
   my ($self, undef, $target) = @_;
   +(target => $self->_expand_from_list(undef, $target));
+}
+
+sub _expand_cast {
+  my ($self, undef, $thing) = @_;
+  return { -func => [ cast => $thing ] } if ref($thing) eq 'HASH';
+  my ($cast, $to) = @{$thing};
+  +{ -func => [ cast => { -as => [
+    $self->expand_expr($cast),
+    $self->expand_expr($to, -ident),
+  ] } ] };
+}
+
+sub _expand_alias {
+  my ($self, undef, $args) = @_;
+  if (ref($args) eq 'HASH' and my $alias = $args->{-alias}) {
+    $args = $alias;
+  }
+  +{ -alias => [
+      map $self->expand_expr($_, -ident),
+      ref($args) eq 'ARRAY' ? @{$args} : $args
+    ]
+  }
+}
+
+sub _expand_with {
+  my ($self, $name, $with) = @_;
+  my (undef, $type) = split '_', $name;
+  if (ref($with) eq 'HASH') {
+    return +{
+      %$with,
+      queries => [
+        map +[
+          $self->expand_expr({ -alias => $_->[0] }, -ident),
+          $self->expand_expr($_->[1]),
+        ], @{$with->{queries}}
+      ]
+    }
+  }
+  my @with = @$with;
+  my @exp;
+  while (my ($alias, $query) = splice @with, 0, 2) {
+    push @exp, [
+      $self->expand_expr({ -alias => $alias }, -ident),
+      $self->expand_expr($query)
+    ];
+  }
+  return +(with => { ($type ? (type => $type) : ()), queries => \@exp });
+}
+
+sub _render_with {
+  my ($self, undef, $with) = @_;
+  my $q_part = $self->join_query_parts(', ',
+    map {
+      my ($alias, $query) = @$_;
+      $self->join_query_parts(' ',
+          $alias,
+          $self->format_keyword('as'),
+          $query,
+      )
+    } @{$with->{queries}}
+  );
+  return $self->join_query_parts(' ',
+    $self->format_keyword(join '_', 'with', ($with->{type}||'')),
+    $q_part,
+  );
 }
 
 1;
