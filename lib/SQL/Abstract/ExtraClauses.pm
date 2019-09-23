@@ -62,9 +62,7 @@ sub apply_to {
 
   $sqla->clause_expanders(
     'update.from' => $self->cb('_expand_select_clause_from'),
-    'delete.using' => $self->cb(sub {
-      +(using => $_[0]->_expand_from_list(undef, $_[2]));
-    }),
+    'delete.using' => $self->cb('_expand_from_list'),
     'insert.rowvalues' => $self->cb(sub {
       +(from => $_[0]->expand_expr({ -values => $_[2] }));
     }),
