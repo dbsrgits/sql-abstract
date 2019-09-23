@@ -11,8 +11,11 @@ has sqla => (
 );
 
 sub cb {
-  my ($self, $method) = @_;
-  return sub { local $self->{sqla} = shift; $self->$method(@_) };
+  my ($self, $method, @args) = @_;
+  return sub {
+    local $self->{sqla} = shift;
+    $self->$method(@args, @_)
+  };
 }
 
 sub apply_to {
@@ -72,18 +75,7 @@ sub apply_to {
 
   # set ops
   $sqla->wrap_expander(select => sub {
-    my $orig = shift;
-    $self->cb(sub {
-      my $self = shift;
-      my $exp = $self->sqla->$orig(@_);
-      return $exp unless my $setop = (my $sel = $exp->{-select})->{setop};
-      if (my @keys = grep $sel->{$_}, @before_setop) {
-        my %inner; @inner{@keys} = delete @{$sel}{@keys};
-        unshift @{(values(%$setop))[0]{queries}},
-          { -select => \%inner };
-      }
-      return $exp;
-    });
+    $self->cb('_expand_select', $_[0], \@before_setop);
   });
 
   $sqla->clause_renderer('select.setop' => $self->cb(sub {
@@ -127,6 +119,18 @@ sub apply_to {
   );
 
   return $sqla;
+}
+
+sub _expand_select {
+  my ($self, $orig, $before_setop) = (shift, shift, shift);
+  my $exp = $self->sqla->$orig(@_);
+  return $exp unless my $setop = (my $sel = $exp->{-select})->{setop};
+  if (my @keys = grep $sel->{$_}, @$before_setop) {
+    my %inner; @inner{@keys} = delete @{$sel}{@keys};
+    unshift @{(values(%$setop))[0]{queries}},
+      { -select => \%inner };
+  }
+  return $exp;
 }
 
 sub _expand_select_clause_from {
