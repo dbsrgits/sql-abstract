@@ -61,7 +61,7 @@ sub apply_to {
   });
 
   $sqla->clause_expanders(
-    'update.from' => $self->cb('_expand_select_clause_from'),
+    'update.from' => $self->cb('_expand_from_list'),
     'delete.using' => $self->cb('_expand_from_list'),
     'insert.rowvalues' => $self->cb(sub {
       +(from => $_[0]->expand_expr({ -values => $_[2] }));
@@ -111,7 +111,7 @@ sub apply_to {
   $sqla->expander(cast => $self->cb('_expand_cast'));
 
   $sqla->clause_expanders(
-    "select.from", $self->cb('_expand_select_clause_from'),
+    "select.from", $self->cb('_expand_from_list'),
     "update.target", $self->cb('_expand_update_clause_target'),
     "update.update", $self->cb('_expand_update_clause_target'),
   );
@@ -129,11 +129,6 @@ sub _expand_select {
       { -select => \%inner };
   }
   return $exp;
-}
-
-sub _expand_select_clause_from {
-  my ($self, undef, $from) = @_;
-  +(from => $self->_expand_from_list(undef, $from));
 }
 
 sub _expand_from_list {
