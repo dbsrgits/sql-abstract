@@ -2,12 +2,15 @@ use strict;
 use warnings;
 use Test::More;
 use SQL::Abstract::Test import => [ qw(is_same_sql_bind is_same_sql) ];
+use SQL::Abstract;
 use SQL::Abstract::ExtraClauses;
 
-my $sqlac = SQL::Abstract::ExtraClauses->new(
+my $sqlac = SQL::Abstract->new(
   unknown_unop_always_func => 1,
   lazy_join_sql_parts => 1,
 );
+
+SQL::Abstract::ExtraClauses->apply_to($sqlac);
 
 is_deeply(
   [ $sqlac->statement_list ],
@@ -25,8 +28,6 @@ my ($sql, @bind) = $sqlac->select({
   group_by => 'artist.id',
   having => { '>' => [ { -count => 'cd.id' }, 3 ] }
 });
-
-::Dwarn([ $sql->formatter->_simplify($sql->to_array), $sql->stringify ]);
 
 is_same_sql_bind(
   $sql, \@bind,
