@@ -98,16 +98,7 @@ sub apply_to {
     $sqla->renderer($setop => $self->cb('_render_setop'));
   }
 
-  my $setop_expander = $self->cb(sub {
-    my ($self, $setop, $args) = @_;
-    my ($op, $type) = split '_', $setop;
-    +(setop => $self->expand_expr({
-      "-${op}" => {
-        ($type ? (type => $type) : ()),
-        queries => (ref($args) eq 'ARRAY' ? $args : [ $args ])
-      }
-    }));
-  });
+  my $setop_expander = $self->cb('_expand_clause_setop');
 
   $sqla->clause_expanders(
     map +($_ => $setop_expander),
@@ -341,6 +332,17 @@ sub _render_setop {
     ' '.$self->format_keyword(join '_', $setop, ($args->{type}||())).' ',
     @{$args->{queries}}
   );
+}
+
+sub _expand_clause_setop {
+  my ($self, $setop, $args) = @_;
+  my ($op, $type) = split '_', $setop;
+  +(setop => $self->expand_expr({
+    "-${op}" => {
+      ($type ? (type => $type) : ()),
+      queries => (ref($args) eq 'ARRAY' ? $args : [ $args ])
+    }
+  }));
 }
 
 1;
