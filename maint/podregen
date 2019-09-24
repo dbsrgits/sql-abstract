@@ -4,12 +4,14 @@ use lib 'lib';
 use strictures 2;
 use Data::Dumper::Compact;
 use SQL::Abstract::Formatter;
+use SQL::Abstract;
 use SQL::Abstract::ExtraClauses;
 
 my $ddc = Data::Dumper::Compact->new(max_width => 72);
-my $sqla = SQL::Abstract::ExtraClauses->new(
+my $sqla = SQL::Abstract->new(
   lazy_join_sql_parts => 1,
 );
+SQL::Abstract::ExtraClauses->apply_to($sqla);
 my $sqlaf = SQL::Abstract::Formatter->new(max_width => 72);
 
 while (1) {
@@ -38,17 +40,17 @@ while ($slurp =~ m/\G$expr_re/gc) {
   print $pre.$indent.$type;
   print reformat(my $expr = seval($expr_str), $indent);
   print "\n";
-  if ($slurp =~ m/\G$aqt_re/gc) {
+  die unless $slurp =~ m/\G$query_re/g;
+  my ($qpre, $qindent, $qtype) = ($1, $2, $3);
+  if ($qpre =~ s/\A$aqt_re//) {
     my ($apre, $aindent, $atype) = ($1, $2, $3);
     print $apre.$aindent.$atype;
     print reformat($sqla->expand_expr($expr), $aindent);
     print "\n";
   }
-  die unless $slurp =~ m/\G$query_re/g;
-  my ($qpre, $qindent, $qtype) = ($1, $2, $3);
   print $qpre.$qindent.$qtype;
   my ($sql, @bind) = $sqla->render_statement($expr);
-  my $fsql = $sqlaf->format(@$sql);
+  my $fsql = (ref($sql) ? $sqlaf->format(@$sql) : $sql);
   $fsql =~ s/^/$indent/mg;
   print $fsql."\n";
   print reformat(\@bind, $qindent);
