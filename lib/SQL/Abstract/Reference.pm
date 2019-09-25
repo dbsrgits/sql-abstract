@@ -33,10 +33,48 @@ plus bind values for passing to DBI, ala:
 If you see a comment before a code block saying C<# query>, the SQL + bind
 array is what's being described.
 
+=head2 Expander
+
+An expander subroutine is written as:
+
+  sub {
+    my ($sqla, $name, $value, $k) = @_;
+    ...
+    return $aqt;
+  }
+
+$name is the expr node type for node expanders, the op name for op
+expanders, and the clause name for clause expanders.
+
+$value is the body of the thing being expanded
+
+If an op expander is being called as the binary operator in a L</hashtriple>
+expression, $k will be the hash key to be used as the left hand side
+identifier.
+
+This can trivially be converted to an C<ident> type AQT node with:
+
+  my $ident = $sqla->expand_expr({ -ident => $k });
+
+=head2 Renderer
+
+A renderer subroutine looks like:
+
+  sub {
+    my ($sqla, $type, $value) = @_;
+    ...
+    $sqla->join_query_parts($join, @parts);
+  }
+
+and can be registered on a per-type, per-op or per-clause basis.
+
 =head1 AQT node types
 
 An AQT node consists of a hashref with a single key, whose name is C<-type>
 where 'type' is the node type, and whose value is the data for the node.
+
+The following is an explanation of the built-in AQT type renderers;
+additional renderers can be registered as part of the extension system.
 
 =head2 literal
 
@@ -198,6 +236,8 @@ C<delete>. These types are handled by the clauses system as discussed later.
 
 =head1 Expressions
 
+=head2 node expr
+
 The simplest expression is just an AQT node:
 
   # expr
@@ -223,4 +263,179 @@ an expander has been registered for that node type:
   foo.bar
   []
 
-=head2
+=head2 identifier hashpair types
+
+=head3 hashtriple
+
+  # expr
+  { id => { op => 'value' } }
+
+  # aqt
+  { -op =>
+      [ 'op', { -ident => [ 'id' ] }, { -bind => [ 'id', 'value' ] } ]
+  }
+
+  # query
+  id OP ?
+  [ 'value' ]
+
+=head3 identifier hashpair w/simple value
+
+Equivalent to a hashtriple with an op of '='.
+
+  # expr
+  { id => 'value' }
+
+  # aqt
+  {
+    -op => [ '=', { -ident => [ 'id' ] }, { -bind => [ 'id', 'value' ] } ]
+  }
+
+  # query
+  id = ?
+  [ 'value' ]
+
+(an object value will also follow this code path)
+
+=head3 identifier hashpair w/undef RHS
+
+Converted to IS NULL :
+
+  # expr
+  { id => undef }
+
+  # aqt
+  { -op => [ 'is_null', { -ident => [ 'id' ] } ] }
+
+  # query
+  id IS NULL
+  []
+
+=head3 identifier hashpair w/literal RHS
+
+Directly appended to the key, remember you need to provide an operator:
+
+  # expr
+  { id => \"= dont_try_this_at_home" }
+
+  # aqt
+  { -literal => [ 'id = dont_try_this_at_home' ] }
+
+  # query
+  id = dont_try_this_at_home
+  []
+
+  # expr
+  { id => \[
+        "= seriously(?, ?, ?, ?, ?)",
+        "use",
+        "-ident",
+        "and",
+        "-func",
+      ]
+  }
+
+  # aqt
+  { -literal =>
+      [ 'id = seriously(?, ?, ?, ?, ?)', 'use', -ident => 'and', '-func' ]
+  }
+
+  # query
+  id = seriously(?, ?, ?, ?, ?)
+  [ 'use', -ident => 'and', '-func' ]
+
+(you may absolutely use this when there's no built-in expression type for
+what you need and registering a custom one would be more hassle than it's
+worth, but, y'know, do try and avoid it)
+
+=head3 identifier hashpair w/arrayref value
+
+Becomes equivalent to a -or over an arrayref of hashrefs with the identifier
+as key and the member of the original arrayref as the value:
+
+  # expr
+  { id => [ 3, 4, { '>' => 12 } ] }
+
+  # aqt
+  { -op => [
+      'or',
+      { -op => [ '=', { -ident => [ 'id' ] }, { -bind => [ 'id', 3 ] } ] },
+      { -op => [ '=', { -ident => [ 'id' ] }, { -bind => [ 'id', 4 ] } ] },
+      {
+        -op => [ '>', { -ident => [ 'id' ] }, { -bind => [ 'id', 12 ] } ]
+      },
+  ] }
+
+  # query
+  ( id = ? OR id = ? OR id > ? )
+  [ 3, 4, 12 ]
+
+  # expr
+  { -or => [ { id => 3 }, { id => 4 }, { id => { '>' => 12 } } ] }
+
+  # aqt
+  { -op => [
+      'or',
+      { -op => [ '=', { -ident => [ 'id' ] }, { -bind => [ 'id', 3 ] } ] },
+      { -op => [ '=', { -ident => [ 'id' ] }, { -bind => [ 'id', 4 ] } ] },
+      {
+        -op => [ '>', { -ident => [ 'id' ] }, { -bind => [ 'id', 12 ] } ]
+      },
+  ] }
+
+  # query
+  ( id = ? OR id = ? OR id > ? )
+  [ 3, 4, 12 ]
+
+Special Case: If the first element of the arrayref is -or or -and, that's
+used as the top level logic op:
+
+  # expr
+  { id => [ -and => { '>' => 3 }, { '<' => 6 } ] }
+
+  # aqt
+  { -op => [
+      'and',
+      { -op => [ '>', { -ident => [ 'id' ] }, { -bind => [ 'id', 3 ] } ] },
+      { -op => [ '<', { -ident => [ 'id' ] }, { -bind => [ 'id', 6 ] } ] },
+  ] }
+
+  # query
+  ( id > ? AND id < ? )
+  [ 3, 6 ]
+
+=head3 identifier hashpair w/hashref value
+
+Becomes equivalent to a -and over an arrayref of hashtriples constructed
+with the identifier as the key and each key/value pair of the original
+hashref as the vlue:
+
+  # expr
+  { id => { '<' => 4, '>' => 3 } }
+
+  # aqt
+  { -op => [
+      'and',
+      { -op => [ '<', { -ident => [ 'id' ] }, { -bind => [ 'id', 4 ] } ] },
+      { -op => [ '>', { -ident => [ 'id' ] }, { -bind => [ 'id', 3 ] } ] },
+  ] }
+
+  # query
+  ( id < ? AND id > ? )
+  [ 4, 3 ]
+
+  # expr
+  { -and => [ { id => { '<' => 4 } }, { id => { '>' => 3 } } ] }
+
+  # aqt
+  { -op => [
+      'and',
+      { -op => [ '<', { -ident => [ 'id' ] }, { -bind => [ 'id', 4 ] } ] },
+      { -op => [ '>', { -ident => [ 'id' ] }, { -bind => [ 'id', 3 ] } ] },
+  ] }
+
+  # query
+  ( id < ? AND id > ? )
+  [ 4, 3 ]
+
+=cut
