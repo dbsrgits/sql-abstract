@@ -20,7 +20,7 @@ comment before a code block saying C<# expr>, this is what's being described.
 The explicit structure that an expression is converted into before it's
 rendered into SQL is referred to as an abstract query tree. If you see a
 variable with C<aqt> in the name, or a comment before a code block saying
-C<# aqt>#, this is what's being described.
+C<# aqt>, this is what's being described.
 
 =head2 SQL and Bind Values (query)
 
@@ -408,7 +408,7 @@ used as the top level logic op:
 
 Becomes equivalent to a -and over an arrayref of hashtriples constructed
 with the identifier as the key and each key/value pair of the original
-hashref as the vlue:
+hashref as the value:
 
   # expr
   { id => { '<' => 4, '>' => 3 } }
