@@ -311,6 +311,18 @@ Converted to IS NULL :
   id IS NULL
   []
 
+(equivalent to the -is operator) :
+
+  # expr
+  { id => { -is => undef } }
+
+  # aqt
+  { -op => [ 'is_null', { -ident => [ 'id' ] } ] }
+
+  # query
+  id IS NULL
+  []
+
 =head3 identifier hashpair w/literal RHS
 
 Directly appended to the key, remember you need to provide an operator:
@@ -424,6 +436,8 @@ hashref as the value:
   ( id < ? AND id > ? )
   [ 4, 3 ]
 
+is sugar for:
+
   # expr
   { -and => [ { id => { '<' => 4 } }, { id => { '>' => 3 } } ] }
 
@@ -437,5 +451,115 @@ hashref as the value:
   # query
   ( id < ? AND id > ? )
   [ 4, 3 ]
+
+=head2 operator hashpair types
+
+A hashpair whose key begins with a -, or whose key consists entirely of
+nonword characters (thereby covering '=', '>', pg json ops, etc.) is
+processed as an operator hashpair.
+
+=head3 operator hashpair w/node type
+
+If a node type expander is registered for the key, the hashpair is
+treated as a L</node expr>.
+
+=head3 operator hashpair w/registered op
+
+If an expander is registered for the op name, that's run and the
+result returned:
+
+  # expr
+  { -in => [ 'foo', 1, 2, 3 ] }
+
+  # aqt
+  { -op => [
+      'in', { -ident => [ 'foo' ] }, { -bind => [ undef, 1 ] },
+      { -bind => [ undef, 2 ] }, { -bind => [ undef, 3 ] },
+  ] }
+
+  # query
+  foo IN ( ?, ?, ? )
+  [ 1, 2, 3 ]
+
+=head3 operator hashpair w/not prefix
+
+If the op name starts -not_ this is stripped and turned into a -not
+wrapper around the result:
+
+  # expr
+  { -not_ident => 'foo' }
+
+  # aqt
+  { -op => [ 'not', { -ident => [ 'foo' ] } ] }
+
+  # query
+  (NOT foo)
+  []
+
+is equivalent to:
+
+  # expr
+  { -not => { -ident => 'foo' } }
+
+  # aqt
+  { -op => [ 'not', { -ident => [ 'foo' ] } ] }
+
+  # query
+  (NOT foo)
+  []
+
+=head3 operator hashpair with unknown op
+
+If the C<unknown_unop_always_func> option is set (which is recommended but
+defaults to off for backwards compatibility reasons), an unknown op
+expands into a C<-func> node:
+
+  # expr
+  { -count => { -ident => '*' } }
+
+  # aqt
+  { -func => [ 'count', { -ident => [ '*' ] } ] }
+
+  # query
+  COUNT(*)
+  []
+
+If not, an unknown op will expand into a C<-op> node.
+
+=head2 hashref expr
+
+A hashref with more than one pair becomes a C<-and> over its hashpairs, i.e.
+
+  # expr
+  { x => 1, y => 2 }
+
+  # aqt
+  { -op => [
+      'and',
+      { -op => [ '=', { -ident => [ 'x' ] }, { -bind => [ 'x', 1 ] } ] },
+      { -op => [ '=', { -ident => [ 'y' ] }, { -bind => [ 'y', 2 ] } ] },
+  ] }
+
+  # query
+  ( x = ? AND y = ? )
+  [ 1, 2 ]
+
+is short hand for:
+
+  # expr
+  { -and => [ { x => 1 }, { y => 2 } ] }
+
+  # aqt
+  { -op => [
+      'and',
+      { -op => [ '=', { -ident => [ 'x' ] }, { -bind => [ 'x', 1 ] } ] },
+      { -op => [ '=', { -ident => [ 'y' ] }, { -bind => [ 'y', 2 ] } ] },
+  ] }
+
+  # query
+  ( x = ? AND y = ? )
+  [ 1, 2 ]
+
+=head2 arrayref expr
 
 =cut
