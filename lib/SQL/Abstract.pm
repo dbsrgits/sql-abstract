@@ -146,6 +146,7 @@ our %Defaults = (
     values => '_expand_values',
     bind => '_expand_noop',
     literal => '_expand_noop',
+    keyword => '_expand_noop',
   },
   expand_op => {
     'between' => '_expand_between',
@@ -159,7 +160,8 @@ our %Defaults = (
     'value' => '_expand_value',
   },
   render => {
-    (map +($_, "_render_$_"), qw(op func bind ident literal row values)),
+    (map +($_, "_render_$_"),
+      qw(op func bind ident literal row values keyword)),
   },
   render_op => {
     (map +($_ => '_render_op_between'), 'between', 'not_between'),
@@ -473,7 +475,7 @@ sub _render_insert_clause_fields {
 
 sub _render_insert_clause_target {
   my ($self, undef, $from) = @_;
-  $self->join_query_parts(' ', $self->format_keyword('insert into'), $from);
+  $self->join_query_parts(' ', { -keyword => 'insert into' }, $from);
 }
 
 sub _render_insert_clause_from {
@@ -552,7 +554,7 @@ sub update {
 
 sub _render_update_clause_target {
   my ($self, undef, $target) = @_;
-  $self->join_query_parts(' ', $self->format_keyword('update'), $target);
+  $self->join_query_parts(' ', { -keyword => 'update' }, $target);
 }
 
 sub _update_set_values {
@@ -737,7 +739,7 @@ sub _expand_delete_clause_returning {
 
 sub _render_delete_clause_target {
    my ($self, undef, $from) = @_;
-   $self->join_query_parts(' ', $self->format_keyword('delete from'), $from);
+   $self->join_query_parts(' ', { -keyword => 'delete from' }, $from);
 }
 
 #======================================================================
@@ -840,7 +842,7 @@ sub _render_statement {
         my $r = $self->render_aqt($clause_expr, 1);
         next unless defined $r->[0] and length $r->[0];
         $self->join_query_parts(' ',
-          $self->format_keyword($clause),
+          { -keyword => $clause },
           $r
         );
       }
@@ -1429,6 +1431,11 @@ sub _render_literal {
   return $literal;
 }
 
+sub _render_keyword {
+  my ($self, undef, $keyword) = @_;
+  return [ $self->format_keyword($keyword) ];
+}
+
 sub _render_op {
   my ($self, undef, $v) = @_;
   my ($op, @args) = @$v;
@@ -1473,11 +1480,11 @@ sub _render_op_between {
         unless $low->{-literal};
       $low;
     } else {
-      +($low, $self->format_keyword('and'), $high);
+      +($low, { -keyword => 'and' }, $high);
     }
   };
   return $self->join_query_parts(' ',
-    '(', $left, $self->format_keyword($op), @rh, ')',
+    '(', $left, { -keyword => $op }, @rh, ')',
   );
 }
 
@@ -1487,7 +1494,7 @@ sub _render_op_in {
 
   return $self->join_query_parts(' ',
     $lhs,
-    $self->format_keyword($op),
+    { -keyword => $op },
     $self->join_query_parts(' ',
       '(',
       $self->join_query_parts(', ', @rhs),
@@ -1514,7 +1521,7 @@ sub _render_op_multop {
   return $self->render_aqt($parts[0]) if @parts == 1;
   my $join = ($op eq ','
                 ? ', '
-                :  ' '.$self->format_keyword($op).' '
+                : $self->format_keyword(" ${op} ")
              );
   return $self->join_query_parts($join, @parts);
 }
@@ -1522,7 +1529,7 @@ sub _render_op_multop {
 sub _render_values {
   my ($self, undef, $values) = @_;
   my $inner = $self->join_query_parts(' ',
-    $self->format_keyword('values'),
+    { -keyword => 'values' },
     $self->join_query_parts(', ',
       ref($values) eq 'ARRAY' ? @$values : $values
     ),
@@ -1564,7 +1571,7 @@ sub _render_unop_prefix {
 sub _render_unop_postfix {
   my ($self, $op, $v) = @_;
   return $self->join_query_parts(' ',
-    $v->[0], $self->format_keyword($op),
+    $v->[0], { -keyword => $op },
   );
 }
 
