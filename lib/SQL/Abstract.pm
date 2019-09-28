@@ -140,7 +140,6 @@ sub is_plain_value ($) {
 our %Defaults = (
   expand => {
     bool => '_expand_bool',
-    nest => '_expand_nest',
     row => '_expand_row',
     op => '_expand_op',
     func => '_expand_func',
