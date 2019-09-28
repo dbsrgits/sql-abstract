@@ -139,19 +139,11 @@ sub is_plain_value ($) {
 
 our %Defaults = (
   expand => {
-    not => '_expand_not',
     bool => '_expand_bool',
-    and => '_expand_op_andor',
-    or => '_expand_op_andor',
     nest => '_expand_nest',
     bind => '_expand_bind',
-    in => '_expand_in',
-    not_in => '_expand_in',
     row => '_expand_row',
-    between => '_expand_between',
-    not_between => '_expand_between',
     op => '_expand_op',
-    (map +($_ => '_expand_op_is'), ('is', 'is_not')),
     func => '_expand_func',
     values => '_expand_values',
   },
@@ -1049,7 +1041,11 @@ sub _expand_hashpair_op {
     return { $k => $v };
   }
 
-  my $type = $self->{unknown_unop_always_func} ? -func : -op;
+  my $type = (
+    $self->{unknown_unop_always_func} && !$self->{render_op}{$op}
+      ? -func
+      : -op
+  );
 
   { # Old SQLA compat
 
@@ -1059,7 +1055,10 @@ sub _expand_hashpair_op {
       and (keys %$v)[0] =~ /^-/
     ) {
       $type = (
-        (List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}})
+        (
+          (List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}})
+          or $self->{render_op}{$op}
+        )
           ? -op
           : -func
       )
@@ -1203,10 +1202,6 @@ sub _expand_value {
     $_[3], { -value => $_[2] },
   ) if defined($_[3]);
   +{ -bind => [ our $Cur_Col_Meta, $_[2] ] };
-}
-
-sub _expand_not {
-  +{ -op => [ 'not', $_[0]->_expand_expr($_[2]) ] };
 }
 
 sub _expand_row {
