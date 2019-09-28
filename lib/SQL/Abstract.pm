@@ -141,11 +141,12 @@ our %Defaults = (
   expand => {
     bool => '_expand_bool',
     nest => '_expand_nest',
-    bind => '_expand_bind',
     row => '_expand_row',
     op => '_expand_op',
     func => '_expand_func',
     values => '_expand_values',
+    bind => '_expand_noop',
+    literal => '_expand_noop',
   },
   expand_op => {
     'between' => '_expand_between',
@@ -1034,13 +1035,6 @@ sub _expand_hashpair_op {
     }
   }
 
-  # an explicit node type is currently assumed to be expanded (this is almost
-  # certainly wrong and there should be expansion anyway)
-
-  if ($self->{render}{$op}) {
-    return { $k => $v };
-  }
-
   my $type = (
     $self->{unknown_unop_always_func} && !$self->{render_op}{$op}
       ? -func
@@ -1065,12 +1059,11 @@ sub _expand_hashpair_op {
     }
   }
 
-  return +{ $type => [
-    $op,
-    ($type eq -func and ref($v) eq 'ARRAY')
-      ? map $self->_expand_expr($_), @$v
-      : $self->_expand_expr($v)
-  ] };
+  if ($type eq -func and ref($v) eq 'ARRAY') {
+    return $self->_expand_expr({ -func => [ $op, @$v ] });
+  }
+
+  return $self->_expand_expr({ $type => [ $op, $v ] });
 }
 
 sub _expand_hashpair_cmp {
@@ -1359,9 +1352,9 @@ sub _expand_nest {
   return $self->_expand_expr($v);
 }
 
-sub _expand_bind {
-  my ($self, undef, $bind) = @_;
-  return { -bind => $bind };
+sub _expand_noop {
+  my ($self, $type, $v) = @_;
+  return { "-${type}" => $v };
 }
 
 sub _expand_values {
