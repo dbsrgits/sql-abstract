@@ -1370,12 +1370,12 @@ sub _expand_values {
 }
 
 sub _recurse_where {
-  my ($self, $where, $logic) = @_;
+  my ($self, $where) = @_;
 
   # Special case: top level simple string treated as literal
 
   my $where_exp = (ref($where)
-                    ? $self->_expand_expr($where, $logic)
+                    ? $self->_expand_select_clause_where(undef, $where)
                     : { -literal => [ $where ] });
 
   # dispatch expanded expression
@@ -1395,7 +1395,7 @@ sub _recurse_where {
 sub _render_ident {
   my ($self, undef, $ident) = @_;
 
-  return [ $self->_convert($self->_quote($ident)) ];
+  return [ $self->_quote($ident) ];
 }
 
 sub _render_row {
@@ -1422,7 +1422,7 @@ sub _render_func {
 
 sub _render_bind {
   my ($self, undef, $bind) = @_;
-  return [ $self->_convert('?'), $self->_bindtype(@$bind) ];
+  return [ '?', $self->_bindtype(@$bind) ];
 }
 
 sub _render_literal {
