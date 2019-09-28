@@ -152,8 +152,6 @@ our %Defaults = (
     not_between => '_expand_between',
     op => '_expand_op',
     (map +($_ => '_expand_op_is'), ('is', 'is_not')),
-    ident => '_expand_ident',
-    value => '_expand_value',
     func => '_expand_func',
     values => '_expand_values',
   },
@@ -673,8 +671,8 @@ sub _expand_select_clause_where {
         };
       };
       $self->clone
-           ->wrap_expanders(map +($_ => $_wrap), qw(ident value bind))
-           ->wrap_op_expanders(map +($_ => $_wrap), qw(ident value bind))
+           ->wrap_expander(bind => $_wrap)
+           ->wrap_op_expanders(map +($_ => $_wrap), qw(ident value))
            ->wrap_expander(func => sub {
                my $orig = shift;
                sub {
@@ -1020,7 +1018,7 @@ sub _expand_hashpair_op {
     }
   }
 
-  if (my $exp = $self->{expand}{$op}) {
+  if (my $exp = $self->{expand}{$op}||$self->{expand_op}{$op}) {
     return $self->$exp($op, $v);
   }
 
