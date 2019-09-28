@@ -562,4 +562,35 @@ is short hand for:
 
 =head2 arrayref expr
 
+An arrayref becomes a C<-or> over its contents. Arrayrefs, hashrefs and
+literals are all expanded and added to the clauses of the C<-or>. If the
+arrayref contains a scalar it's treated as the key of a hashpair and the
+next element as the value.
+
+  # expr
+  [ { x => 1 }, [ { y => 2 }, { z => 3 } ], 'key', 'value', \"lit()" ]
+
+  # aqt
+  { -op => [
+      'or',
+      { -op => [ '=', { -ident => [ 'x' ] }, { -bind => [ 'x', 1 ] } ] },
+      { -op => [
+          'or', {
+            -op => [ '=', { -ident => [ 'y' ] }, { -bind => [ 'y', 2 ] } ]
+          }, {
+            -op => [ '=', { -ident => [ 'z' ] }, { -bind => [ 'z', 3 ] } ]
+          },
+      ] }, { -op =>
+          [
+            '=', { -ident => [ 'key' ] },
+            { -bind => [ 'key', 'value' ] },
+          ]
+      },
+      { -literal => [ 'lit()' ] },
+  ] }
+
+  # query
+  ( x = ? OR ( y = ? OR z = ? ) OR key = ? OR lit() )
+  [ 1, 2, 3, 'value' ]
+
 =cut
