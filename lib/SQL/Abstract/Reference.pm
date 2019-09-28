@@ -279,6 +279,19 @@ an expander has been registered for that node type:
   id OP ?
   [ 'value' ]
 
+If the value is undef, attempts to convert equality and like ops to IS NULL,
+and inequality and not like to IS NOT NULL:
+
+  # expr
+  { id => { '!=' => undef } }
+
+  # aqt
+  { -op => [ 'is_not_null', { -ident => [ 'id' ] } ] }
+
+  # query
+  id IS NOT NULL
+  []
+
 =head3 identifier hashpair w/simple value
 
 Equivalent to a hashtriple with an op of '='.
