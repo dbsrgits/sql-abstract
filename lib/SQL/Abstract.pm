@@ -1521,7 +1521,7 @@ sub _render_op_multop {
   return $self->render_aqt($parts[0]) if @parts == 1;
   my $join = ($op eq ','
                 ? ', '
-                : $self->_sqlcase(' '.(join ' ', split '_', $op).' ')
+                : { -keyword => ' '.join(' ', split '_', $op).' ' }
              );
   return $self->join_query_parts($join, @parts);
 }
@@ -1541,6 +1541,9 @@ sub _render_values {
 
 sub join_query_parts {
   my ($self, $join, @parts) = @_;
+  if (ref($join) eq 'HASH') {
+    $join = $self->render_aqt($join)->[0];
+  }
   my @final = map +(
     ref($_) eq 'HASH'
       ? $self->render_aqt($_)
