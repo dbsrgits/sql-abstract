@@ -1433,7 +1433,7 @@ sub _render_literal {
 
 sub _render_keyword {
   my ($self, undef, $keyword) = @_;
-  return [ $self->format_keyword($keyword) ];
+  return [ $self->_sqlcase(join ' ', split '_', $keyword) ];
 }
 
 sub _render_op {
@@ -1521,7 +1521,7 @@ sub _render_op_multop {
   return $self->render_aqt($parts[0]) if @parts == 1;
   my $join = ($op eq ','
                 ? ', '
-                : $self->format_keyword(" ${op} ")
+                : $self->_sqlcase(' '.(join ' ', split '_', $op).' ')
              );
   return $self->join_query_parts($join, @parts);
 }
@@ -1765,7 +1765,7 @@ sub _convert {
   #my ($self, $arg) = @_;
   if (my $conv = $_[0]->{convert_where}) {
     return @{ $_[0]->join_query_parts('',
-      $_[0]->format_keyword($conv),
+      $_[0]->_sqlcase($conv),
       '(' , $_[1] , ')'
     ) };
   }
@@ -1819,8 +1819,6 @@ sub _sqlcase {
   # don't touch the argument ... crooked logic, but let's not change it!
   return $_[0]->{case} ? $_[1] : uc($_[1]);
 }
-
-sub format_keyword { $_[0]->_sqlcase(join ' ', split '_', $_[1]) }
 
 #======================================================================
 # DISPATCHING FROM REFKIND
