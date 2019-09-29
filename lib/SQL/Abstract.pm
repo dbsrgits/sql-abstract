@@ -1302,7 +1302,7 @@ sub _expand_between {
   return +{ -op => [
     $op,
     $self->expand_expr(ref($k) ? $k : { -ident => $k }),
-    @rhs
+    map $self->expand_expr($_, -value), @rhs
   ] }
 }
 
