@@ -1521,7 +1521,7 @@ sub _render_op_multop {
   return $self->render_aqt($parts[0]) if @parts == 1;
   my $join = ($op eq ','
                 ? ', '
-                : { -keyword => ' '.join(' ', split '_', $op).' ' }
+                : { -keyword => " ${op} " }
              );
   return $self->join_query_parts($join, @parts);
 }
