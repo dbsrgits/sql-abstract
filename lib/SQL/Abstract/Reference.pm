@@ -912,4 +912,122 @@ Expands to a bind node with the currently applicable column name if known:
   foo = ?
   [ 3 ]
 
+=head1 Query Types
+
+=head2 select
+
+A select node accepts select, from, where and order_by clauses.
+
+The select clause is expanded as a list expression with a -ident default:
+
+  # expr
+  { -select => { _ => [ 'foo', 'bar', { -count => 'baz' } ] } }
+
+  # aqt
+  { -select => { select => { -op => [
+          ',', { -ident => [ 'foo' ] }, { -ident => [ 'bar' ] },
+          { -func => [ 'count', { -ident => [ 'baz' ] } ] },
+  ] } } }
+
+  # query
+  SELECT foo, bar, COUNT(baz)
+  []
+
+The from clause is expanded as a list expression with a -ident default:
+
+  # expr
+  { -select => {
+      from => [ 'schema1.table1', { -ident => [ 'schema2', 'table2' ] } ]
+  } }
+
+  # aqt
+  { -select => { from => { -from_list => [
+          { -ident => [ 'schema1', 'table1' ] },
+          { -ident => [ 'schema2', 'table2' ] },
+  ] } } }
+
+  # query
+  FROM schema1.table1, schema2.table2
+  []
+
+The where clause is expanded as a plain expression:
+
+  # expr
+  { -select => { where => { foo => 3 } } }
+
+  # aqt
+  { -select => { where => {
+        -op => [ '=', { -ident => [ 'foo' ] }, { -bind => [ 'foo', 3 ] } ]
+  } } }
+
+  # query
+  WHERE foo = ?
+  [ 3 ]
+
+The order_by clause expands as a list expression at top level, but a hashref
+element may be either an expr or a hashpair with key -asc or -desc to indicate
+an order by direction:
+
+  # expr
+  { -select =>
+      { order_by => [ 'foo', { -desc => 'bar' }, { -max => 'baz' } ] }
+  }
+
+  # aqt
+  { -select => { order_by => { -op => [
+          ',', { -ident => [ 'foo' ] }, {
+            -op => [ ',', { -op => [ 'desc', { -ident => [ 'bar' ] } ] } ]
+          }, { -func => [ 'max', { -ident => [ 'baz' ] } ] },
+  ] } } }
+
+  # query
+  ORDER BY foo, bar DESC, MAX(baz)
+  []
+
+=head2 update
+
+An update node accepts update/target (either may be used at expansion time),
+set, where, and returning clauses.
+
+The target clause is expanded with an ident default.
+
+The set clause (if not already a list expr) is expanded as a hashref where
+the keys are identifiers to be set and the values are exprs/values.
+
+The where clauses is expanded as a normal expr.
+
+The returning clause is expanded as a list expr with an ident default.
+
+  # expr
+  { -update => {
+      _ => 'foo',
+      returning => [ 'id', 'baz' ],
+      set => { bar => 3, baz => { baz => { '+' => 1 } } },
+      where => { -not => { -ident => 'quux' } },
+  } }
+
+  # aqt
+  { -update => {
+      returning =>
+        {
+          -op => [ ',', { -ident => [ 'id' ] }, { -ident => [ 'baz' ] } ]
+        },
+      set => { -op => [
+          ',', { -op =>
+              [ '=', { -ident => [ 'bar' ] }, { -bind => [ 'bar', 3 ] } ]
+          }, { -op => [
+              '=', { -ident => [ 'baz' ] }, { -op => [
+                  '+', { -ident => [ 'baz' ] },
+                  { -bind => [ 'baz', 1 ] },
+              ] },
+          ] },
+      ] },
+      target => { -from_list => [ { -ident => [ 'foo' ] } ] },
+      where => { -op => [ 'not', { -ident => [ 'quux' ] } ] },
+  } }
+
+  # query
+  UPDATE foo SET bar = ?, baz = baz + ? WHERE (NOT quux) RETURNING id, baz
+  [ 3, 1 ]
+
 =cut
