@@ -989,23 +989,26 @@ sub _expand_hashpair_op {
 
   my $op = $self->_normalize_op($k);
 
-  { # Old SQLA compat
+  my $wsop = join(' ', split '_', $op);
 
-    my $op = join(' ', split '_', $op);
+  my $is_special = List::Util::first { $wsop =~ $_->{regex} }
+                     @{$self->{special_ops}};
+
+  { # Old SQLA compat
 
     # the old special op system requires illegality for top-level use
 
     if (
       (our $Expand_Depth) == 1
       and (
-        List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}}
+        $is_special
         or (
           $self->{disable_old_special_ops}
-          and List::Util::first { $op =~ $_->{regex} } @BUILTIN_SPECIAL_OPS
+          and List::Util::first { $wsop =~ $_->{regex} } @BUILTIN_SPECIAL_OPS
         )
       )
     ) {
-      puke "Illegal use of top-level '-$op'"
+      puke "Illegal use of top-level '-$wsop'"
     }
   }
 
@@ -1037,27 +1040,22 @@ sub _expand_hashpair_op {
     }
   }
 
-  my $type = (
-    $self->{unknown_unop_always_func} && !$self->{render_op}{$op}
-      ? -func
-      : -op
-  );
+  my $type = $is_special || $self->{render_op}{$op} ? -op : -func;
 
-  { # Old SQLA compat
+  if ($self->{restore_old_unop_handling}) {
+
+    # Old SQLA compat
 
     if (
       ref($v) eq 'HASH'
       and keys %$v == 1
       and (keys %$v)[0] =~ /^-/
+      and not $self->{render_op}{$op}
+      and not $is_special
     ) {
-      $type = (
-        (
-          (List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}})
-          or $self->{render_op}{$op}
-        )
-          ? -op
-          : -func
-      )
+      $type = -func;
+    } else {
+      $type = -op;
     }
   }
 
@@ -1569,8 +1567,14 @@ sub _render_unop_paren {
 
 sub _render_unop_prefix {
   my ($self, $op, $v) = @_;
+  my $op_sql = $self->{restore_old_unop_handling}
+                 ? $self->_sqlcase($op)
+                 : { -keyword => $op };
   return $self->join_query_parts(' ',
-    { -keyword => \$op }, $v->[0]
+    ($self->{restore_old_unop_handling}
+      ? $self->_sqlcase($op)
+      : { -keyword => \$op }),
+    $v->[0]
   );
 }
 

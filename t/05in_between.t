@@ -93,6 +93,26 @@ my @in_between_tests = (
       ] },
     },
     stmt => "WHERE (
+          ( start0 BETWEEN ? AND UPPER(?)         )
+      AND ( start1 BETWEEN ? AND ?                )
+      AND ( start2 BETWEEN lower(x) AND upper(y)  )
+      AND ( start3 BETWEEN lower(x) AND upper(?)  )
+    )",
+    bind => [1, 2, 1, 2, 'stuff'],
+    test => '-between POD test',
+  },
+  {
+    args => { restore_old_unop_handling => 1 },
+    where => {
+      start0 => { -between => [ 1, { -upper => 2 } ] },
+      start1 => { -between => \["? AND ?", 1, 2] },
+      start2 => { -between => \"lower(x) AND upper(y)" },
+      start3 => { -between => [
+        \"lower(x)",
+        \["upper(?)", 'stuff' ],
+      ] },
+    },
+    stmt => "WHERE (
           ( start0 BETWEEN ? AND UPPER ?          )
       AND ( start1 BETWEEN ? AND ?                )
       AND ( start2 BETWEEN lower(x) AND upper(y)  )
@@ -103,6 +123,32 @@ my @in_between_tests = (
   },
   {
     args => { bindtype => 'columns' },
+    where => {
+      start0 => { -between => [ 1, { -upper => 2 } ] },
+      start1 => { -between => \["? AND ?", [ start1 => 1], [start1 => 2] ] },
+      start2 => { -between => \"lower(x) AND upper(y)" },
+      start3 => { -between => [
+        \"lower(x)",
+        \["upper(?)", [ start3 => 'stuff'] ],
+      ] },
+    },
+    stmt => "WHERE (
+          ( start0 BETWEEN ? AND UPPER(?)         )
+      AND ( start1 BETWEEN ? AND ?                )
+      AND ( start2 BETWEEN lower(x) AND upper(y)  )
+      AND ( start3 BETWEEN lower(x) AND upper(?)  )
+    )",
+    bind => [
+      [ start0 => 1 ],
+      [ start0 => 2 ],
+      [ start1 => 1 ],
+      [ start1 => 2 ],
+      [ start3 => 'stuff' ],
+    ],
+    test => '-between POD test',
+  },
+  {
+    args => { restore_old_unop_handling => 1, bindtype => 'columns' },
     where => {
       start0 => { -between => [ 1, { -upper => 2 } ] },
       start1 => { -between => \["? AND ?", [ start1 => 1], [start1 => 2] ] },
@@ -203,6 +249,13 @@ my @in_between_tests = (
   },
 
   {
+    where => { x => { -in => [ \['LOWER(?)', 'A' ], \'LOWER(b)', { -lower => 'c' } ] } },
+    stmt => " WHERE ( x IN ( LOWER(?), LOWER(b), LOWER(?) ) )",
+    bind => [qw/A c/],
+    test => '-in with an array of function array refs with args',
+  },
+  {
+    args => { restore_old_unop_handling => 1 },
     where => { x => { -in => [ \['LOWER(?)', 'A' ], \'LOWER(b)', { -lower => 'c' } ] } },
     stmt => " WHERE ( x IN ( LOWER(?), LOWER(b), LOWER ? ) )",
     bind => [qw/A c/],
