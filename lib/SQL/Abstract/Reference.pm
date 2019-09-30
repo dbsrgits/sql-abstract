@@ -653,4 +653,21 @@ behaves the same way as the now-directly-supported
   foo
   []
 
+=head2 row
+
+Expands the elements of the value arrayref:
+
+  # expr
+  { -row => [ 1, { -ident => 'foo' }, 2, 3 ] }
+
+  # aqt
+  { -row => [
+      { -bind => [ undef, 1 ] }, { -ident => [ 'foo' ] },
+      { -bind => [ undef, 2 ] }, { -bind => [ undef, 3 ] },
+  ] }
+
+  # query
+  (?, foo, ?, ?)
+  [ 1, 2, 3 ]
+
 =cut
