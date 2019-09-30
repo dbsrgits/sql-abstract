@@ -670,4 +670,29 @@ Expands the elements of the value arrayref:
   (?, foo, ?, ?)
   [ 1, 2, 3 ]
 
+=head2 op
+
+If an expander is registered for the op name, delegates to the expander; if
+not, expands the argument values:
+
+  # expr
+  { -op => [ 'ident', 'foo.bar' ] }
+
+  # aqt
+  { -ident => [ 'foo', 'bar' ] }
+
+  # query
+  foo.bar
+  []
+
+  # expr
+  { -op => [ '=', { -ident => 'foo' }, 3 ] }
+
+  # aqt
+  { -op => [ '=', { -ident => [ 'foo' ] }, { -bind => [ undef, 3 ] } ] }
+
+  # query
+  foo = ?
+  [ 3 ]
+
 =cut
