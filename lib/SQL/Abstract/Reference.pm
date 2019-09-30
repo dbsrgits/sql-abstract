@@ -625,4 +625,32 @@ next element as the value.
   ( x = ? OR ( y = ? OR z = ? ) OR key = ? OR lit() )
   [ 1, 2, 3, 'value' ]
 
+=head1 Default Expanders
+
+=head2 bool
+
+Turns the old -bool syntax into the value expression, i.e.
+
+  # expr
+  { -bool => { -ident => 'foo' } }
+
+  # aqt
+  { -ident => [ 'foo' ] }
+
+  # query
+  foo
+  []
+
+behaves the same way as the now-directly-supported
+
+  # expr
+  { -ident => 'foo' }
+
+  # aqt
+  { -ident => [ 'foo' ] }
+
+  # query
+  foo
+  []
+
 =cut
