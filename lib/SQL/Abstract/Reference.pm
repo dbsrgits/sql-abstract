@@ -883,4 +883,33 @@ Expands is and is_not to null checks, RHS value must be undef:
   bar IS NOT NULL
   []
 
+=head2 ident op
+
+Expands a string ident to an arrayref by splitting on the configured
+separator, almost always '.':
+
+  # expr
+  { -ident => 'foo.bar' }
+
+  # aqt
+  { -ident => [ 'foo', 'bar' ] }
+
+  # query
+  foo.bar
+  []
+
+=head2 value op
+
+Expands to a bind node with the currently applicable column name if known:
+
+  # expr
+  { foo => { '=' => { -value => 3 } } }
+
+  # aqt
+  { -op => [ '=', { -ident => [ 'foo' ] }, { -bind => [ 'foo', 3 ] } ] }
+
+  # query
+  foo = ?
+  [ 3 ]
+
 =cut
