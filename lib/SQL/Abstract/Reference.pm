@@ -695,4 +695,21 @@ not, expands the argument values:
   foo = ?
   [ 3 ]
 
+=head2 func
+
+Expands the argument values:
+
+  # expr
+  { -func => [ 'coalesce', { -ident => 'thing' }, 'fallback' ] }
+
+  # aqt
+  { -func => [
+      'coalesce', { -ident => [ 'thing' ] },
+      { -bind => [ undef, 'fallback' ] },
+  ] }
+
+  # query
+  COALESCE(thing, ?)
+  [ 'fallback' ]
+
 =cut
