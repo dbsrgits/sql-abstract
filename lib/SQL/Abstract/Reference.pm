@@ -854,4 +854,33 @@ A non-trivial LHS is expanded with ident as the default rather than value:
   (x, y) IN ( (?, ?), (?, ?) )
   [ 1, 2, 3, 4 ]
 
+=head2 and/or ops
+
+expands the same way as a plain arrayref/hashref expression but with the
+logic type set to the op name.
+
+=head2 is op
+
+Expands is and is_not to null checks, RHS value must be undef:
+
+  # expr
+  { -is => [ 'foo', undef ] }
+
+  # aqt
+  { -op => [ 'is_null', { -ident => [ 'foo' ] } ] }
+
+  # query
+  foo IS NULL
+  []
+
+  # expr
+  { bar => { -is_not => undef } }
+
+  # aqt
+  { -op => [ 'is_not_null', { -ident => [ 'bar' ] } ] }
+
+  # query
+  bar IS NOT NULL
+  []
+
 =cut
