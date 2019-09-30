@@ -989,9 +989,6 @@ an order by direction:
 An insert node accepts an into/target clause, a fields clause, a values/from
 clause, and a returning clause.
 
-Note that there is no clause named insert since into or values could be
-what the user meant by that, and it turned out to just be confusing.
-
 The target clause is expanded with an ident default.
 
 The fields clause is expanded as a list expression if an arrayref, and
@@ -1095,5 +1092,35 @@ The returning clause is expanded as a list expr with an ident default.
   # query
   UPDATE foo SET bar = ?, baz = baz + ? WHERE (NOT quux) RETURNING id, baz
   [ 3, 1 ]
+
+=head2 delete
+
+delete accepts from/target, where, and returning clauses.
+
+The target clause is expanded with an ident default.
+
+The where clauses is expanded as a normal expr.
+
+The returning clause is expanded as a list expr with an ident default.
+
+  # expr
+  { -delete => {
+      from => 'foo',
+      returning => 'id',
+      where => { bar => { '<' => 10 } },
+  } }
+
+  # aqt
+  { -delete => {
+      returning => { -op => [ ',', { -ident => [ 'id' ] } ] },
+      target => { -op => [ ',', { -ident => [ 'foo' ] } ] },
+      where => { -op =>
+          [ '<', { -ident => [ 'bar' ] }, { -bind => [ 'bar', 10 ] } ]
+      },
+  } }
+
+  # query
+  DELETE FROM foo WHERE bar < ? RETURNING id
+  [ 10 ]
 
 =cut
