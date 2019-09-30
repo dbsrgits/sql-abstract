@@ -144,9 +144,6 @@ our %Defaults = (
     op => '_expand_op',
     func => '_expand_func',
     values => '_expand_values',
-    bind => '_expand_noop',
-    literal => '_expand_noop',
-    keyword => '_expand_noop',
   },
   expand_op => {
     'between' => '_expand_between',
@@ -1014,6 +1011,10 @@ sub _expand_hashpair_op {
 
   if (my $exp = $self->{expand}{$op}||$self->{expand_op}{$op}) {
     return $self->$exp($op, $v);
+  }
+
+  if ($self->{render}{$op}) {
+    return { "-${op}" => $v };
   }
 
   # Ops prefixed with -not_ get converted
