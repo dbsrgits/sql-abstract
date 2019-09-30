@@ -790,7 +790,7 @@ literal expr:
   ( size BETWEEN 3 AND 7 )
   []
 
-C<not_between> is also expanded:
+not_between is also expanded:
 
   # expr
   { size => { -not_between => [ 3, 7 ] } }
@@ -804,5 +804,54 @@ C<not_between> is also expanded:
   # query
   ( size NOT BETWEEN ? AND ? )
   [ 3, 7 ]
+
+=head2 in op
+
+The RHS of in/not_in is either an expr/value or an arrayref of
+exprs/values:
+
+  # expr
+  { foo => { -in => [ 1, 2 ] } }
+
+  # aqt
+  { -op => [
+      'in', { -ident => [ 'foo' ] }, { -bind => [ 'foo', 1 ] },
+      { -bind => [ 'foo', 2 ] },
+  ] }
+
+  # query
+  foo IN ( ?, ? )
+  [ 1, 2 ]
+
+  # expr
+  { bar => { -not_in => \"(1, 2)" } }
+
+  # aqt
+  { -op =>
+      [ 'not_in', { -ident => [ 'bar' ] }, { -literal => [ '1, 2' ] } ]
+  }
+
+  # query
+  bar NOT IN ( 1, 2 )
+  []
+
+A non-trivial LHS is expanded with ident as the default rather than value:
+
+  # expr
+  { -in => [
+      { -row => [ 'x', 'y' ] }, { -row => [ 1, 2 ] },
+      { -row => [ 3, 4 ] },
+  ] }
+
+  # aqt
+  { -op => [
+      'in', { -row => [ { -ident => [ 'x' ] }, { -ident => [ 'y' ] } ] },
+      { -row => [ { -bind => [ undef, 1 ] }, { -bind => [ undef, 2 ] } ] },
+      { -row => [ { -bind => [ undef, 3 ] }, { -bind => [ undef, 4 ] } ] },
+  ] }
+
+  # query
+  (x, y) IN ( (?, ?), (?, ?) )
+  [ 1, 2, 3, 4 ]
 
 =cut
