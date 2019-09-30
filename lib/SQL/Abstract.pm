@@ -1433,7 +1433,9 @@ sub _render_literal {
 
 sub _render_keyword {
   my ($self, undef, $keyword) = @_;
-  return [ $self->_sqlcase(join ' ', split '_', $keyword) ];
+  return [ $self->_sqlcase(
+    ref($keyword) ? $$keyword : join ' ', split '_', $keyword
+  ) ];
 }
 
 sub _render_op {
@@ -1567,7 +1569,7 @@ sub _render_unop_paren {
 sub _render_unop_prefix {
   my ($self, $op, $v) = @_;
   return $self->join_query_parts(' ',
-    $self->_sqlcase($op), $v->[0]
+    { -keyword => \$op }, $v->[0]
   );
 }
 
