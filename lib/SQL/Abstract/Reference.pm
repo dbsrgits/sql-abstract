@@ -744,4 +744,65 @@ treated as rows:
   VALUES (?, ?), (?, ?)
   [ 1, 2, 3, 4 ]
 
+=head2 between op
+
+The RHS of between must either be a pair of exprs/plain values, or a single
+literal expr:
+
+  # expr
+  { -between => [ 'size', 3, { -ident => 'max_size' } ] }
+
+  # aqt
+  { -op => [
+      'between', { -ident => [ 'size' ] }, { -bind => [ undef, 3 ] },
+      { -ident => [ 'max_size' ] },
+  ] }
+
+  # query
+  ( size BETWEEN ? AND max_size )
+  [ 3 ]
+
+  # expr
+  { size => { -between => [ 3, { -ident => 'max_size' } ] } }
+
+  # aqt
+  { -op => [
+      'between', { -ident => [ 'size' ] }, { -bind => [ 'size', 3 ] },
+      { -ident => [ 'max_size' ] },
+  ] }
+
+  # query
+  ( size BETWEEN ? AND max_size )
+  [ 3 ]
+
+  # expr
+  { size => { -between => \"3 AND 7" } }
+
+  # aqt
+  { -op =>
+      [
+        'between', { -ident => [ 'size' ] },
+        { -literal => [ '3 AND 7' ] },
+      ]
+  }
+
+  # query
+  ( size BETWEEN 3 AND 7 )
+  []
+
+C<not_between> is also expanded:
+
+  # expr
+  { size => { -not_between => [ 3, 7 ] } }
+
+  # aqt
+  { -op => [
+      'not_between', { -ident => [ 'size' ] },
+      { -bind => [ 'size', 3 ] }, { -bind => [ 'size', 7 ] },
+  ] }
+
+  # query
+  ( size NOT BETWEEN ? AND ? )
+  [ 3, 7 ]
+
 =cut
