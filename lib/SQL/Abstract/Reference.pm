@@ -984,6 +984,72 @@ an order by direction:
   ORDER BY foo, bar DESC, MAX(baz)
   []
 
+=head2
+
+An insert node accepts an into/target clause, a fields clause, a values/from
+clause, and a returning clause.
+
+Note that there is no clause named insert since into or values could be
+what the user meant by that, and it turned out to just be confusing.
+
+The target clause is expanded with an ident default.
+
+The fields clause is expanded as a list expression if an arrayref, and
+otherwise passed through.
+
+The from clause may either be an expr, a literal, an arrayref of column
+values, or a hashref mapping colum names to values.
+
+The returning clause is expanded as a list expr with an ident default.
+
+  # expr
+  { -insert => {
+      into => 'foo',
+      returning => 'id',
+      values => { bar => 'yay', baz => 'argh' },
+  } }
+
+  # aqt
+  { -insert => {
+      fields =>
+        { -row => [ { -ident => [ 'bar' ] }, { -ident => [ 'baz' ] } ] },
+      from => { -values => [ { -row => [
+              { -bind => [ 'bar', 'yay' ] },
+              { -bind => [ 'baz', 'argh' ] },
+      ] } ] },
+      returning => { -op => [ ',', { -ident => [ 'id' ] } ] },
+      target => { -op => [ ',', { -ident => [ 'foo' ] } ] },
+  } }
+
+  # query
+  INSERT INTO foo (bar, baz) VALUES (?, ?) RETURNING id
+  [ 'yay', 'argh' ]
+
+  # expr
+  { -insert => {
+      fields => [ 'bar', 'baz' ],
+      from => { -select => { _ => [ 'bar', 'baz' ], from => 'other' } },
+      into => 'foo',
+  } }
+
+  # aqt
+  { -insert => {
+      fields => { -row => [ { -op =>
+              [ ',', { -ident => [ 'bar' ] }, { -ident => [ 'baz' ] } ]
+      } ] },
+      from => { -select => {
+          from => { -from_list => [ { -ident => [ 'other' ] } ] },
+          select => { -op =>
+              [ ',', { -ident => [ 'bar' ] }, { -ident => [ 'baz' ] } ]
+          },
+      } },
+      target => { -op => [ ',', { -ident => [ 'foo' ] } ] },
+  } }
+
+  # query
+  INSERT INTO foo (bar, baz) SELECT bar, baz FROM other
+  []
+
 =head2 update
 
 An update node accepts update/target (either may be used at expansion time),
