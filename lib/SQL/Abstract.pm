@@ -1352,11 +1352,6 @@ sub _expand_nest {
   return $self->_expand_expr($v);
 }
 
-sub _expand_noop {
-  my ($self, $type, $v) = @_;
-  return { "-${type}" => $v };
-}
-
 sub _expand_values {
   my ($self, undef, $values) = @_;
   return { -values => [
