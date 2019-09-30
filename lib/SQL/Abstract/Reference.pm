@@ -146,7 +146,17 @@ Standard binop:
   bomb.status = ?
   [ 'unexploded' ]
 
-Not:
+
+Prefix unop:
+
+  # expr
+  { -op => [ '-', { -ident => 'foo' } ] }
+
+  # query
+  - foo
+  []
+
+Not as special case parenthesised unop:
 
   # expr
   { -op => [ 'not', { -ident => 'explosive' } ] }
@@ -227,6 +237,15 @@ Comma (use -row for parens):
 
   # query
   VALUES (1, 2), (3, 4)
+  []
+
+=head2 keyword
+
+  # expr
+  { -keyword => 'insert_into' }
+
+  # query
+  INSERT INTO
   []
 
 =head2 statement types
