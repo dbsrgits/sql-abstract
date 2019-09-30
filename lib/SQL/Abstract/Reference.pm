@@ -712,4 +712,36 @@ Expands the argument values:
   COALESCE(thing, ?)
   [ 'fallback' ]
 
+=head2 values
+
+A hashref value is expanded as an expression:
+
+  # expr
+  { -values => { -row => [ 1, 2 ] } }
+
+  # aqt
+  { -values => [
+      { -row => [ { -bind => [ undef, 1 ] }, { -bind => [ undef, 2 ] } ] }
+  ] }
+
+  # query
+  VALUES (?, ?)
+  [ 1, 2 ]
+
+An arrayref value's elements are either expressions or arrayrefs to be
+treated as rows:
+
+  # expr
+  { -values => [ { -row => [ 1, 2 ] }, [ 3, 4 ] ] }
+
+  # aqt
+  { -values => [
+      { -row => [ { -bind => [ undef, 1 ] }, { -bind => [ undef, 2 ] } ] },
+      { -row => [ { -bind => [ undef, 3 ] }, { -bind => [ undef, 4 ] } ] },
+  ] }
+
+  # query
+  VALUES (?, ?), (?, ?)
+  [ 1, 2, 3, 4 ]
+
 =cut
