@@ -56,10 +56,18 @@ sub register_extensions {
       'select.having'
         => sub { $_[0]->expand_expr($_[2]) },
     ],
-    (map +("${_}er" => [ do { my $x = $_; (map +($_ => "_${x}_${_}"), qw(join from_list alias)) } ]), qw(expand render)),
+    (map +(
+      "${_}er" => [
+        do {
+          my $x = $_;
+          (map +($_ => "_${x}_${_}"), qw(join from_list alias))
+        }
+       ]
+    ), qw(expand render)),
+    binop_expander => [ as => '_expand_op_as' ],
+    renderer => [ as => '_render_as' ],
+    expander => [ cast => '_expand_cast' ],
   );
-  $sqla->binop_expander(as => $self->cb('_expand_op_as'));
-  $sqla->renderer(as => $self->cb('_render_as'));
 
   $sqla->clauses_of(update => sub {
     my ($self, @clauses) = @_;
@@ -119,8 +127,6 @@ sub register_extensions {
       for qw(with with_recursive);
     $sqla->clause_renderer("${stmt}.with" => $w_rdr);
   }
-
-  $sqla->expander(cast => $self->cb('_expand_cast'));
 
   $sqla->clause_expanders(
     "select.from", $self->cb('_expand_from_list'),
