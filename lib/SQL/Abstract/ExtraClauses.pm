@@ -54,10 +54,12 @@ sub register_extensions {
       'select.having'
         => sub { $_[0]->expand_expr($_[2]) },
   );
-  foreach my $thing (qw(join from_list)) {
-    $sqla->expander($thing => $self->cb("_expand_${thing}"))
-         ->renderer($thing => $self->cb("_render_${thing}"))
-  }
+  $self->register(
+    expander => (join => '_expand_join', from_list => '_expand_from_list')
+  );
+  $self->register(
+    renderer => (join => '_render_join', from_list => '_render_from_list')
+  );
   $sqla->binop_expander(as => $self->cb('_expand_op_as'));
   $sqla->renderer(as => $self->cb('_render_as'));
   $sqla->expander(alias => $self->cb('_expand_alias'));
