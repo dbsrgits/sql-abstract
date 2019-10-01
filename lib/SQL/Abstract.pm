@@ -332,16 +332,13 @@ BEGIN {
   )) {
     my $name = join '_', reverse split '_', $type;
     my $singular = "${type}er";
-    eval qq{sub ${singular} { shift->_ext_rw($name => \@_) }; 1 }
+
+    eval qq{sub ${singular} { shift->${singular}s(\@_) }; 1 }
       or die "Method builder failed for ${singular}: $@";
     eval qq{sub wrap_${singular} {
-      my (\$self, \$key, \$builder) = \@_;
-      my \$orig = \$self->_ext_rw('${name}', \$key);
-      \$self->_ext_rw(
-        '${name}', \$key,
-        \$builder->(\$orig, '${name}', \$key)
-      );
+      shift->wrap_${singular}s(\@_)
     }; 1 } or die "Method builder failed for wrap_${singular}: $@";
+
     eval qq{sub ${singular}s {
       my (\$self, \@args) = \@_;
       while (my (\$this_key, \$this_value) = splice(\@args, 0, 2)) {
@@ -362,6 +359,20 @@ BEGIN {
     }; 1 } or die "Method builder failed for wrap_${singular}s: $@";
     eval qq{sub ${singular}_list { sort keys %{\$_[0]->{\$name}} }; 1; }
      or die "Method builder failed for ${singular}_list: $@";
+  }
+  foreach my $singular (qw(unop_expander binop_expander)) {
+    eval qq{sub ${singular} { shift->${singular}s(\@_) }; 1 }
+      or die "Method builder failed for ${singular}: $@";
+    eval qq{sub ${singular}s {
+      my (\$self, \@args) = \@_;
+      while (my (\$this_key, \$this_value) = splice(\@args, 0, 2)) {
+        \$self->_ext_rw(
+           op => \$this_key,
+           \$self->make_${singular}(\$this_value),
+        );
+      }
+      return \$self;
+    }; 1 } or die "Method builder failed for ${singular}s: $@";
   }
 }
 
@@ -3294,7 +3305,9 @@ forms. Examples:
 
 
 
-=head1 SPECIAL OPERATORS
+=head1 OLD EXTENSION SYSTEM
+
+=head2 SPECIAL OPERATORS
 
   my $sqlmaker = SQL::Abstract->new(special_ops => [
      {
@@ -3379,7 +3392,7 @@ of the MATCH .. AGAINST syntax for MySQL
   ]);
 
 
-=head1 UNARY OPERATORS
+=head2 UNARY OPERATORS
 
   my $sqlmaker = SQL::Abstract->new(unary_ops => [
      {
@@ -3431,6 +3444,13 @@ When supplied with a coderef, it is called as:
 
 =back
 
+=head1 NEW EXTENSION SYSTEM
+
+=head2 expander
+
+=head2 op_expander
+
+=head2 
 
 =head1 PERFORMANCE
 
