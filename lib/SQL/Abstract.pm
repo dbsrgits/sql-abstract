@@ -367,7 +367,7 @@ BEGIN {
       my (\$self, \@args) = \@_;
       while (my (\$this_key, \$this_value) = splice(\@args, 0, 2)) {
         \$self->_ext_rw(
-           op => \$this_key,
+           expand_op => \$this_key,
            \$self->make_${singular}(\$this_value),
         );
       }
