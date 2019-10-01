@@ -5,10 +5,7 @@ use SQL::Abstract::Test import => [ qw(is_same_sql_bind is_same_sql) ];
 use SQL::Abstract;
 use SQL::Abstract::ExtraClauses;
 
-my $sqlac = SQL::Abstract->new(
-  unknown_unop_always_func => 1,
-  lazy_join_sql_parts => 1,
-);
+my $sqlac = SQL::Abstract->new;
 
 SQL::Abstract::ExtraClauses->apply_to($sqlac);
 
@@ -477,7 +474,5 @@ is_same_sql_bind(
     15031
     )]
 );
-
-
 
 done_testing;
