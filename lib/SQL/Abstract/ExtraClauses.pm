@@ -18,11 +18,13 @@ sub cb {
 }
 
 sub register {
-  my ($self, $method, @pairs) = @_;
+  my ($self, @pairs) = @_;
   my $sqla = $self->sqla;
-  while (my ($car, $cdr) = splice(@pairs, 0, 2)) {
-    my $cb = $self->cb($cdr);
-    $sqla->$method($car, $cb);
+  while (my ($method, $cases) = splice(@pairs, 0, 2)) {
+    my @cases = @$cases;
+    while (my ($name, $case) = splice(@cases, 0, 2)) {
+      $sqla->$method($name, $self->cb($case));
+    }
   }
   return $self;
 }
@@ -48,22 +50,16 @@ sub register_extensions {
   die "Huh?" unless @before_setop;
   $sqla->clauses_of(select => 'with', @clauses);
   $self->register(
-    clause_expanders =>
+    clause_expanders => [
       'select.group_by'
         => sub { $_[0]->expand_maybe_list_expr($_[2], -ident) },
       'select.having'
         => sub { $_[0]->expand_expr($_[2]) },
-  );
-  $self->register(
-    expander => (join => '_expand_join', from_list => '_expand_from_list')
-  );
-  $self->register(
-    renderer => (join => '_render_join', from_list => '_render_from_list')
+    ],
+    (map +("${_}er" => [ do { my $x = $_; (map +($_ => "_${x}_${_}"), qw(join from_list alias)) } ]), qw(expand render)),
   );
   $sqla->binop_expander(as => $self->cb('_expand_op_as'));
   $sqla->renderer(as => $self->cb('_render_as'));
-  $sqla->expander(alias => $self->cb('_expand_alias'));
-  $sqla->renderer(alias => $self->cb('_render_alias'));
 
   $sqla->clauses_of(update => sub {
     my ($self, @clauses) = @_;
