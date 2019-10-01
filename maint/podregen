@@ -52,7 +52,7 @@ while ($slurp =~ m/\G$expr_re/gc) {
   print $qpre.$qindent.$qtype;
   my ($sql, @bind) = $sqla->render_statement($expr);
   my $fsql = (ref($sql) ? $sqlaf->format(@$sql) : $sql);
-  $fsql =~ s/^/$indent/mg;
+  s/^/$indent/mg, s/\n+\Z// for $fsql;
   print $fsql."\n";
   print reformat(\@bind, $qindent);
   print "\n";
