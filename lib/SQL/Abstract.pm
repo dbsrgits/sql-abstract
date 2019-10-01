@@ -3487,8 +3487,8 @@ See L<SQL::Abstract::Reference> for concepts.
 
 =head2 wrap_clause_expanders
 
-  $sql->wrap_expander('name' => sub { my ($orig) = @_; sub { ... } });
-  $sql->wrap_expanders(
+  $sqla->wrap_expander('name' => sub { my ($orig) = @_; sub { ... } });
+  $sqla->wrap_expanders(
     'name1' => sub { my ($orig1) = @_; sub { ... } },
     'name2' => sub { my ($orig2) = @_; sub { ... } },
   );
@@ -3528,11 +3528,25 @@ See L<SQL::Abstract::Reference> for concepts.
 
 =head2 wrap_clause_renderers
 
-  $sql->wrap_renderer('name' => sub { my ($orig) = @_; sub { ... } });
-  $sql->wrap_renderers(
+  $sqla->wrap_renderer('name' => sub { my ($orig) = @_; sub { ... } });
+  $sqla->wrap_renderers(
     'name1' => sub { my ($orig1) = @_; sub { ... } },
     'name2' => sub { my ($orig2) = @_; sub { ... } },
   );
+
+=head2 clauses_of
+
+  my @clauses = $sqla->clauses_of('select');
+  $sqla->clauses_of(select => \@new_clauses);
+  $sqla->clauses_of(select => sub {
+    my (undef, @old_clauses) = @_;
+    ...
+    return @new_clauses;
+  });
+
+=head2 statement_list
+
+  my @list = $sqla->statement_list;
 
 =head1 PERFORMANCE
 
