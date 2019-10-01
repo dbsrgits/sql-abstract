@@ -8,7 +8,7 @@ use List::Util ();
 use Scalar::Util ();
 
 use Exporter 'import';
-our @EXPORT_OK = qw(is_plain_value is_literal_value);
+our @EXPORT_OK = qw(is_plain_value is_literal_value is_undef_value);
 
 BEGIN {
   if ($] < 5.009_005) {
@@ -2649,6 +2649,10 @@ module:
 
 On failure returns C<undef>, on success returns an B<array> reference
 containing the unpacked version of the supplied literal SQL and bind values.
+
+=head2 is_undef_value
+
+Tests for undef, whether expanded or not.
 
 =head1 WHERE CLAUSES
 
