@@ -233,11 +233,11 @@ sub _expand_op_as {
   my ($self, undef, $vv, $k) = @_;
   my @vv = (ref($vv) eq 'ARRAY' ? @$vv : $vv);
   my $ik = $self->expand_expr($k, -ident);
-  return +{ -as => [ $ik, $self->expand_expr($vv[0], -alias) ] }
+  return +{ -as => [ $ik, $self->expand_expr($vv[0], -ident) ] }
     if @vv == 1 and ref($vv[0]) eq 'HASH';
 
   my @as = map $self->expand_expr($_, -ident), @vv;
-  return { -as => [ $ik, { -alias => \@as } ] };
+  return { -as => [ $ik, $self->expand_expr({ -alias => \@as }) ] };
 }
 
 sub _render_as {
@@ -288,11 +288,10 @@ sub _expand_alias {
   if (ref($args) eq 'HASH' and my $alias = $args->{-alias}) {
     $args = $alias;
   }
-  +{ -alias => [
-      map $self->expand_expr($_, -ident),
-      ref($args) eq 'ARRAY' ? @{$args} : $args
-    ]
-  }
+  my @parts = map $self->expand_expr($_, -ident),
+                ref($args) eq 'ARRAY' ? @{$args} : $args;
+  return $parts[0] if @parts == 1;
+  return { -alias => \@parts };
 }
 
 sub _expand_with {
@@ -429,12 +428,7 @@ as a list of arguments for the alias node.
   { foo => { -as => 'bar' } }
 
   # aqt
-  { -as =>
-      [
-        { -ident => [ 'foo' ] },
-        { -alias => [ { -ident => [ 'bar' ] } ] },
-      ]
-  }
+  { -as => [ { -ident => [ 'foo' ] }, { -ident => [ 'bar' ] } ] }
 
   # query
   foo AS bar
@@ -519,10 +513,10 @@ with the next element; this is easiest if I show you:
 
   # aqt
   { -join => {
-      from => { -as => [
-          { -ident => [ 't1' ] },
-          { -alias => [ { -ident => [ 'table_one' ] } ] },
-      ] },
+      from =>
+        {
+          -as => [ { -ident => [ 't1' ] }, { -ident => [ 'table_one' ] } ]
+        },
       on => { -op => [
           '=', { -ident => [ 'table_one', 'x' ] },
           { -ident => [ 't2', 'x' ] },
@@ -544,10 +538,10 @@ Or with using:
 
   # aqt
   { -join => {
-      from => { -as => [
-          { -ident => [ 't1' ] },
-          { -alias => [ { -ident => [ 'table_one' ] } ] },
-      ] },
+      from =>
+        {
+          -as => [ { -ident => [ 't1' ] }, { -ident => [ 'table_one' ] } ]
+        },
       to => { -ident => [ 't2' ] },
       type => undef,
       using =>
