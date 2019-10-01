@@ -3446,11 +3446,89 @@ When supplied with a coderef, it is called as:
 
 =head1 NEW EXTENSION SYSTEM
 
+See L<SQL::Abstract::Reference> for concepts.
+
 =head2 expander
+
+=head2 expanders
 
 =head2 op_expander
 
-=head2 
+=head2 op_expanders
+
+=head2 clause_expander
+
+=head2 clause_expanders
+
+  $sqla->expander('name' => sub { ... });
+  $sqla->expanders('name1' => sub { ... }, 'name2' => sub { ... });
+
+=head2 expander_list
+
+=head2 op_expander_list
+
+=head2 clause_expander_list
+
+  my @names = $sqla->expander_list;
+
+=head2 wrap_expander
+
+=head2 wrap_expanders
+
+=head2 wrap_op_expander
+
+=head2 wrap_op_expanders
+
+=head2 wrap_clause_expander
+
+=head2 wrap_clause_expanders
+
+  $sql->wrap_expander('name' => sub { my ($orig) = @_; sub { ... } });
+  $sql->wrap_expanders(
+    'name1' => sub { my ($orig1) = @_; sub { ... } },
+    'name2' => sub { my ($orig2) = @_; sub { ... } },
+  );
+
+=head2 renderer
+
+=head2 renderers
+
+=head2 op_renderer
+
+=head2 op_renderers
+
+=head2 clause_renderer
+
+=head2 clause_renderers
+
+  $sqla->renderer('name' => sub { ... });
+  $sqla->renderers('name1' => sub { ... }, 'name2' => sub { ... });
+
+=head2 renderer_list
+
+=head2 op_renderer_list
+
+=head2 clause_renderer_list
+
+  my @names = $sqla->renderer_list;
+
+=head2 wrap_renderer
+
+=head2 wrap_renderers
+
+=head2 wrap_op_renderer
+
+=head2 wrap_op_renderers
+
+=head2 wrap_clause_renderer
+
+=head2 wrap_clause_renderers
+
+  $sql->wrap_renderer('name' => sub { my ($orig) = @_; sub { ... } });
+  $sql->wrap_renderers(
+    'name1' => sub { my ($orig1) = @_; sub { ... } },
+    'name2' => sub { my ($orig2) = @_; sub { ... } },
+  );
 
 =head1 PERFORMANCE
 
