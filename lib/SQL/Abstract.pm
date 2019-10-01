@@ -150,11 +150,10 @@ our %Defaults = (
       qw(between not_between)),
     (map +($_ => __PACKAGE__->make_binop_expander('_expand_in')),
       qw(in not_in)),
-    'nest' => '_expand_nest',
     (map +($_ => '_expand_op_andor'), ('and', 'or')),
     (map +($_ => '_expand_op_is'), ('is', 'is_not')),
-    'ident' => '_expand_ident',
-    'value' => '_expand_value',
+    (map +($_ => __PACKAGE__->make_unop_expander("_expand_${_}")),
+      qw(ident value nest)),
   },
   render => {
     (map +($_, "_render_$_"),
@@ -1193,10 +1192,7 @@ sub _expand_func {
 }
 
 sub _expand_ident {
-  my ($self, undef, $body, $k) = @_;
-  return $self->_expand_hashpair_cmp(
-    $k, { -ident => $body }
-  ) if defined($k);
+  my ($self, undef, $body) = @_;
   unless (defined($body) or (ref($body) and ref($body) eq 'ARRAY')) {
     puke "-ident requires a single plain scalar argument (a quotable identifier) or an arrayref of identifier parts";
   }
@@ -1210,9 +1206,6 @@ sub _expand_ident {
 }
 
 sub _expand_value {
-  return $_[0]->_expand_hashpair_cmp(
-    $_[3], { -value => $_[2] },
-  ) if defined($_[3]);
   +{ -bind => [ our $Cur_Col_Meta, $_[2] ] };
 }
 
