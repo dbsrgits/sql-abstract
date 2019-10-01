@@ -727,4 +727,82 @@ gathered together and moved into an inner select node:
   ORDER BY baz
   [ 1, 1 ]
 
+=head2 update from clause
+
+Some databases allow an additional FROM clause to reference other tables
+for the data to update; this clause is expanded as a normal from list, check
+your database for what is and isn't allowed in practice.
+
+  # expr
+  { -update => {
+      _ => 'employees',
+      from => 'accounts',
+      set => { sales_count => { sales_count => { '+' => \1 } } },
+      where => {
+        'accounts.name' => { '=' => \"'Acme Corporation'" },
+        'employees.id' => { -ident => 'accounts.sales_person' },
+      },
+  } }
+
+  # aqt
+  { -update => {
+      from => { -ident => [ 'accounts' ] },
+      set => { -op => [
+          ',', { -op => [
+              '=', { -ident => [ 'sales_count' ] }, { -op => [
+                  '+', { -ident => [ 'sales_count' ] },
+                  { -literal => [ 1 ] },
+              ] },
+          ] },
+      ] },
+      target => { -ident => [ 'employees' ] },
+      where => { -op => [
+          'and', { -op => [
+              '=', { -ident => [ 'accounts', 'name' ] },
+              { -literal => [ "'Acme Corporation'" ] },
+          ] }, { -op => [
+              '=', { -ident => [ 'employees', 'id' ] },
+              { -ident => [ 'accounts', 'sales_person' ] },
+          ] },
+      ] },
+  } }
+
+  # query
+  UPDATE employees SET sales_count = sales_count + 1 FROM accounts
+  WHERE (
+    accounts.name = 'Acme Corporation'
+    AND employees.id = accounts.sales_person
+  )
+
+  []
+
+  []
+
+=head2 delete using clause
+
+Some databases allow an additional USING clause to reference other tables
+for the data to update; this clause is expanded as a normal from list, check
+your database for what is and isn't allowed in practice.
+
+  # expr
+  { -delete => {
+      from => 'x',
+      using => 'y',
+      where => { 'x.id' => { -ident => 'y.x_id' } },
+  } }
+
+  # aqt
+  { -delete => {
+      target => { -op => [ ',', { -ident => [ 'x' ] } ] },
+      using => { -ident => [ 'y' ] },
+      where => { -op => [
+          '=', { -ident => [ 'x', 'id' ] },
+          { -ident => [ 'y', 'x_id' ] },
+      ] },
+  } }
+
+  # query
+  DELETE FROM x USING y WHERE x.id = y.x_id
+  []
+
 =cut
