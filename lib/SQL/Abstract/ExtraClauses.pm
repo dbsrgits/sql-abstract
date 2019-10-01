@@ -41,8 +41,7 @@ sub apply_to {
     $sqla->expander($thing => $self->cb("_expand_${thing}"))
          ->renderer($thing => $self->cb("_render_${thing}"))
   }
-  $sqla->op_expander(as => $self->cb('_expand_op_as'));
-  $sqla->expander(as => $self->cb('_expand_op_as'));
+  $sqla->binop_expander(as => $self->cb('_expand_op_as'));
   $sqla->renderer(as => $self->cb('_render_as'));
   $sqla->expander(alias => $self->cb('_expand_alias'));
   $sqla->renderer(alias => $self->cb('_render_alias'));
@@ -204,7 +203,6 @@ sub _render_join {
 sub _expand_op_as {
   my ($self, undef, $vv, $k) = @_;
   my @vv = (ref($vv) eq 'ARRAY' ? @$vv : $vv);
-  $k ||= shift @vv;
   my $ik = $self->expand_expr($k, -ident);
   return +{ -as => [ $ik, $self->expand_expr($vv[0], -alias) ] }
     if @vv == 1 and ref($vv[0]) eq 'HASH';
