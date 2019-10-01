@@ -337,3 +337,29 @@ sub _expand_clause_setop {
 }
 
 1;
+
+=head1 NAME
+
+SQL::Abstract::ExtraClauses - new/experimental additions to L<SQL::Abstract>
+
+=head1 SYNOPSIS
+
+  my $sqla = SQL::Abstract->new;
+  SQL::Abstract::ExtraClauses->apply_to($sqla);
+
+=head1 METHODS
+
+=head2 apply_to
+
+Applies the plugin to an L<SQL::Abstract> object.
+
+=head2 cb
+
+For plugin authors, creates a callback to call a method on the plugin.
+
+=head2 sqla
+
+Available only during plugin callback executions, contains the currently
+active L<SQL::Abstract> object.
+
+=cut
