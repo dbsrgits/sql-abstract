@@ -175,7 +175,7 @@ sub _expand_join {
   my %proto = (
     ref($args) eq 'HASH'
       ? %$args
-      : (to => $args->[0], @{$args}[1..$#$args])
+      : (to => @$args)
   );
   if (my $as = delete $proto{as}) {
     $proto{to} = $self->expand_expr({ -as => [ $proto{to}, $as ] });
@@ -188,6 +188,7 @@ sub _expand_join {
   }
   my %ret = map +($_ => $self->expand_expr($proto{$_}, -ident)),
               sort keys %proto;
+  $ret{type} = $proto{type};
   return +{ -join => \%ret };
 }
 
@@ -455,6 +456,120 @@ as a list of arguments for the alias node.
 
   # query
   CAST(birthday AS date)
+  []
+
+=head2 join
+
+If given an arrayref, pretends it was given a hashref with the first
+element of the arrayref as the value for 'to' and the remaining pairs copied.
+
+Given a hashref, the 'as' key is if presented expanded to wrap the 'to'.
+
+If present the 'using' key is expanded as a list of idents.
+
+Known keys are: 'from' (the left hand side), 'type' ('left', 'right', or
+nothing), 'to' (the right hand side), 'on' and 'using'.
+
+  # expr
+  { -join => {
+      from => 'lft',
+      on => { 'lft.bloo' => { '>' => 'rgt.blee' } },
+      to => 'rgt',
+      type => 'left',
+  } }
+
+  # aqt
+  { -join => {
+      from => { -ident => [ 'lft' ] },
+      on => { -op => [
+          '>', { -ident => [ 'lft', 'bloo' ] },
+          { -ident => [ 'rgt', 'blee' ] },
+      ] },
+      to => { -ident => [ 'rgt' ] },
+      type => 'left',
+  } }
+
+  # query
+  lft LEFT JOIN rgt ON lft.bloo > rgt.blee
+  []
+
+=head2 from_list
+
+List of components of the FROM clause; -foo type elements indicate a pair
+with the next element; this is easiest if I show you:
+
+  # expr
+  { -from_list => [
+      't1', -as => 'table_one', -join =>
+      [ 't2', 'on', { 'table_one.x' => 't2.x' } ],
+  ] }
+
+  # aqt
+  { -from_list => [ { -join => {
+          from => { -as => [
+              { -ident => [ 't1' ] },
+              { -alias => [ { -ident => [ 'table_one' ] } ] },
+          ] },
+          on => { -op => [
+              '=', { -ident => [ 'table_one', 'x' ] },
+              { -ident => [ 't2', 'x' ] },
+          ] },
+          to => { -ident => [ 't2' ] },
+          type => undef,
+  } } ] }
+
+  # query
+  t1 AS table_one JOIN t2 ON table_one.x = t2.x
+  []
+
+Or with using:
+
+  # expr
+  { -from_list =>
+      [ 't1', -as => 'table_one', -join => [ 't2', 'using', [ 'x' ] ] ]
+  }
+
+  # aqt
+  { -from_list => [ { -join => {
+          from => { -as => [
+              { -ident => [ 't1' ] },
+              { -alias => [ { -ident => [ 'table_one' ] } ] },
+          ] },
+          to => { -ident => [ 't2' ] },
+          type => undef,
+          using =>
+            {
+              -op => [ 'or', { -op => [ 'or', { -ident => [ 'x' ] } ] } ]
+            },
+  } } ] }
+
+  # query
+  t1 AS table_one JOIN t2 USING ( x )
+  []
+
+With oddities:
+
+  # expr
+  { -from_list => [
+      'x', -join => [
+        { -join => { from => 'y', to => 'z', type => 'left' } }, 'type',
+        'left',
+      ],
+  ] }
+
+  # aqt
+  { -from_list => [ { -join => {
+          from => { -ident => [ 'x' ] },
+          to => { -join => {
+              from => { -ident => [ 'y' ] },
+              to => { -ident => [ 'z' ] },
+              type => 'left',
+          } },
+          type => 'left',
+  } } ] }
+
+  # query
+  x LEFT JOIN ( y LEFT JOIN z )
   []
 
 =cut
