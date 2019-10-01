@@ -48,7 +48,7 @@ sub register_extensions {
     }
   }
   die "Huh?" unless @before_setop;
-  $sqla->clauses_of(select => 'with', @clauses);
+  $sqla->clauses_of(select => @clauses);
   $self->register(
     clause_expanders => [
       'select.group_by'
@@ -81,15 +81,17 @@ sub register_extensions {
     @clauses;
   });
 
-  $sqla->clause_expanders(
-    'update.from' => $self->cb('_expand_from_list'),
-    'delete.using' => $self->cb('_expand_from_list'),
-    'insert.rowvalues' => $self->cb(sub {
-      +(from => $_[0]->expand_expr({ -values => $_[2] }));
-    }),
-    'insert.select' => $self->cb(sub {
-      +(from => $_[0]->expand_expr({ -select => $_[2] }));
-    }),
+  $self->register(
+    clause_expanders => [
+      'update.from' => '_expand_from_list',
+      'delete.using' => '_expand_from_list',
+      'insert.rowvalues' => sub {
+        +(from => $_[0]->expand_expr({ -values => $_[2] }));
+      },
+      'insert.select' => sub {
+        +(from => $_[0]->expand_expr({ -select => $_[2] }));
+      },
+    ],
   );
 
   # set ops
@@ -97,14 +99,13 @@ sub register_extensions {
     $self->cb('_expand_select', $_[0], \@before_setop);
   });
 
-  $sqla->clause_renderer(
-    'select.setop' => $self->cb(sub { $_[0]->render_aqt($_[2]); })
+  $self->register(
+    clause_renderer => [
+      'select.setop' => sub { $_[0]->render_aqt($_[2]) }
+    ],
+    expander => [ map +($_ => '_expand_setop'), qw(union intersect except) ],
+    renderer => [ map +($_ => '_render_setop'), qw(union intersect except) ],
   );
-
-  foreach my $setop (qw(union intersect except)) {
-    $sqla->expander($setop => $self->cb('_expand_setop'));
-    $sqla->renderer($setop => $self->cb('_render_setop'));
-  }
 
   my $setop_expander = $self->cb('_expand_clause_setop');
 
@@ -115,23 +116,23 @@ sub register_extensions {
           qw(union intersect except)
   );
 
-  my $w_exp = $self->cb('_expand_with');
-  my $w_rdr = $self->cb('_render_with');
-  $sqla->clause_expander('select.with' => $w_exp);
-  $sqla->clause_expander('select.with_recursive' => $w_exp);
-  $sqla->clause_renderer('select.with' => $w_rdr);
-
-  foreach my $stmt (qw(insert update delete)) {
+  foreach my $stmt (qw(select insert update delete)) {
     $sqla->clauses_of($stmt => 'with', $sqla->clauses_of($stmt));
-    $sqla->clause_expander("${stmt}.$_" => $w_exp)
-      for qw(with with_recursive);
-    $sqla->clause_renderer("${stmt}.with" => $w_rdr);
+    $self->register(
+      clause_expanders => [
+        "${stmt}.with" => '_expand_with',
+        "${stmt}.with_recursive" => '_expand_with',
+      ],
+      clause_renderer => [ "${stmt}.with" => '_render_with' ],
+    );
   }
 
-  $sqla->clause_expanders(
-    "select.from", $self->cb('_expand_from_list'),
-    "update.target", $self->cb('_expand_update_clause_target'),
-    "update.update", $self->cb('_expand_update_clause_target'),
+  $self->register(
+    clause_expanders => [
+      "select.from", '_expand_from_list',
+      "update.target", '_expand_update_clause_target',
+      "update.update", '_expand_update_clause_target',
+    ]
   );
 
   return $sqla;
