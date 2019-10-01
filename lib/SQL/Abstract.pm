@@ -146,10 +146,12 @@ our %Defaults = (
     values => '_expand_values',
   },
   expand_op => {
-    'between' => '_expand_between',
-    'not_between' => '_expand_between',
-    'in' => '_expand_in',
-    'not_in' => '_expand_in',
+    (map +($_ => __PACKAGE__->make_binop_expander('_expand_between')),
+      qw(between not_between)),
+    #(map +($_ => __PACKAGE__->make_binop_expander('_expand_in')),
+    #  qw(in not_in)),
+    in => '_expand_in',
+    not_in => '_expand_in',
     'nest' => '_expand_nest',
     (map +($_ => '_expand_op_andor'), ('and', 'or')),
     (map +($_ => '_expand_op_is'), ('is', 'is_not')),
@@ -307,6 +309,26 @@ sub _ext_rw {
   return $self;
 }
 
+sub make_unop_expander {
+  my (undef, $exp) = @_;
+  sub {
+    my ($self, $name, $body, $k) = @_;
+    return $self->_expand_hashpair_cmp($k, { "-${name}" => $body })
+      if defined($k);
+    return $self->$exp($name, $body);
+  }
+}
+
+sub make_binop_expander {
+  my (undef, $exp) = @_;
+  sub {
+    my ($self, $name, $body, $k) = @_;
+    $k = shift @{$body = [ @$body ]} unless defined $k;
+    $k = ref($k) ? $k : { -ident => $k };
+    return $self->$exp($name, $body, $k);
+  }
+}
+
 BEGIN {
   foreach my $type (qw(
     expand op_expand render op_render clause_expand clause_render
@@ -424,7 +446,6 @@ sub _expand_insert_clause_from {
   if (ref($data) eq 'HASH' and (keys(%$data))[0] =~ /^-/) {
     return $self->expand_expr($data);
   }
-  return $data if ref($data) eq 'HASH' and $data->{-row};
   my ($f_aqt, $v_aqt) = $self->_expand_insert_values($data);
   return (
     from => { -values => [ $v_aqt ] },
@@ -1288,7 +1309,6 @@ sub _expand_op_is {
 
 sub _expand_between {
   my ($self, $op, $vv, $k) = @_;
-  $k = shift @{$vv = [ @$vv ]} unless defined $k;
   my @rhs = map $self->_expand_expr($_),
               ref($vv) eq 'ARRAY' ? @$vv : $vv;
   unless (
@@ -1300,7 +1320,7 @@ sub _expand_between {
   }
   return +{ -op => [
     $op,
-    $self->expand_expr(ref($k) ? $k : { -ident => $k }),
+    $self->expand_expr($k),
     map $self->expand_expr($_, -value), @rhs
   ] }
 }
