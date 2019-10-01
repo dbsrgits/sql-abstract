@@ -178,7 +178,9 @@ sub _expand_join {
       : (to => @$args)
   );
   if (my $as = delete $proto{as}) {
-    $proto{to} = $self->expand_expr({ -as => [ $proto{to}, $as ] });
+    $proto{to} = $self->expand_expr(
+                   { -as => [ { -from_list => $proto{to} }, $as ] }
+                 );
   }
   if (defined($proto{using}) and ref(my $using = $proto{using}) ne 'HASH') {
     $proto{using} = [
@@ -186,9 +188,15 @@ sub _expand_join {
         ref($using) eq 'ARRAY' ? @$using: $using
     ];
   }
-  my %ret = map +($_ => $self->expand_expr($proto{$_}, -ident)),
-              sort keys %proto;
-  $ret{type} = $proto{type};
+  my %ret = (
+    type => delete $proto{type},
+    to => $self->expand_expr({ -from_list => delete $proto{to} }, -ident)
+               ->{-from_list}[0]
+  );
+  %ret = (%ret,
+    map +($_ => $self->expand_expr($proto{$_}, -ident)),
+      sort keys %proto
+  );
   return +{ -join => \%ret };
 }
 
@@ -203,7 +211,11 @@ sub _render_join {
   my @parts = (
     $args->{from},
     { -keyword => join '_', ($args->{type}||()), 'join' },
-    (map +($_->{-ident} || $_->{-as} ? $_ : ('(', $_, ')')), $args->{to}),
+    (map +($_->{-ident} || $_->{-as}
+      ? $_
+      : ('(', $self->render_aqt($_, 1), ')')),
+        $args->{to}
+    ),
     ($args->{on} ? (
       { -keyword => 'on' },
       $args->{on},
@@ -551,10 +563,8 @@ With oddities:
 
   # expr
   { -from_list => [
-      'x', -join => [
-        { -join => { from => 'y', to => 'z', type => 'left' } }, 'type',
-        'left',
-      ],
+      'x', -join =>
+      [ [ 'y', -join => [ 'z', 'type', 'left' ] ], 'type', 'left' ],
   ] }
 
   # aqt
