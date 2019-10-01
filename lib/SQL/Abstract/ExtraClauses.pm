@@ -5,8 +5,7 @@ use Moo;
 has sqla => (
   is => 'ro', init_arg => undef,
   handles => [ qw(
-    expand_expr expand_maybe_list_expr render_aqt
-    format_keyword join_query_parts
+    expand_expr expand_maybe_list_expr render_aqt join_query_parts
   ) ],
 );
 
@@ -188,14 +187,14 @@ sub _render_join {
 
   my @parts = (
     $args->{from},
-    $self->format_keyword(join '_', ($args->{type}||()), 'join'),
+    { -keyword => join '_', ($args->{type}||()), 'join' },
     (map +($_->{-ident} || $_->{-as} ? $_ : ('(', $_, ')')), $args->{to}),
     ($args->{on} ? (
-      $self->format_keyword('on') ,
+      { -keyword => 'on' },
       $args->{on},
     ) : ()),
     ($args->{using} ? (
-      $self->format_keyword('using'),
+      { -keyword => 'using' },
       '(', $args->{using}, ')',
     ) : ()),
   );
@@ -220,7 +219,7 @@ sub _render_as {
   return $self->join_query_parts(
     ' ',
     $thing,
-    $self->format_keyword('as'),
+    { -keyword => 'as' },
     $alias,
   );
 }
@@ -301,13 +300,13 @@ sub _render_with {
       my ($alias, $query) = @$_;
       $self->join_query_parts(' ',
           $alias,
-          $self->format_keyword('as'),
+          { -keyword => 'as' },
           $query,
       )
     } @{$with->{queries}}
   );
   return $self->join_query_parts(' ',
-    $self->format_keyword(join '_', 'with', ($with->{type}||'')),
+    { -keyword => join '_', 'with', ($with->{type}||'') },
     $q_part,
   );
 }
@@ -323,7 +322,7 @@ sub _expand_setop {
 sub _render_setop {
   my ($self, $setop, $args) = @_;
   $self->join_query_parts(
-    ' '.$self->format_keyword(join '_', $setop, ($args->{type}||())).' ',
+    { -keyword => ' '.join('_', $setop, ($args->{type}||())).' ' },
     @{$args->{queries}}
   );
 }
