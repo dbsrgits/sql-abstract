@@ -3484,6 +3484,13 @@ Top level means avoid parens on statement AQT.
   my $res = $self->render_aqt($aqt, $top_level);
   my ($sql, @bind) = @$res;
 
+=head2 join_query_parts
+
+Similar to join() but will render hashrefs as nodes for both join and parts,
+and treats arrayref as a nested C<[ $join, @parts ]> structure.
+
+  my $part = $self->join_query_parts($join, @parts);
+
 =head1 NEW EXTENSION SYSTEM
 
 =head2 clone
@@ -3588,6 +3595,39 @@ but excessive depth is avoided.
 =head2 statement_list
 
   my @list = $sqla->statement_list;
+
+=head2 make_unop_expander
+
+  my $exp = $sqla->make_unop_expander(sub { ... });
+
+If the op is found as a binop, assumes it wants a default comparison, so
+the inner expander sub can reliably operate as
+
+  sub { my ($self, $name, $body) = @_; ... }
+
+=head2 make_binop_expander
+
+  my $exp = $sqla->make_binop_expander(sub { ... });
+
+If the op is found as a unop, assumes the value will be an arrayref with the
+LHS as the first entry, and converts that to an ident node if it's a simple
+scalar. So the inner expander sub looks like
+
+  sub {
+    my ($self, $name, $body, $k) = @_;
+    { -blah => [ map $self->expand_expr($_), $k, $body ] }
+  }
+
+=head2 unop_expander
+
+=head2 unop_expanders
+
+=head2 binop_expander
+
+=head2 binop_expanders
+
+The above methods operate exactly like the op_ versions but wrap the coderef
+using the appropriate make_ method first.
 
 =head1 PERFORMANCE
 
