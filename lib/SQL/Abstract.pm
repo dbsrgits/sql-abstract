@@ -376,7 +376,7 @@ BEGIN {
   }
 }
 
-sub register_op { $_[0]->{is_op}{$_[1]} = 1; $_[0] }
+#sub register_op { $_[0]->{is_op}{$_[1]} = 1; $_[0] }
 
 sub statement_list { sort keys %{$_[0]->{clauses_of}} }
 
@@ -884,7 +884,7 @@ sub _render_statement {
 sub _normalize_op {
   my ($self, $raw) = @_;
   my $op = lc $raw;
-  return $op if grep $_->{$op}, @{$self}{qw(is_op expand_op render_op)};
+  return $op if grep $_->{$op}, @{$self}{qw(expand_op render_op)};
   s/^-(?=.)//, s/\s+/_/g for $op;
   $op;
 }
@@ -3448,9 +3448,50 @@ When supplied with a coderef, it is called as:
 
 =back
 
+=head1 NEW METHODS
+
+See L<SQL::Abstract::Reference> for the C<expr> versus C<aqt> concept and
+an explanation of what the below extensions are extending.
+
+=head2 render_expr
+
+  my ($sql, @bind) = $sqla->render_expr($expr);
+
+=head2 render_statement
+
+Use this if you may be rendering a top level statement so e.g. a SELECT
+query doesn't get wrapped in parens
+
+  my ($sql, @bind) = $sqla->render_statement($expr);
+
+=head2 expand_expr
+
+Expression expansion with optional default for scalars.
+
+  my $aqt = $self->expand_expr($expr);
+  my $aqt = $self->expand_expr($expr, -ident);
+
+=head2 expand_maybe_list_expr
+
+expand_expr but with commas if there's more than one entry.
+
+  my $aqt = $self->expand_maybe_list_expr([ @exprs ], $default?);
+
+=head2 render_aqt
+
+Top level means avoid parens on statement AQT.
+
+  my $res = $self->render_aqt($aqt, $top_level);
+  my ($sql, @bind) = @$res;
+
 =head1 NEW EXTENSION SYSTEM
 
-See L<SQL::Abstract::Reference> for concepts.
+=head2 clone
+
+  my $sqla2 = $sqla->clone;
+
+Performs a semi-shallow copy such that extension methods won't leak state
+but excessive depth is avoided.
 
 =head2 expander
 
