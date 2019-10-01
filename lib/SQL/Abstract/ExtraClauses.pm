@@ -377,6 +377,11 @@ SQL::Abstract::ExtraClauses - new/experimental additions to L<SQL::Abstract>
   my $sqla = SQL::Abstract->new;
   SQL::Abstract::ExtraClauses->apply_to($sqla);
 
+=head1 WARNING
+
+This module is basically a nursery for things that seem like a good idea
+to live in until we figure out if we were right about that.
+
 =head1 METHODS
 
 =head2 apply_to
@@ -574,5 +579,45 @@ With oddities:
   # query
   x LEFT JOIN ( y LEFT JOIN z )
   []
+
+=head1 STATEMENT EXTENSIONS
+
+=head2 group by clause for select
+
+Expanded as a list with an ident default:
+
+  # expr
+  { -select => { group_by => [ 'foo', 'bar' ] } }
+
+  # aqt
+  { -select => { group_by =>
+        {
+          -op => [ ',', { -ident => [ 'foo' ] }, { -ident => [ 'bar' ] } ]
+        }
+  } }
+
+  # query
+  GROUP BY foo, bar
+  []
+
+=head2 having clause for select
+
+Basic expr, just like where, given having is pretty much post-group-by
+where clause:
+
+  # expr
+  { -select =>
+      { having => { '>' => [ { -count => { -ident => 'foo' } }, 3 ] } }
+  }
+
+  # aqt
+  { -select => { having => { -op => [
+          '>', { -func => [ 'count', { -ident => [ 'foo' ] } ] },
+          { -bind => [ undef, 3 ] },
+  ] } } }
+
+  # query
+  HAVING COUNT(foo) > ?
+  [ 3 ]
 
 =cut
