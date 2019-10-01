@@ -338,6 +338,8 @@ sub _expand_clause_setop {
 
 1;
 
+__END__
+
 =head1 NAME
 
 SQL::Abstract::ExtraClauses - new/experimental additions to L<SQL::Abstract>
@@ -361,5 +363,75 @@ For plugin authors, creates a callback to call a method on the plugin.
 
 Available only during plugin callback executions, contains the currently
 active L<SQL::Abstract> object.
+
+=head1 NODE TYPES
+
+=head2 alias
+
+Represents a table alias. Expands name and column names with ident as default.
+
+  # expr
+  { -alias => [ 't', 'x', 'y', 'z' ] }
+
+  # aqt
+  { -alias => [
+      { -ident => [ 't' ] }, { -ident => [ 'x' ] },
+      { -ident => [ 'y' ] }, { -ident => [ 'z' ] },
+  ] }
+
+  # query
+  t(x, y, z)
+  []
+
+=head2 as
+
+Represents an sql AS. LHS is expanded with ident as default, RHS is treated
+as a list of arguments for the alias node.
+
+  # expr
+  { foo => { -as => 'bar' } }
+
+  # aqt
+  { -as =>
+      [
+        { -ident => [ 'foo' ] },
+        { -alias => [ { -ident => [ 'bar' ] } ] },
+      ]
+  }
+
+  # query
+  foo AS bar
+  []
+
+  # expr
+  { -as => [ { -select => { _ => 'blah' } }, 't', 'blah' ] }
+
+  # aqt
+  { -as => [
+      { -select =>
+          { select => { -op => [ ',', { -ident => [ 'blah' ] } ] } }
+      },
+      { -alias => [ { -ident => [ 't' ] }, { -ident => [ 'blah' ] } ] },
+  ] }
+
+  # query
+  (SELECT blah) AS t(blah)
+  []
+
+=head2 cast
+
+  # expr
+  { -cast => [ { -ident => 'birthday' }, 'date' ] }
+
+  # aqt
+  { -func => [
+      'cast', {
+        -as => [ { -ident => [ 'birthday' ] }, { -ident => [ 'date' ] } ]
+      },
+  ] }
+
+  # query
+  CAST(birthday AS date)
+  []
 
 =cut
