@@ -5,7 +5,7 @@ use Moo;
 has sqla => (
   is => 'ro', init_arg => undef,
   handles => [ qw(
-    expand_expr expand_maybe_list_expr render_aqt join_query_parts
+    expand_expr render_aqt join_query_parts
   ) ],
 );
 
@@ -79,7 +79,7 @@ sub register_extensions {
     clause_expanders => [
       "select.from", '_expand_from_list',
       'select.group_by'
-        => sub { $_[0]->expand_maybe_list_expr($_[2], -ident) },
+        => sub { $_[0]->expand_expr({ -list => $_[2] }, -ident) },
       'select.having'
         => sub { $_[0]->expand_expr($_[2]) },
       'update.from' => '_expand_from_list',
