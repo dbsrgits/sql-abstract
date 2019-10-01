@@ -167,6 +167,7 @@ sub _expand_from_list {
     }
     push @list, $aqt;
   }
+  return $list[0] if @list == 1;
   return { -from_list => \@list };
 }
 
@@ -191,7 +192,6 @@ sub _expand_join {
   my %ret = (
     type => delete $proto{type},
     to => $self->expand_expr({ -from_list => delete $proto{to} }, -ident)
-               ->{-from_list}[0]
   );
   %ret = (%ret,
     map +($_ => $self->expand_expr($proto{$_}, -ident)),
@@ -214,7 +214,8 @@ sub _render_join {
     (map +($_->{-ident} || $_->{-as}
       ? $_
       : ('(', $self->render_aqt($_, 1), ')')),
-        $args->{to}
+        map +(@{$_->{-from_list}||[]} == 1 ? $_->{-from_list}[0] : $_),
+          $args->{to}
     ),
     ($args->{on} ? (
       { -keyword => 'on' },
@@ -517,18 +518,18 @@ with the next element; this is easiest if I show you:
   ] }
 
   # aqt
-  { -from_list => [ { -join => {
-          from => { -as => [
-              { -ident => [ 't1' ] },
-              { -alias => [ { -ident => [ 'table_one' ] } ] },
-          ] },
-          on => { -op => [
-              '=', { -ident => [ 'table_one', 'x' ] },
-              { -ident => [ 't2', 'x' ] },
-          ] },
-          to => { -ident => [ 't2' ] },
-          type => undef,
-  } } ] }
+  { -join => {
+      from => { -as => [
+          { -ident => [ 't1' ] },
+          { -alias => [ { -ident => [ 'table_one' ] } ] },
+      ] },
+      on => { -op => [
+          '=', { -ident => [ 'table_one', 'x' ] },
+          { -ident => [ 't2', 'x' ] },
+      ] },
+      to => { -ident => [ 't2' ] },
+      type => undef,
+  } }
 
   # query
   t1 AS table_one JOIN t2 ON table_one.x = t2.x
@@ -542,18 +543,16 @@ Or with using:
   }
 
   # aqt
-  { -from_list => [ { -join => {
-          from => { -as => [
-              { -ident => [ 't1' ] },
-              { -alias => [ { -ident => [ 'table_one' ] } ] },
-          ] },
-          to => { -ident => [ 't2' ] },
-          type => undef,
-          using =>
-            {
-              -op => [ 'or', { -op => [ 'or', { -ident => [ 'x' ] } ] } ]
-            },
-  } } ] }
+  { -join => {
+      from => { -as => [
+          { -ident => [ 't1' ] },
+          { -alias => [ { -ident => [ 'table_one' ] } ] },
+      ] },
+      to => { -ident => [ 't2' ] },
+      type => undef,
+      using =>
+        { -op => [ 'or', { -op => [ 'or', { -ident => [ 'x' ] } ] } ] },
+  } }
 
   # query
   t1 AS table_one JOIN t2 USING ( x )
@@ -568,15 +567,15 @@ With oddities:
   ] }
 
   # aqt
-  { -from_list => [ { -join => {
-          from => { -ident => [ 'x' ] },
-          to => { -join => {
-              from => { -ident => [ 'y' ] },
-              to => { -ident => [ 'z' ] },
-              type => 'left',
-          } },
+  { -join => {
+      from => { -ident => [ 'x' ] },
+      to => { -join => {
+          from => { -ident => [ 'y' ] },
+          to => { -ident => [ 'z' ] },
           type => 'left',
-  } } ] }
+      } },
+      type => 'left',
+  } }
 
   # query
   x LEFT JOIN ( y LEFT JOIN z )
