@@ -144,6 +144,7 @@ our %Defaults = (
     op => '_expand_op',
     func => '_expand_func',
     values => '_expand_values',
+    list => '_expand_list',
   },
   expand_op => {
     (map +($_ => __PACKAGE__->make_binop_expander('_expand_between')),
@@ -439,12 +440,12 @@ sub insert {
 }
 
 sub _expand_insert_clause_target {
-  +(target => $_[0]->expand_maybe_list_expr($_[2], -ident));
+  +(target => $_[0]->expand_expr($_[2], -ident));
 }
 
 sub _expand_insert_clause_fields {
   return +{ -row => [
-    $_[0]->expand_maybe_list_expr($_[2], -ident)
+    $_[0]->expand_expr({ -list => $_[2] }, -ident)
   ] } if ref($_[2]) eq 'ARRAY';
   return $_[2]; # should maybe still expand somewhat?
 }
@@ -462,7 +463,7 @@ sub _expand_insert_clause_from {
 }
 
 sub _expand_insert_clause_returning {
-  +(returning => $_[0]->expand_maybe_list_expr($_[2], -ident));
+  +(returning => $_[0]->expand_expr({ -list => $_[2] }, -ident));
 }
 
 sub _expand_insert_values {
@@ -523,7 +524,7 @@ sub _returning {
   my $f = $options->{returning};
 
   my ($sql, @bind) = @{ $self->render_aqt(
-    $self->expand_maybe_list_expr($f, -ident)
+    $self->expand_expr({ -list => $f }, -ident)
   ) };
   return ($self->_sqlcase(' returning ').$sql, @bind);
 }
@@ -593,7 +594,7 @@ sub _update_set_values {
 
 sub _expand_update_set_values {
   my ($self, undef, $data) = @_;
-  $self->expand_maybe_list_expr( [
+  $self->expand_expr({ -list => [
     map {
       my ($k, $set) = @$_;
       $set = { -bind => $_ } unless defined $set;
@@ -612,12 +613,12 @@ sub _expand_update_set_values {
           }
       );
     } sort keys %$data
-  ] );
+  ] });
 }
 
 sub _expand_update_clause_target {
   my ($self, undef, $target) = @_;
-  +(target => $self->expand_maybe_list_expr($target, -ident));
+  +(target => $self->expand_expr({ -list => $target }, -ident));
 }
 
 sub _expand_update_clause_set {
@@ -630,7 +631,7 @@ sub _expand_update_clause_where {
 }
 
 sub _expand_update_clause_returning {
-  +(returning => $_[0]->expand_maybe_list_expr($_[2], -ident));
+  +(returning => $_[0]->expand_expr({ -list => $_[2] }, -ident));
 }
 
 # So that subclasses can override UPDATE ... RETURNING separately from
@@ -667,12 +668,12 @@ sub select {
 
 sub _expand_select_clause_select {
   my ($self, undef, $select) = @_;
-  +(select => $self->expand_maybe_list_expr($select, -ident));
+  +(select => $self->expand_expr({ -list => $select }, -ident));
 }
 
 sub _expand_select_clause_from {
   my ($self, undef, $from) = @_;
-  +(from => $self->expand_maybe_list_expr($from, -ident));
+  +(from => $self->expand_expr({ -list => $from }, -ident));
 }
 
 sub _expand_select_clause_where {
@@ -726,7 +727,7 @@ sub _select_fields {
   my ($self, $fields) = @_;
   return $fields unless ref($fields);
   return @{ $self->render_aqt(
-    $self->expand_maybe_list_expr($fields, '-ident')
+    $self->expand_expr({ -list => $fields }, '-ident')
   ) };
 }
 
@@ -754,13 +755,13 @@ sub delete {
 sub _delete_returning { shift->_returning(@_) }
 
 sub _expand_delete_clause_target {
-  +(target => $_[0]->expand_maybe_list_expr($_[2], -ident));
+  +(target => $_[0]->expand_expr({ -list => $_[2] }, -ident));
 }
 
 sub _expand_delete_clause_where { +(where => $_[0]->expand_expr($_[2])); }
 
 sub _expand_delete_clause_returning {
-  +(returning => $_[0]->expand_maybe_list_expr($_[2], -ident));
+  +(returning => $_[0]->expand_expr({ -list => $_[2] }, -ident));
 }
 
 sub _render_delete_clause_target {
@@ -1243,6 +1244,18 @@ sub _expand_bool {
   return $self->_expand_expr({ -ident => $v });
 }
 
+sub _expand_list {
+  my ($self, undef, $expr) = @_;
+  return { -op => [
+    ',', map $self->expand_expr($_), 
+          @{$expr->{-op}}[1..$#{$expr->{-op}}]
+  ] } if ref($expr) eq 'HASH' and ($expr->{-op}||[''])->[0] eq ',';
+  return +{ -op => [ ',',
+    map $self->expand_expr($_),
+      ref($expr) eq 'ARRAY' ? @$expr : $expr
+  ] };
+}
+
 sub _expand_op_andor {
   my ($self, $logop, $v, $k) = @_;
   if (defined $k) {
@@ -1641,7 +1654,7 @@ sub _expand_order_by {
 
   return unless defined($arg) and not (ref($arg) eq 'ARRAY' and !@$arg);
 
-  return $self->expand_maybe_list_expr($arg)
+  return $self->expand_expr({ -list => $arg })
     if ref($arg) eq 'HASH' and ($arg->{-op}||[''])->[0] eq ',';
 
   my $expander = sub {
@@ -1720,7 +1733,7 @@ sub _table  {
   my $self = shift;
   my $from = shift;
   $self->render_aqt(
-    $self->expand_maybe_list_expr($from, -ident)
+    $self->expand_expr({ -list => $from }, -ident)
   )->[0];
 }
 
@@ -1728,18 +1741,6 @@ sub _table  {
 #======================================================================
 # UTILITY FUNCTIONS
 #======================================================================
-
-sub expand_maybe_list_expr {
-  my ($self, $expr, $default) = @_;
-  return { -op => [
-    ',', map $self->expand_expr($_, $default), 
-          @{$expr->{-op}}[1..$#{$expr->{-op}}]
-  ] } if ref($expr) eq 'HASH' and ($expr->{-op}||[''])->[0] eq ',';
-  return +{ -op => [ ',',
-    map $self->expand_expr($_, $default),
-      ref($expr) eq 'ARRAY' ? @$expr : $expr
-  ] };
-}
 
 # highly optimized, as it's called way too often
 sub _quote {
@@ -3470,12 +3471,6 @@ Expression expansion with optional default for scalars.
 
   my $aqt = $self->expand_expr($expr);
   my $aqt = $self->expand_expr($expr, -ident);
-
-=head2 expand_maybe_list_expr
-
-expand_expr but with commas if there's more than one entry.
-
-  my $aqt = $self->expand_maybe_list_expr([ @exprs ], $default?);
 
 =head2 render_aqt
 

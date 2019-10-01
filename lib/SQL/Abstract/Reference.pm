@@ -744,6 +744,31 @@ treated as rows:
   VALUES (?, ?), (?, ?)
   [ 1, 2, 3, 4 ]
 
+=head2 list
+
+Expects a value or an arrayref of values, expands them, and returns just
+the expanded aqt for a single entry or a comma operator for multiple:
+
+  # expr
+  { -list => [ { -ident => 'foo' } ] }
+
+  # aqt
+  { -op => [ ',', { -ident => [ 'foo' ] } ] }
+
+  # query
+  foo
+  []
+
+  # expr
+  { -list => [ { -ident => 'foo' }, { -ident => 'bar' } ] }
+
+  # aqt
+  { -op => [ ',', { -ident => [ 'foo' ] }, { -ident => [ 'bar' ] } ] }
+
+  # query
+  foo, bar
+  []
+
 =head2 between op
 
 The RHS of between must either be a pair of exprs/plain values, or a single
@@ -1015,7 +1040,7 @@ The returning clause is expanded as a list expr with an ident default.
               { -bind => [ 'baz', 'argh' ] },
       ] } ] },
       returning => { -op => [ ',', { -ident => [ 'id' ] } ] },
-      target => { -op => [ ',', { -ident => [ 'foo' ] } ] },
+      target => { -ident => [ 'foo' ] },
   } }
 
   # query
@@ -1035,12 +1060,12 @@ The returning clause is expanded as a list expr with an ident default.
               [ ',', { -ident => [ 'bar' ] }, { -ident => [ 'baz' ] } ]
       } ] },
       from => { -select => {
-          from => { -from_list => [ { -ident => [ 'other' ] } ] },
+          from => { -ident => [ 'other' ] },
           select => { -op =>
               [ ',', { -ident => [ 'bar' ] }, { -ident => [ 'baz' ] } ]
           },
       } },
-      target => { -op => [ ',', { -ident => [ 'foo' ] } ] },
+      target => { -ident => [ 'foo' ] },
   } }
 
   # query
@@ -1085,7 +1110,7 @@ The returning clause is expanded as a list expr with an ident default.
               ] },
           ] },
       ] },
-      target => { -from_list => [ { -ident => [ 'foo' ] } ] },
+      target => { -ident => [ 'foo' ] },
       where => { -op => [ 'not', { -ident => [ 'quux' ] } ] },
   } }
 
