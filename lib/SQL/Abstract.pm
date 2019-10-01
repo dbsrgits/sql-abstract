@@ -148,10 +148,8 @@ our %Defaults = (
   expand_op => {
     (map +($_ => __PACKAGE__->make_binop_expander('_expand_between')),
       qw(between not_between)),
-    #(map +($_ => __PACKAGE__->make_binop_expander('_expand_in')),
-    #  qw(in not_in)),
-    in => '_expand_in',
-    not_in => '_expand_in',
+    (map +($_ => __PACKAGE__->make_binop_expander('_expand_in')),
+      qw(in not_in)),
     'nest' => '_expand_nest',
     (map +($_ => '_expand_op_andor'), ('and', 'or')),
     (map +($_ => '_expand_op_is'), ('is', 'is_not')),
@@ -1327,7 +1325,6 @@ sub _expand_between {
 
 sub _expand_in {
   my ($self, $op, $vv, $k) = @_;
-  $k = shift @{$vv = [ @$vv ]} unless defined $k;
   if (my $literal = is_literal_value($vv)) {
     my ($sql, @bind) = @$literal;
     my $opened_sql = $self->_open_outer_paren($sql);
