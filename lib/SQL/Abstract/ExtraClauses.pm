@@ -773,9 +773,6 @@ your database for what is and isn't allowed in practice.
     accounts.name = 'Acme Corporation'
     AND employees.id = accounts.sales_person
   )
-
-  []
-
   []
 
 =head2 delete using clause
@@ -803,6 +800,160 @@ your database for what is and isn't allowed in practice.
 
   # query
   DELETE FROM x USING y WHERE x.id = y.x_id
+  []
+
+=head2 insert rowvalues and select clauses
+
+rowvalues and select are shorthand for
+
+  { from => { -select ... } }
+
+and
+
+  { from => { -values ... } }
+
+respectively:
+
+  # expr
+  { -insert =>
+      { into => 'numbers', rowvalues => [ [ 1, 2 ], [ 3, 4 ], [ 5, 6 ] ] }
+  }
+
+  # aqt
+  { -insert => {
+      from => { -values => [
+          { -row =>
+              [ { -bind => [ undef, 1 ] }, { -bind => [ undef, 2 ] } ]
+          },
+          { -row =>
+              [ { -bind => [ undef, 3 ] }, { -bind => [ undef, 4 ] } ]
+          },
+          { -row =>
+              [ { -bind => [ undef, 5 ] }, { -bind => [ undef, 6 ] } ]
+          },
+      ] },
+      target => { -ident => [ 'numbers' ] },
+  } }
+
+  # query
+  INSERT INTO numbers VALUES (?, ?), (?, ?), (?, ?)
+  [ 1, 2, 3, 4, 5, 6 ]
+
+  # expr
+  { -insert =>
+      { into => 'numbers', select => { _ => '*', from => 'old_numbers' } }
+  }
+
+  # aqt
+  { -insert => {
+      from => { -select => {
+          from => { -ident => [ 'old_numbers' ] },
+          select => { -op => [ ',', { -ident => [ '*' ] } ] },
+      } },
+      target => { -ident => [ 'numbers' ] },
+  } }
+
+  # query
+  INSERT INTO numbers SELECT * FROM old_numbers
+  []
+
+=head2 with and with_recursive clauses
+
+These clauses are available on select/insert/update/delete queries; check
+your database for applicability (e.g. mysql supports all four but mariadb
+only select).
+
+The value should be an arrayref of name/query pairs:
+
+  # expr
+  { -select => {
+      from => 'foo',
+      select => '*',
+      with => [ 'foo', { -select => { select => \1 } } ],
+  } }
+
+  # aqt
+  { -select => {
+      from => { -ident => [ 'foo' ] },
+      select => { -op => [ ',', { -ident => [ '*' ] } ] },
+      with => { queries => [ [
+            { -ident => [ 'foo' ] }, { -select =>
+                { select => { -op => [ ',', { -literal => [ 1 ] } ] } }
+            },
+      ] ] },
+  } }
+
+  # query
+  WITH foo AS (SELECT 1) SELECT * FROM foo
+  []
+
+A more complete example (designed for mariadb, (ab)using the fact that
+mysqloids materialise subselects in FROM into an unindexed temp table to
+circumvent the restriction that you can't select from the table you're
+currently updating:
+
+  # expr
+  { -update => {
+      _ => [
+        'tree_table', -join => {
+          as => 'tree',
+          on => { 'tree.id' => 'tree_with_path.id' },
+          to => { -select => {
+              from => 'tree_with_path',
+              select => '*',
+              with_recursive => [
+                [ 'tree_with_path', 'id', 'parent_id', 'path' ],
+                { -select => {
+                    _ => [
+                      'id', 'parent_id', { -as => [
+                          { -cast => { -as => [ 'id', 'char', 255 ] } },
+                          'path',
+                      ] } ],
+                    from => 'tree_table',
+                    union_all => { -select => {
+                        _ => [
+                          't.id', 't.parent_id', { -as => [
+                              { -concat => [ 'r.path', \"'/'", 't.id' ] },
+                              'path',
+                          ] },
+                        ],
+                        from => [
+                          'tree_table', -as => 't', -join => {
+                            as => 'r',
+                            on => { 't.parent_id' => 'r.id' },
+                            to => 'tree_with_path',
+                          },
+                        ],
+                    } },
+                    where => { parent_id => undef },
+                } },
+              ],
+          } },
+        },
+      ],
+      set => { path => { -ident => [ 'tree', 'path' ] } },
+  } }
+
+  # query
+  UPDATE
+    tree_table JOIN
+    (
+      WITH RECURSIVE
+        tree_with_path(id, parent_id, path) AS (
+          (
+            SELECT id, parent_id, CAST(id AS char(255)) AS path
+            FROM tree_table WHERE parent_id IS NULL
+          ) UNION ALL (
+            SELECT t.id, t.parent_id, CONCAT(r.path, '/', t.id) AS path
+            FROM
+              tree_table AS t JOIN tree_with_path AS r ON
+              t.parent_id = r.id
+          )
+        )
+      SELECT * FROM tree_with_path
+    ) AS tree
+    ON tree.id = tree_with_path.id
+  SET path = tree.path
   []
 
 =cut
