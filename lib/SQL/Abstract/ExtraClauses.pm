@@ -38,6 +38,7 @@ sub apply_to {
 
 sub register_extensions {
   my ($self, $sqla) = @_;
+
   my @clauses = $sqla->clauses_of('select');
   my @before_setop;
   CLAUSE: foreach my $idx (0..$#clauses) {
@@ -47,27 +48,9 @@ sub register_extensions {
       last CLAUSE;
     }
   }
+
   die "Huh?" unless @before_setop;
   $sqla->clauses_of(select => @clauses);
-  $self->register(
-    clause_expanders => [
-      'select.group_by'
-        => sub { $_[0]->expand_maybe_list_expr($_[2], -ident) },
-      'select.having'
-        => sub { $_[0]->expand_expr($_[2]) },
-    ],
-    (map +(
-      "${_}er" => [
-        do {
-          my $x = $_;
-          (map +($_ => "_${x}_${_}"), qw(join from_list alias))
-        }
-       ]
-    ), qw(expand render)),
-    binop_expander => [ as => '_expand_op_as' ],
-    renderer => [ as => '_render_as' ],
-    expander => [ cast => '_expand_cast' ],
-  );
 
   $sqla->clauses_of(update => sub {
     my ($self, @clauses) = @_;
@@ -82,8 +65,26 @@ sub register_extensions {
   });
 
   $self->register(
+    (map +(
+      "${_}er" => [
+        do {
+          my $x = $_;
+          (map +($_ => "_${x}_${_}"), qw(join from_list alias))
+        }
+       ]
+    ), qw(expand render)),
+    binop_expander => [ as => '_expand_op_as' ],
+    renderer => [ as => '_render_as' ],
+    expander => [ cast => '_expand_cast' ],
     clause_expanders => [
+      "select.from", '_expand_from_list',
+      'select.group_by'
+        => sub { $_[0]->expand_maybe_list_expr($_[2], -ident) },
+      'select.having'
+        => sub { $_[0]->expand_expr($_[2]) },
       'update.from' => '_expand_from_list',
+      "update.target", '_expand_update_clause_target',
+      "update.update", '_expand_update_clause_target',
       'delete.using' => '_expand_from_list',
       'insert.rowvalues' => sub {
         +(from => $_[0]->expand_expr({ -values => $_[2] }));
@@ -126,14 +127,6 @@ sub register_extensions {
       clause_renderer => [ "${stmt}.with" => '_render_with' ],
     );
   }
-
-  $self->register(
-    clause_expanders => [
-      "select.from", '_expand_from_list',
-      "update.target", '_expand_update_clause_target',
-      "update.update", '_expand_update_clause_target',
-    ]
-  );
 
   return $sqla;
 }
@@ -377,9 +370,17 @@ SQL::Abstract::ExtraClauses - new/experimental additions to L<SQL::Abstract>
 
 Applies the plugin to an L<SQL::Abstract> object.
 
+=head2 register_extensions
+
+Registers the extensions described below
+
 =head2 cb
 
 For plugin authors, creates a callback to call a method on the plugin.
+
+=head2 register
+
+For plugin authors, registers callbacks more easily.
 
 =head2 sqla
 
