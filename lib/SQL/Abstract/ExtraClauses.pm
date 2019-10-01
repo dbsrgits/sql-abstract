@@ -17,9 +17,25 @@ sub cb {
   };
 }
 
+sub register {
+  my ($self, $method, @pairs) = @_;
+  my $sqla = $self->sqla;
+  while (my ($car, $cdr) = splice(@pairs, 0, 2)) {
+    my $cb = $self->cb($cdr);
+    $sqla->$method($car, $cb);
+  }
+  return $self;
+}
+
 sub apply_to {
   my ($self, $sqla) = @_;
   $self = $self->new unless ref($self);
+  local $self->{sqla} = $sqla;
+  $self->register_extensions($sqla);
+}
+
+sub register_extensions {
+  my ($self, $sqla) = @_;
   my @clauses = $sqla->clauses_of('select');
   my @before_setop;
   CLAUSE: foreach my $idx (0..$#clauses) {
@@ -31,11 +47,12 @@ sub apply_to {
   }
   die "Huh?" unless @before_setop;
   $sqla->clauses_of(select => 'with', @clauses);
-  $sqla->clause_expanders(
-    'select.group_by', $self->cb(sub {
-      $_[0]->expand_maybe_list_expr($_[2], -ident)
-    }),
-    'select.having', $self->cb(sub { $_[0]->expand_expr($_[2]) }),
+  $self->register(
+    clause_expanders =>
+      'select.group_by'
+        => sub { $_[0]->expand_maybe_list_expr($_[2], -ident) },
+      'select.having'
+        => sub { $_[0]->expand_expr($_[2]) },
   );
   foreach my $thing (qw(join from_list)) {
     $sqla->expander($thing => $self->cb("_expand_${thing}"))
