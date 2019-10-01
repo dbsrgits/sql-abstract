@@ -104,7 +104,8 @@ sub register_extensions {
     clause_renderer => [
       'select.setop' => sub { $_[0]->render_aqt($_[2]) }
     ],
-    expander => [ map +($_ => '_expand_setop'), qw(union intersect except) ],
+    expander => [
+      map +($_ => '_expand_setop', "${_}_all" => '_expand_setop'), qw(union intersect except) ],
     renderer => [ map +($_ => '_render_setop'), qw(union intersect except) ],
   );
 
@@ -339,9 +340,16 @@ sub _render_with {
 
 sub _expand_setop {
   my ($self, $setop, $args) = @_;
+  my $is_all = $setop =~ s/_all$//;
   +{ "-${setop}" => {
-       %$args,
-       queries => [ map $self->expand_expr($_), @{$args->{queries}} ],
+       ($is_all ? (type => 'all') : ()),
+       (ref($args) eq 'ARRAY'
+          ? (queries => [ map $self->expand_expr($_), @$args ])
+          : (
+              %$args,
+              queries => [ map $self->expand_expr($_), @{$args->{queries}} ]
+            )
+       ),
   } };
 }
 
@@ -580,6 +588,58 @@ With oddities:
   x LEFT JOIN ( y LEFT JOIN z )
   []
 
+=head2 setops
+
+Expanders are provided for union, union_all, intersect, intersect_all,
+except and except_all, and each takes an arrayref of queries:
+
+  # expr
+  { -union => [
+      { -select => { _ => { -value => 1 } } },
+      { -select => { _ => { -value => 2 } } },
+  ] }
+
+  # aqt
+  { -union => { queries => [
+        { -select =>
+            { select => { -op => [ ',', { -bind => [ undef, 1 ] } ] } }
+        },
+        { -select =>
+            { select => { -op => [ ',', { -bind => [ undef, 2 ] } ] } }
+        },
+  ] } }
+
+  # query
+  (SELECT ?) UNION (SELECT ?)
+  [ 1, 2 ]
+
+  # expr
+  { -union_all => [
+      { -select => { _ => { -value => 1 } } },
+      { -select => { _ => { -value => 2 } } },
+      { -select => { _ => { -value => 1 } } },
+  ] }
+
+  # aqt
+  { -union => {
+      queries => [
+        { -select =>
+            { select => { -op => [ ',', { -bind => [ undef, 1 ] } ] } }
+        },
+        { -select =>
+            { select => { -op => [ ',', { -bind => [ undef, 2 ] } ] } }
+        },
+        { -select =>
+            { select => { -op => [ ',', { -bind => [ undef, 1 ] } ] } }
+        },
+      ],
+      type => 'all',
+  } }
+
+  # query
+  (SELECT ?) UNION ALL (SELECT ?) UNION ALL (SELECT ?)
+  [ 1, 2, 1 ]
+
 =head1 STATEMENT EXTENSIONS
 
 =head2 group by clause for select
@@ -619,5 +679,52 @@ where clause:
   # query
   HAVING COUNT(foo) > ?
   [ 3 ]
+
+=head2 setop clauses
+
+If a select query contains a clause matching any of the setop node types,
+clauses that appear before the setop would in the resulting query are
+gathered together and moved into an inner select node:
+
+  # expr
+  { -select => {
+      _ => '*',
+      from => 'foo',
+      order_by => 'baz',
+      union =>
+        {
+          -select => { _ => '*', from => 'bar', where => { thing => 1 } }
+        },
+      where => { thing => 1 },
+  } }
+
+  # aqt
+  { -select => {
+      order_by => { -op => [ ',', { -ident => [ 'baz' ] } ] },
+      setop => { -union => { queries => [
+            { -select => {
+                from => { -ident => [ 'foo' ] },
+                select => { -op => [ ',', { -ident => [ '*' ] } ] },
+                where => { -op => [
+                    '=', { -ident => [ 'thing' ] },
+                    { -bind => [ 'thing', 1 ] },
+                ] },
+            } },     ] },
+            { -select => {
+                from => { -ident => [ 'bar' ] },
+                select => { -op => [ ',', { -ident => [ '*' ] } ] },
+                where => { -op => [
+                    '=', { -ident => [ 'thing' ] },
+                    { -bind => [ 'thing', 1 ] },
+            } },
+      ] } },
+  } }
+
+  # query
+  (SELECT * FROM foo WHERE thing = ?) UNION (
+    SELECT * FROM bar WHERE thing = ?
+  )
+  ORDER BY baz
+  [ 1, 1 ]
 
 =cut
