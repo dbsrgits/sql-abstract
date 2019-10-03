@@ -327,6 +327,15 @@ sub make_binop_expander {
   }
 }
 
+sub plugin {
+  my ($self, $plugin, @args) = @_;
+  unless (ref $plugin) {
+    $plugin =~ s/\A\+/${\ref($self)}::Plugin::/;
+    require(join('/', split '::', $plugin).'.pm');
+  }
+  $plugin->apply_to($self, @args);
+}
+
 BEGIN {
   foreach my $type (qw(
     expand op_expand render op_render clause_expand clause_render

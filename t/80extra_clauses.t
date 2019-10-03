@@ -3,11 +3,8 @@ use warnings;
 use Test::More;
 use SQL::Abstract::Test import => [ qw(is_same_sql_bind is_same_sql) ];
 use SQL::Abstract;
-use SQL::Abstract::ExtraClauses;
 
-my $sqlac = SQL::Abstract->new;
-
-SQL::Abstract::ExtraClauses->apply_to($sqlac);
+my $sqlac = SQL::Abstract->new->plugin('+ExtraClauses');
 
 is_deeply(
   [ $sqlac->statement_list ],

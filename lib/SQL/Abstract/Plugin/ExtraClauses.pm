@@ -1,40 +1,8 @@
-package SQL::Abstract::ExtraClauses;
+package SQL::Abstract::Plugin::ExtraClauses;
 
 use Moo;
 
-has sqla => (
-  is => 'ro', init_arg => undef,
-  handles => [ qw(
-    expand_expr render_aqt join_query_parts
-  ) ],
-);
-
-sub cb {
-  my ($self, $method, @args) = @_;
-  return sub {
-    local $self->{sqla} = shift;
-    $self->$method(@args, @_)
-  };
-}
-
-sub register {
-  my ($self, @pairs) = @_;
-  my $sqla = $self->sqla;
-  while (my ($method, $cases) = splice(@pairs, 0, 2)) {
-    my @cases = @$cases;
-    while (my ($name, $case) = splice(@cases, 0, 2)) {
-      $sqla->$method($name, $self->cb($case));
-    }
-  }
-  return $self;
-}
-
-sub apply_to {
-  my ($self, $sqla) = @_;
-  $self = $self->new unless ref($self);
-  local $self->{sqla} = $sqla;
-  $self->register_extensions($sqla);
-}
+with 'SQL::Abstract::Role::Plugin';
 
 sub register_extensions {
   my ($self, $sqla) = @_;
