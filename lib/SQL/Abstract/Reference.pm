@@ -371,7 +371,7 @@ Directly appended to the key, remember you need to provide an operator:
 
   # expr
   { id => \[
-        "= seriously(?, ?, ?, ?, ?)",
+        "= seriously(?, ?, ?, ?)",
         "use",
         "-ident",
         "and",
@@ -381,11 +381,11 @@ Directly appended to the key, remember you need to provide an operator:
 
   # aqt
   { -literal =>
-      [ 'id = seriously(?, ?, ?, ?, ?)', 'use', -ident => 'and', '-func' ]
+      [ 'id = seriously(?, ?, ?, ?)', 'use', -ident => 'and', '-func' ]
   }
 
   # query
-  id = seriously(?, ?, ?, ?, ?)
+  id = seriously(?, ?, ?, ?)
   [ 'use', -ident => 'and', '-func' ]
 
 (you may absolutely use this when there's no built-in expression type for
