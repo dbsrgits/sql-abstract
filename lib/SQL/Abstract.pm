@@ -3458,10 +3458,16 @@ When supplied with a coderef, it is called as:
 
 =back
 
-=head1 NEW METHODS
+=head1 NEW METHODS (EXPERIMENTAL)
 
 See L<SQL::Abstract::Reference> for the C<expr> versus C<aqt> concept and
 an explanation of what the below extensions are extending.
+
+=head2 plugin
+
+  $sqla->plugin('+Foo');
+
+Enables plugin SQL::Abstract::Plugin::Foo.
 
 =head2 render_expr
 
