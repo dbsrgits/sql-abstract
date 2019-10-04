@@ -3,7 +3,6 @@
 use lib 'lib';
 use strictures 2;
 use SQL::Abstract;
-use SQL::Abstract::ExtraClauses;
 use Devel::DDCWarn;
 
 warn $ARGV[1]."\n";
@@ -11,9 +10,7 @@ warn $ARGV[1]."\n";
 my $sqlac = SQL::Abstract->new(
   unknown_unop_always_func => 1,
   lazy_join_sql_parts => 1,
-);
-
-SQL::Abstract::ExtraClauses->apply_to($sqlac);
+)->plugin('+ExtraClauses');
 
 my @args = ($ARGV[1] =~ /^\.\// ? do $ARGV[1] : eval '+('.$ARGV[1].')');
 
