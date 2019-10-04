@@ -334,6 +334,7 @@ sub plugin {
     require(join('/', split '::', $plugin).'.pm');
   }
   $plugin->apply_to($self, @args);
+  return $self;
 }
 
 BEGIN {
