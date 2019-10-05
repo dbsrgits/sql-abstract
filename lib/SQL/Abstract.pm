@@ -279,6 +279,20 @@ sub new {
         [ $_[0]->_order_by($_[2]) ];
       };
     }
+    if (__PACKAGE__->can('_select_fields') ne $class->can('_select_fields')) {
+      $opt{expand_clause}{'select.select'} = sub { $_[2] };
+      $opt{render_clause}{'select.select'} = sub {
+        my @super = $_[0]->_select_fields($_[2]);
+        my $effort = [
+          ref($super[0]) eq 'HASH'
+            ? $_[0]->render_expr($super[0])
+            : @super
+        ];
+        return $_[0]->join_query_parts(
+          ' ', { -keyword => 'select' }, $effort
+        );
+      };
+    }
     if ($class->isa('DBIx::Class::SQLMaker')) {
       $opt{warn_once_on_nest} = 1;
       $opt{disable_old_special_ops} = 1;
@@ -536,7 +550,8 @@ sub _returning {
   my ($sql, @bind) = @{ $self->render_aqt(
     $self->expand_expr({ -list => $f }, -ident)
   ) };
-  return ($self->_sqlcase(' returning ').$sql, @bind);
+  my $rsql = $self->_sqlcase(' returning ').$sql;
+  return wantarray ? ($rsql, @bind) : $rsql;
 }
 
 sub _expand_insert_value {
@@ -736,9 +751,10 @@ sub _expand_select_clause_order_by {
 sub _select_fields {
   my ($self, $fields) = @_;
   return $fields unless ref($fields);
-  return @{ $self->render_aqt(
+  my ($sql, @bind) = @{ $self->render_aqt(
     $self->expand_expr({ -list => $fields }, '-ident')
   ) };
+  return wantarray ? ($sql, @bind) : $sql;
 }
 
 #======================================================================
@@ -1242,6 +1258,9 @@ sub _expand_op {
   if (my $exp = $self->{expand_op}{$op}) {
     return $self->$exp($op, \@opargs);
   }
+  if (List::Util::first { $op =~ $_->{regex} } @{$self->{unary_ops}}) {
+    return { -op => [ $op, @opargs ] };
+  }
   +{ -op => [ $op, map $self->expand_expr($_), @opargs ] };
 }
 
@@ -1704,6 +1723,8 @@ sub _order_by {
   return '' unless length($sql);
 
   my $final_sql = $self->_sqlcase(' order by ').$sql;
+
+  return $final_sql unless wantarray;
 
   return ($final_sql, @bind);
 }
