@@ -344,7 +344,7 @@ sub make_binop_expander {
 sub plugin {
   my ($self, $plugin, @args) = @_;
   unless (ref $plugin) {
-    $plugin =~ s/\A\+/${\ref($self)}::Plugin::/;
+    $plugin =~ s/\A\+/${\__PACKAGE__}::Plugin::/;
     require(join('/', split '::', $plugin).'.pm');
   }
   $plugin->apply_to($self, @args);
