@@ -61,8 +61,6 @@ So, given appropriate DBIC setup:
 
   my $rs2 = $s->resultset('Foo')->search({
     -op => [ '=', { -ident => 'outer.y' }, { -ident => 'me.x' } ]
-  }, {
-    with_recursive => [ outer => $rs->get_column('x')->as_query ],
   });
   # (SELECT me.x, me.y, me.z FROM foo me WHERE ( outer.y = me.x ))
 
