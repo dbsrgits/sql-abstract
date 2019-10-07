@@ -363,8 +363,11 @@ BEGIN {
     my $name = join '_', reverse split '_', $type;
     my $singular = "${type}er";
 
-    eval qq{sub ${singular} { shift->${singular}s(\@_) }; 1 }
-      or die "Method builder failed for ${singular}: $@";
+    eval qq{sub ${singular} {
+      my \$self = shift;
+      return \$self->_ext_rw('${name}', \@_) if \@_ == 1;
+      return \$self->${singular}s(\@_)
+    }; 1 } or die "Method builder failed for ${singular}: $@";
     eval qq{sub wrap_${singular} {
       shift->wrap_${singular}s(\@_)
     }; 1 } or die "Method builder failed for wrap_${singular}: $@";
