@@ -45,7 +45,6 @@ sub register_extensions {
     renderer => [ as => '_render_as' ],
     expander => [ cast => '_expand_cast' ],
     clause_expanders => [
-      "select.from", '_expand_from_list',
       'select.group_by'
         => sub { $_[0]->expand_expr({ -list => $_[2] }, -ident) },
       'select.having'
@@ -62,6 +61,24 @@ sub register_extensions {
       },
     ],
   );
+
+  $sqla->expander(old_from => $sqla->clause_expander('select.from'));
+  $sqla->wrap_clause_expander('select.from', sub {
+    my ($orig) = @_;
+    sub {
+      my ($sqla, undef, $args) = @_;
+      if (ref($args) eq 'HASH') {
+        return $self->_expand_from_list(undef, $args);
+      }
+      if (
+        ref($args) eq 'ARRAY'
+        and grep { !ref($_) and $_ =~ /^-/ } @$args
+      ) {
+        return $self->_expand_from_list(undef, $args);
+      }
+      return $sqla->$orig(undef, $args);
+    }
+  });
 
   # set ops
   $sqla->wrap_expander(select => sub {
