@@ -28,8 +28,6 @@ $s->storage
 
 my $rs2 = $s->resultset('Foo')->search({
   -op => [ '=', { -ident => 'outer.y' }, { -ident => 'me.x' } ]
-}, {
-  with_recursive => [ outer => $rs->get_column('x')->as_query ],
 });
 
 warn ${$rs2->as_query}->[0]."\n";
