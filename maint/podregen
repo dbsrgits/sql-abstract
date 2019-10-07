@@ -6,13 +6,11 @@ use Data::Dumper::Compact;
 use Devel::DDCWarn;
 use SQL::Abstract::Formatter;
 use SQL::Abstract;
-use SQL::Abstract::ExtraClauses;
 
 my $ddc = Data::Dumper::Compact->new(max_width => 72);
 my $sqla = SQL::Abstract->new(
   lazy_join_sql_parts => 1,
-);
-SQL::Abstract::ExtraClauses->apply_to($sqla);
+)->plugin('+ExtraClauses');
 my $sqlaf = SQL::Abstract::Formatter->new(max_width => 72);
 
 while (1) {
