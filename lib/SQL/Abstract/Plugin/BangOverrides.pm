@@ -55,7 +55,7 @@ of '!name' is encountered, if its value is a coderef, it's called with the
 original value of the 'name' clause and expected to return a replacement, and
 if not, it's simply used as a direct replacement.
 
-So, given appropriate DBIC setup:
+So, given appropriate DBIC setup (see C<examples/bangdbic>):
 
   $s->storage->sqlmaker->plugin('+ExtraClauses')->plugin('+BangOverrides');
 
