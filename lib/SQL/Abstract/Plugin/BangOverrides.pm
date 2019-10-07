@@ -33,3 +33,56 @@ sub register_extensions {
 }
 
 1;
+
+__END__
+
+=head1 NAME
+
+SQL::Abstract::Plugin::BangOverrides
+
+=head2 SYNOPSIS
+
+  $sqla->plugin('+BangOverrides');
+  ...
+  profit();
+
+=head1 METHODS
+
+=head2 register_extensions
+
+Wraps all currently existing clause based statements such that when a clause
+of '!name' is encountered, if its value is a coderef, it's called with the
+original value of the 'name' clause and expected to return a replacement, and
+if not, it's simply used as a direct replacement.
+
+So, given appropriate DBIC setup:
+
+  $s->storage->sqlmaker->plugin('+ExtraClauses')->plugin('+BangOverrides');
+
+  my $rs2 = $s->resultset('Foo')->search({
+    -op => [ '=', { -ident => 'outer.y' }, { -ident => 'me.x' } ]
+  }, {
+    with_recursive => [ outer => $rs->get_column('x')->as_query ],
+  });
+  # (SELECT me.x, me.y, me.z FROM foo me WHERE ( outer.y = me.x ))
+
+  my $rs3 = $rs2->search({}, {
+    '!from' => sub { my ($sqla, $from) = @_;
+      my $base = $sqla->expand_expr({ -old_from => $from });
+      return [ $base, -join => [ 'wub', on => [ 'me.z' => 'wub.z' ] ] ];
+    }
+  });
+  # (SELECT me.x, me.y, me.z FROM foo me JOIN wub ON me.z = wub.z WHERE ( outer.y = me.x ))
+
+  my $rs4 = $rs3->search({}, {
+    '!with' => [ [ qw(wub x y z) ], $s->resultset('Bar')->as_query ],
+  });
+  # (WITH wub(x, y, z) AS (SELECT me.a, me.b, me.c FROM bar me) SELECT me.x, me.y, me.z FROM foo me JOIN wub ON me.z = wub.z WHERE ( outer.y = me.x ))
+
+  my $rs5 = $rs->search({}, { select => [ { -coalesce => [ { -ident => 'x' }, { -value => 7 } ] } ] });
+  # (SELECT -COALESCE( -IDENT( x ), -VALUE( 7 ) ) FROM foo me WHERE ( z = ? ))
+
+  my $rs6 = $rs->search({}, { '!select' => [ { -coalesce => [ { -ident => 'x' }, { -value => 7 } ] } ] });
+  # (SELECT COALESCE(x, ?) FROM foo me WHERE ( z = ? ))
+
+=cut
