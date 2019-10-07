@@ -55,7 +55,13 @@ of '!name' is encountered, if its value is a coderef, it's called with the
 original value of the 'name' clause and expected to return a replacement, and
 if not, it's simply used as a direct replacement.
 
-So, given appropriate DBIC setup (see C<examples/bangdbic>):
+This allows for passing data through existing systems that attempt to have
+their own handling for thing but whose capabilities are now superceded by
+L<SQL::Abstract>, and is primarily useful to provide access to experimental
+feature bundles such as L<SQL::Abstract::Plugin::ExtraClauses>.
+
+As an example of such a thing, given an appropriate DBIC setup
+(see C<examples/bangdbic>):
 
   $s->storage->sqlmaker->plugin('+ExtraClauses')->plugin('+BangOverrides');
 
