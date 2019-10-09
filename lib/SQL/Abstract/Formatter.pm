@@ -30,8 +30,8 @@ sub _fold_sql {
   my @res;
   my $w = $self->max_width;
   my $join_len = 0;
-  (s/, \Z/,\n/ and $join_len = 1)
-    or s/\A /\n/
+  (s/, \z/,\n/ and $join_len = 1)
+    or s/\a /\n/
     or $_ = "\n"
       for my $line_join = $join;
   my ($nl_pre, $nl_post) = split "\n", $line_join;
@@ -55,7 +55,7 @@ sub _fold_sql {
       push @res, $line.($already ? $join : '').'('."\n";
       my (undef, undef, $inner) = @$p;
       my $folded = $self->_fold_sql($innerdent, $innerdent, @$inner);
-      $folded =~ s/\n\Z//;
+      $folded =~ s/\n\z//;
       push @res, $folded."\n";
       $line_orig = $line
          = $indent0.')'.($idx == $#parts ? '' : $join);
@@ -68,7 +68,7 @@ sub _fold_sql {
       next PART;
     }
     my $folded = $self->_fold_sql($line_proto, $innerdent, @$p);
-    $folded =~ s/\n\Z//;
+    $folded =~ s/\n\z//;
     push @res, $folded.($idx == $#parts ? '' : $nl_pre)."\n";
     $line_orig = $line = $idx == $#parts ? '' : $line_proto;
   } continue {
