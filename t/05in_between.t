@@ -406,7 +406,7 @@ for my $case (@in_between_tests) {
         warnings_are {
           ($stmt, @bind) = $sql->where($case->{where});
         } [], "$label gives no warnings";
-  
+
         is_same_sql_bind(
           $stmt,
           \@bind,

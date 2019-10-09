@@ -77,4 +77,4 @@ sub _fold_sql {
   return join '', @res, $line;
 }
 
-1;  
+1;
