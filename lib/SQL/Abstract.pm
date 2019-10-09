@@ -1284,7 +1284,7 @@ sub _expand_bool {
 sub _expand_list {
   my ($self, undef, $expr) = @_;
   return { -op => [
-    ',', map $self->expand_expr($_), 
+    ',', map $self->expand_expr($_),
           @{$expr->{-op}}[1..$#{$expr->{-op}}]
   ] } if ref($expr) eq 'HASH' and ($expr->{-op}||[''])->[0] eq ',';
   return +{ -op => [ ',',

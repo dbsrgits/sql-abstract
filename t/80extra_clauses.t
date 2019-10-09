@@ -271,7 +271,7 @@ is_same_sql(
 
 
 ($sql, @bind) = $sqlac->insert({
-  with => [ 
+  with => [
     faculty => {
       -select => {
         _ => [qw /p.person p.email/],
@@ -288,7 +288,7 @@ is_same_sql(
         into => 'license',
         fields => [ qw(kind expires_on valid_from) ],
         select => {
-          select => [\(qw('grandfather' '2017-06-30' '2016-07-01'))], 
+          select => [\(qw('grandfather' '2017-06-30' '2016-07-01'))],
           from => 'faculty',
         },
         returning => 'license_id',
@@ -328,7 +328,7 @@ is_same_sql_bind(
 
 
 ($sql, @bind) = $sqlac->delete({
-  with => [ 
+  with => [
     instructors => {
       -select => {
         _ => [qw/p.person_id email default_license_id/],
@@ -338,12 +338,12 @@ is_same_sql_bind(
             to => 'license_person',
             as => 'lp',
             on => { 'lp.person_id' => 'p.person_id' },
-          },  
+          },
           -join => {
             to => 'license',
             as => 'l',
             on => { 'l.license_id' => 'lp.license_id' },
-          },  
+          },
         ],
         where => {
           'p.person_type' => 'faculty',
@@ -363,15 +363,15 @@ is_same_sql_bind(
             to => 'license_person',
             as => 'lp',
             on => { 'lp.person_id' => 'i.person_id' },
-          },  
+          },
           -join => {
             to => 'license',
             as => 'l',
             on => { 'l.license_id' => 'lp.license_id' },
-          },  
+          },
         ],
         where => {
-          'lp.license_id' => { 
+          'lp.license_id' => {
             '<>' => {-ident => 'i.default_license_id'}
           },
           'l.kind' => 'pending',
@@ -381,10 +381,10 @@ is_same_sql_bind(
   ],
   from => 'license_person',
   where => {
-    ctid => { -in => 
+    ctid => { -in =>
       {
         -select => {
-          _ => ['ctid'], 
+          _ => ['ctid'],
           from => 'deletable_licenses',
         }
       }
@@ -400,8 +400,8 @@ is_same_sql_bind(
       from person as p
       join license_person as lp on lp.person_id = p.person_id
       join license as l on l.license_id = lp.license_id
-      where l.kind = ? 
-      AND p.person_status != ? 
+      where l.kind = ?
+      AND p.person_status != ?
       AND p.person_type = ?
       group by p.person_id
       having COUNT(l.license_id) > ?),
@@ -413,7 +413,7 @@ is_same_sql_bind(
       where l.kind = ?
       and lp.license_id <> i.default_license_id
     )
-    delete from license_person 
+    delete from license_person
     where ctid IN (
       (select ctid from deletable_licenses)
     )
@@ -428,7 +428,7 @@ is_same_sql_bind(
   set => {
     license_id => { -ident => 'info.default_license_id' },
   },
-  from => [ 
+  from => [
     -select => {
       select => [qw( s.survey_id p.default_license_id p.person_id)],
       from => [
@@ -437,12 +437,12 @@ is_same_sql_bind(
           to => 'class',
           as => 'c',
           on => { 'c.faculty_id' => 'p.person_id' },
-        }, 
+        },
         -join => {
           to => 'survey',
           as => 's',
           on => { 's.class_id' => 'c.class_id' },
-        }, 
+        },
       ],
       where => { 'p.institution_id' => { -value => 15031 } },
     },
