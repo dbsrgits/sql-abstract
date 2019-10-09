@@ -61,7 +61,7 @@ L<SQL::Abstract>, and is primarily useful to provide access to experimental
 feature bundles such as L<SQL::Abstract::Plugin::ExtraClauses>.
 
 As an example of such a thing, given an appropriate DBIC setup
-(see C<examples/bangdbic>):
+(see C<examples/bangdbic.pl>):
 
   $s->storage->sqlmaker->plugin('+ExtraClauses')->plugin('+BangOverrides');
 
