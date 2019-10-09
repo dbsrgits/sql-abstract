@@ -1,5 +1,8 @@
 Revision history for SQL::Abstract
 
+    - Complete overhaul of the internals, see the SQL::Abstract::Reference
+      docs to understand the new implementation's affordances.
+
 1.86 - 2018-07-09
     - Remove obsolete documentation about arrayrefref as the $source
       argument for ->select (removed in version 1.74)
