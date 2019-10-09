@@ -1,5 +1,8 @@
 Revision history for SQL::Abstract
 
+    - Complete overhaul of the internals, see the SQL::Abstract::Reference
+      docs to understand the new implementation's affordances.
+
 1.87 - 2020-06-02
     - Add runtime dependency on Test::Deep and Test::Builder::Module for
       SQL::Abstract::Test (RT#131623)
