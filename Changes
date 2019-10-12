@@ -1,5 +1,7 @@
 Revision history for SQL::Abstract
 
+    - fix DBIC ident op expander compat wrapper to handle call as unop
+
 1.90_01 - 2019-10-09
     - Complete overhaul of the internals, see the SQL::Abstract::Reference
       docs to understand the new implementation's affordances.

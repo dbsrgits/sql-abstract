@@ -301,11 +301,11 @@ sub new {
         s/\A\s+//, s/\s+\Z// for $sql;
         return [ $sql, @bind ];
       };
-      $opt{expand_op}{ident} = sub {
+      $opt{expand_op}{ident} = __PACKAGE__->make_unop_expander(sub {
         my ($self, undef, $body) = @_;
         $body = $body->from if Scalar::Util::blessed($body);
         $self->_expand_ident(ident => $body);
-      };
+      });
     }
   }
 
