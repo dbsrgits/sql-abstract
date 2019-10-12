@@ -320,6 +320,31 @@ sub new {
         $self->_expand_ident(ident => $body);
       });
     }
+    if ($class->isa('SQL::Abstract::More')) {
+      $opt{expand_op}{or} = sub {
+        my ($self, $logop, $v, $k) = @_;
+        if ($k and ref($v) eq 'ARRAY') {
+          my ($type, $val) = @$v;
+          my $op = $self->{cmp};
+          if (
+            ref($type) eq 'HASH' and ref($val) eq 'HASH'
+            and keys %$type == 1 and keys %$val == 1
+            and (keys %$type)[0] eq (keys %$val)[0]
+          ) {
+            ($op) = keys %$type;
+            ($type) = values %$type;
+            ($val) = values %$val;
+          }
+          if ($self->is_bind_value_with_type(my $v = [ $type, $val ])) {
+            return $self->_expand_hashpair($k, { $op, { -bind => $v } });
+          }
+        }
+        return $self->_expand_op_andor($logop, $v, $k);
+      };
+      $opt{render}{bind} = sub {
+        return [ '?', map +(ref($_->[0]) ? $_ : $_->[1]), $_[2] ]
+      };
+    }
   }
 
   if ($opt{lazy_join_sql_parts}) {
