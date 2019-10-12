@@ -944,7 +944,7 @@ sub _expand_expr {
   if (ref($expr) eq 'HASH') {
     return undef unless my $kc = keys %$expr;
     if ($kc > 1) {
-      return $self->_expand_op_andor(and => $expr);
+      return $self->_expand_logop(and => $expr);
     }
     my ($key, $value) = %$expr;
     if ($key =~ /^-/ and $key =~ s/ [_\s]? \d+ $//x ) {
@@ -954,7 +954,7 @@ sub _expand_expr {
     return $self->_expand_hashpair($key, $value);
   }
   if (ref($expr) eq 'ARRAY') {
-    return $self->_expand_op_andor(lc($self->{logic}), $expr);
+    return $self->_expand_logop(lc($self->{logic}), $expr);
   }
   if (my $literal = is_literal_value($expr)) {
     return +{ -literal => $literal };
@@ -993,7 +993,7 @@ sub _expand_hashpair_ident {
   # hash with multiple or no elements is andor
 
   if (ref($v) eq 'HASH' and keys %$v != 1) {
-    return $self->_expand_op_andor(and => $v, $k);
+    return $self->_expand_logop(and => $v, $k);
   }
 
   # undef needs to be re-sent with cmp to achieve IS/IS NOT NULL
@@ -1024,7 +1024,7 @@ sub _expand_hashpair_ident {
         ? (shift(@{$v = [ @$v ]}), $1)
         : lc($self->{logic} || 'OR')
     );
-    return $self->_expand_op_andor(
+    return $self->_expand_logop(
       $logic => $v, $k
     );
   }
@@ -1201,7 +1201,7 @@ sub _expand_hashtriple {
         "operator '%s' applied on an empty array (field '$k')"
       ) ? $self->sqlfalse : $self->sqltrue);
     }
-    return $self->_expand_op_andor($logic => \@values, $k);
+    return $self->_expand_logop($logic => \@values, $k);
   }
   if (is_undef_value($vv)) {
     my $is = ($self->_dwim_op_to_is($op,
@@ -1304,6 +1304,11 @@ sub _expand_list {
     map $self->expand_expr($_),
       ref($expr) eq 'ARRAY' ? @$expr : $expr
   ] };
+}
+
+sub _expand_logop {
+  my ($self, $logop, $v, $k) = @_;
+  $self->${\$self->{expand_op}{$logop}}($logop, $v, $k);
 }
 
 sub _expand_op_andor {
