@@ -293,6 +293,19 @@ sub new {
         );
       };
     }
+    foreach my $type (qw(in between)) {
+      my $meth = "_where_field_".uc($type);
+      if (__PACKAGE__->can($meth) ne $class->can($meth)) {
+        my $exp = sub {
+          my ($self, $op, $v, $k) = @_;
+          $op = join ' ', split '_', $op;
+          return +{ -literal => [
+            $self->$meth($k, $op, $v)
+          ] };
+        };
+        $opt{expand_op}{$_} = $exp for $type, "not_${type}";
+      }
+    }
     if ($class->isa('DBIx::Class::SQLMaker')) {
       $opt{warn_once_on_nest} = 1;
       $opt{disable_old_special_ops} = 1;
@@ -301,7 +314,7 @@ sub new {
         s/\A\s+//, s/\s+\Z// for $sql;
         return [ $sql, @bind ];
       };
-      $opt{expand_op}{ident} = __PACKAGE__->make_unop_expander(sub {
+      $opt{expand_op}{ident} = $class->make_unop_expander(sub {
         my ($self, undef, $body) = @_;
         $body = $body->from if Scalar::Util::blessed($body);
         $self->_expand_ident(ident => $body);
@@ -1681,6 +1694,25 @@ sub _open_outer_paren {
   $sql;
 }
 
+sub _where_field_IN {
+  my ($self, $k, $op, $vals) = @_;
+  @{$self->_render_op_in(
+    $op,
+    [
+      $self->expand_expr($k, -ident),
+      map $self->expand_expr($_, -value),
+        ref($vals) eq 'ARRAY' ? @$vals : $vals
+    ]
+  )};
+}
+
+sub _where_field_BETWEEN {
+  my ($self, $k, $op, $vals) = @_;
+  @{$self->_render_op_between(
+    $op,
+    [ $self->expand_expr($k, -ident), ref($vals) eq 'ARRAY' ? @$vals : $vals ]
+  )};
+}
 
 #======================================================================
 # ORDER BY
