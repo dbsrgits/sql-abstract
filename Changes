@@ -1,5 +1,7 @@
 Revision history for SQL::Abstract
 
+   - _where_field_IN/BETWEEN are documented as subclassable; feature restored
+
 1.90_02 - 2019-10-12
     - fix DBIC ident op expander compat wrapper to handle call as unop
 
