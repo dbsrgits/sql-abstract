@@ -963,7 +963,7 @@ sub _expand_hashpair {
   }
   if ($k =~ /^-./) {
     return $self->_expand_hashpair_op($k, $v);
-  } elsif ($k =~ /^[^\w]/i) {
+  } elsif ($k =~ /^\W+$/) {
     my ($lhs, @rhs) = ref($v) eq 'ARRAY' ? @$v : $v;
     return $self->_expand_op(
       -op, [ $k, $self->expand_expr($lhs, -ident), @rhs ]
