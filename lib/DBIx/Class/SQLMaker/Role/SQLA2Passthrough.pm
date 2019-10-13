@@ -69,6 +69,22 @@ sub expand_join_condition {
 
 __END__
 
+=head1 NAME
+
+DBIx::Class::SQLMaker::Role::SQLA2Passthrough - A test of future possibilities
+
+=head1 SYNOPSIS
+
+=over 4
+
+=item * select and group_by options are processed using the richer SQLA2 code
+
+=item * expand_join_condition is provided to more easily express rich joins
+
+=back
+
+See C<examples/sqla2passthrough.pl> for a small amount of running code.
+
 =head1 SETUP
 
   (on_connect_call => sub {
@@ -121,3 +137,5 @@ becomes
           'foreign.priority' => { '>=', { -value => $_{min_priority} } } }
       }]
   );
+
+=cut
