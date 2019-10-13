@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use Exporter 'import';
 
-our @EXPORT = qw('on');
+our @EXPORT = qw(on);
 
 sub on (&) {
   my ($on) = @_;
@@ -31,7 +31,7 @@ around select => sub {
               my %f = %$_;
               my $as = delete $f{-as};
               my ($f, $rhs) = %f;
-              my $func = +{ "-${f}" => $rhs };
+              my $func = +{ ($f =~ /^-/ ? $f : "-${f}") => $rhs };
               ($as
                 ? +{ -op => [ 'as', $func, { -ident => [ $as ] } ] }
                 : $func)
@@ -46,7 +46,7 @@ around select => sub {
     };
   }
   $self->$orig($table, $fields, $where, $rs_attrs, $limit, $offset);
-});
+};
 
 sub expand_join_condition {
   my ($self, $cond, $args) = @_;
