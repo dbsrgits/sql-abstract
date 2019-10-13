@@ -1284,8 +1284,11 @@ sub _expand_ident {
   unless (defined($body) or (ref($body) and ref($body) eq 'ARRAY')) {
     puke "-ident requires a single plain scalar argument (a quotable identifier) or an arrayref of identifier parts";
   }
-  my @parts = map split(/\Q${\($self->{name_sep}||'.')}\E/, $_),
-                ref($body) ? @$body : $body;
+  my ($sep) = map +(defined() ? $_ : '.') , $self->{name_sep};
+  my @parts = map +($sep
+                     ? map split(/\Q${sep}\E/, $_), @$_
+                     : @$_
+                   ), ref($body) ? $body : [ $body ];
   return { -ident => $parts[-1] } if $self->{_dequalify_idents};
   unless ($self->{quote_char}) {
     $self->_assert_pass_injection_guard($_) for @parts;
