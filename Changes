@@ -1,5 +1,6 @@
 Revision history for SQL::Abstract
 
+   - Add proof of concept DBIx::Class::SQLMaker::Role::SQLA2Passthrough
    - _where_field_IN/BETWEEN are documented as subclassable; feature restored
 
 1.90_02 - 2019-10-12
