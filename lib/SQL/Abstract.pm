@@ -888,7 +888,7 @@ sub render_aqt {
   die "Not a node type: $k" unless $k =~ s/^-//;
   if (my $meth = $self->{render}{$k}) {
     local our $Render_Top_Level = $top_level;
-    return $self->$meth($k, $v);
+    return $self->$meth($k, $v)||[];
   }
   die "notreached: $k";
 }
