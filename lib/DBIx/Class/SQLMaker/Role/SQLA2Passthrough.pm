@@ -1,5 +1,24 @@
 package DBIx::Class::SQLMaker::Role::SQLA2Passthrough;
 
+use strict;
+use warnings;
+use Exporter 'import';
+
+our @EXPORT = qw('on');
+
+sub on (&) {
+  my ($on) = @_;
+  sub {
+    my ($args) = @_;
+    $args->{self_resultsource}
+         ->schema->storage->sql_maker
+         ->expand_join_condition(
+             $on->($args),
+             $args
+           );
+  }
+}
+
 use Role::Tiny;
 
 around select => sub {
@@ -29,4 +48,76 @@ around select => sub {
   $self->$orig($table, $fields, $where, $rs_attrs, $limit, $offset);
 });
 
+sub expand_join_condition {
+  my ($self, $cond, $args) = @_;
+  my $wrap = sub {
+    my ($orig) = @_;
+    sub {
+      my $res = $orig->(@_);
+      my ($name, @rest) = @{$res->{-ident}};
+      if ($name eq 'self' or $name eq 'foreign') {
+        $res->{-ident} = [ $args->{"${name}_alias"}, @rest ];
+      }
+      return $res;
+    };
+  };
+  my $sqla = $self->clone->wrap_op_expander(ident => $wrap);
+  $sqla->expand_expr($cond, -ident);
+}
+
 1;
+
+__END__
+
+=head1 SETUP
+
+  (on_connect_call => sub {
+     my ($storage) = @_;
+     $storage->sql_maker
+             ->with::roles('DBIx::Class::SQLMaker::Role::SQLA2Passthrough');
+  })
+
+=head2 expand_join_condition
+
+  __PACKAGE__->has_many(minions => 'Blah::Person' => sub {
+    my ($args) = @_;
+    $args->{self_resultsource}
+         ->schema->storage->sql_maker
+         ->expand_join_condition(
+             $args
+           );
+  });
+
+=head2 on
+
+  __PACKAGE__->has_many(minions => 'Blah::Person' => on {
+    { 'self.group_id' => 'foreign.group_id',
+      'self.rank' => { '>', 'foreign.rank' } }
+  });
+
+Or with ParameterizedJoinHack,
+
+  __PACKAGE__->parameterized_has_many(
+      priority_tasks => 'MySchema::Result::Task',
+      [['min_priority'] => sub {
+          my $args = shift;
+          return +{
+              "$args->{foreign_alias}.owner_id" => {
+                  -ident => "$args->{self_alias}.id",
+              },
+              "$args->{foreign_alias}.priority" => {
+                  '>=' => $_{min_priority},
+              },
+          };
+      }],
+  );
+
+becomes
+
+  __PACKAGE__->parameterized_has_many(
+      priority_tasks => 'MySchema::Result::Task',
+      [['min_priority'] => on {
+        { 'foreign.owner_id' => 'self.id',
+          'foreign.priority' => { '>=', { -value => $_{min_priority} } } }
+      }]
+  );
