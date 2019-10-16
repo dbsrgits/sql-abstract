@@ -21,7 +21,8 @@ use With::Roles;
   use DBIx::Class::SQLMaker::Role::SQLA2Passthrough qw(on);
   MySchema->source('Foo')->add_relationship(bars => 'Bar' => on {
     +{ 'foreign.x' => 'self.x',
-       'self.y' => { -between => [ qw(foreign.y1 foreign.y2) ] }
+       'foreign.y1' => { '<=', 'self.y' },
+       'foreign.y2' => { '>=', 'self.y' },
     };
   });
 }
@@ -44,7 +45,7 @@ $s->storage
 warn ref($s->storage->sql_maker);
 
 my $rs2 = $s->resultset('Foo')->search({
-  -op => [ '=', { -ident => 'outer.y' }, { -ident => 'me.x' } ]
+  -op => [ '=', { -ident => 'outer.x' }, { -ident => 'me.y' } ]
 }, {
   'select' => [ 'me.x', { -ident => 'me.z' } ],
   '!with' => [ outer => $rs->get_column('x')->as_query ],
@@ -56,3 +57,11 @@ my $rs3 = $s->resultset('Foo')
             ->search({}, { prefetch => 'bars' });
 
 ::Dwarn(${$rs3->as_query}->[0]);
+
+$s->source('Foo')->result_class('DBIx::Class::Core');
+$s->source('Foo')->set_primary_key('x');
+
+my $rs4 = $s->resultset('Foo')->new_result({ x => 1, y => 2 })
+            ->search_related('bars');
+
+::Dwarn(${$rs4->as_query}->[0]);

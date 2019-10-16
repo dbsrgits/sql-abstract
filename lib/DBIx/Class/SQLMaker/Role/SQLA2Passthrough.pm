@@ -50,19 +50,64 @@ around select => sub {
 
 sub expand_join_condition {
   my ($self, $cond, $args) = @_;
+  my ($type, %known) = do {
+    if (my $obj = $args->{self_result_object}) {
+      (self => $obj->get_columns)
+    } elsif (my $val = $args->{foreign_values}) {
+      (foreign => %$val)
+    } else {
+      ('')
+    }
+  };
+  my $maybe = $type ? 1 : 0;
+  my $outside;
   my $wrap = sub {
     my ($orig) = @_;
+    $outside = $orig;
     sub {
       my $res = $orig->(@_);
-      my ($name, @rest) = @{$res->{-ident}};
+      my ($name, $col) = @{$res->{-ident}};
       if ($name eq 'self' or $name eq 'foreign') {
-        $res->{-ident} = [ $args->{"${name}_alias"}, @rest ];
+        if ($type eq $name) {
+          $maybe = 0 unless exists $known{$col};
+        }
+        return { -ident => [ $args->{"${name}_alias"}, $col ] };
       }
       return $res;
     };
   };
   my $sqla = $self->clone->wrap_op_expander(ident => $wrap);
-  $sqla->expand_expr($cond, -ident);
+  my $aqt = $sqla->expand_expr($cond, -ident);
+  return $aqt unless $maybe;
+  my $inner_wrap = sub {
+    my $res = $outside->(@_);
+    my ($name, $col) = @{$res->{-ident}};
+    if ($name eq 'self' or $name eq 'foreign') {
+      if ($type eq $name) {
+        return { -bind => [ $args->{"${name}_alias"}.'.'.$col, $known{$col} ] };
+      }
+      return { -ident => [ $args->{"${name}_alias"}, $col ] };
+    }
+    return $res;
+  };
+  $sqla->op_expander(ident => $inner_wrap);
+  my $inner_aqt = $self->_collapsify($sqla->expand_expr($cond, -ident));
+  return ($aqt, $inner_aqt);
+}
+
+sub _collapsify {
+  my ($self, $aqt) = @_;
+  return $aqt unless my @opargs = @{$aqt->{-op}};
+  my ($logop, @args) = @opargs;
+  return $aqt unless $logop eq 'and';
+  my %collapsed = map {
+    my $q = $_;
+    return $aqt unless my @opargs = @{$q->{-op}};
+    my ($op, $lhs, @rest) = @opargs;
+    return $aqt unless my @ident = @{$lhs->{-ident}};
+    (join('.', @ident), { $op => \@rest });
+  } @args;
+  return \%collapsed;
 }
 
 1;
