@@ -183,4 +183,27 @@ becomes
       }]
   );
 
+Note that foreign/self can appear in such a condition on either side, BUT
+if you want L<DBIx::Class> to be able to use a join-less version you must
+ensure that the LHS is all foreign columns, i.e.
+
+  on {
+    +{
+      'foreign.x' => 'self.x',
+      'self.y' => { -between => [ 'foreign.y1', 'foreign.y2' ] }
+    }
+  }
+
+is completely valid but DBIC will insist on doing a JOIN even if you
+have a fully populated row object to call C<search_related> on - to avoid
+the spurious JOIN, you must specify it with explicit LHS foreign cols as:
+
+  on {
+    +{
+      'foreign.x' => 'self.x',
+      'foreign.y1' => { '<=', 'self.y' },
+      'foreign.y2' => { '>=', 'self.y' },
+    }
+  }
+
 =cut
