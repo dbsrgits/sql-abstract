@@ -886,7 +886,7 @@ for my $t (@tests) {
     }
     else {
       lives_ok(sub {
-        alarm(1); local $SIG{ALRM} = sub {
+        alarm(5); local $SIG{ALRM} = sub {
           no warnings 'redefine';
           my $orig = Carp->can('caller_info');
           local *Carp::caller_info = sub { return if $_[0] > 20; &$orig };
