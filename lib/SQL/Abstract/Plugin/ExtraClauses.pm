@@ -123,7 +123,7 @@ sub _expand_select {
   return $exp unless my $setop = (my $sel = $exp->{-select})->{setop};
   if (my @keys = grep $sel->{$_}, @$before_setop) {
     my %inner; @inner{@keys} = delete @{$sel}{@keys};
-    unshift @{(values(%$setop))[0]{queries}},
+    unshift @{(values(%$setop))[0]->{queries}},
       { -select => \%inner };
   }
   return $exp;

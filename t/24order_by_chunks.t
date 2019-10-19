@@ -2,11 +2,10 @@ use strict;
 use warnings;
 use Test::More;
 use Test::Exception;
-use Data::Dumper::Concise;
 
 use SQL::Abstract;
 
-use SQL::Abstract::Test import => ['is_same_sql_bind'];
+use SQL::Abstract::Test import => [qw( is_same_sql_bind dumper )];
 my @cases = (
   [
     undef,
@@ -1963,8 +1962,8 @@ for my $case (@cases) {
 
   my @chunks = $sqla->_order_by_chunks($expr);
 
-  unless (is(Dumper(\@chunks), Dumper($out))) {
-    diag("Above failure from expr: ".Dumper($expr));
+  unless (is(dumper(\@chunks), dumper($out))) {
+    diag("Above failure from expr: ".dumper($expr));
   }
 }
 
