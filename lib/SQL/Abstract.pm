@@ -1049,7 +1049,7 @@ sub _expand_hashpair_ident {
     return $self->sqlfalse unless @$v;
     $self->_debug("ARRAY($k) means distribute over elements");
     my $logic = lc(
-      $v->[0] =~ /^-(and|or)$/i
+      ($v->[0]||'') =~ /^-(and|or)$/i
         ? (shift(@{$v = [ @$v ]}), $1)
         : lc($self->{logic} || 'OR')
     );
