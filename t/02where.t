@@ -123,6 +123,14 @@ my @handle_tests = (
 
     {
         where => {
+            requestor => [undef, ''],
+        },
+        stmt => " WHERE ( requestor IS NULL OR requestor = ? )",
+        bind => [''],
+    },
+
+    {
+        where => {
             priority  => [ {'>', 3}, {'<', 1} ],
             requestor => { '!=', undef },
         },
@@ -419,7 +427,7 @@ for my $case (@handle_tests) {
     my $sql = SQL::Abstract->new;
     my ($stmt, @bind);
     lives_ok {
-      warnings_exist {
+      warnings_like {
         ($stmt, @bind) = $sql->where($case->{where}, $case->{order});
       } $case->{warns} || [];
     };
