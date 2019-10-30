@@ -27,7 +27,25 @@ use With::Roles;
   });
 }
 
-my $s = MySchema->connect('dbi:SQLite:dbname=:memory:');
+{
+  package DBIx::Class::SQLMakerNG;
+
+  use strict;
+  use warnings;
+
+  require DBIx::Class::SQLMaker::ClassicExtensions;
+  require SQL::Abstract;
+  require SQL::Abstract::Classic;
+
+  our @ISA = qw(
+    DBIx::Class::SQLMaker::ClassicExtensions
+    SQL::Abstract
+    SQL::Abstract::Classic
+  );
+}
+
+my $s = MySchema->connect('dbi:SQLite:dbname=:memory:', undef, undef, { on_connect_call => [ [ rebase_sqlmaker => 'DBIx::Class::SQLMakerNG' ] ] } );
+
 ::Dwarn([ $s->source('Foo')->columns ]);
 
 my $rs = $s->resultset('Foo')->search({ z => 1 });
@@ -42,7 +60,14 @@ $s->storage
   ->plugin('+ExtraClauses')
   ->plugin('+BangOverrides');
 
-warn ref($s->storage->sql_maker);
+# ideally his should not be needed: both plugin() and with::roles() ought
+# to preserve the original mro::get_mro value, but fixup here for now
+mro::set_mro( ref( $s->storage->sql_maker ), 'c3' );
+
+::Dwarn {
+  actual_working_composite_mro => mro::get_linear_isa( ref($s->storage->sql_maker) ),
+  unadjusted_default_composite_mro => mro::get_linear_isa( ref($s->storage->sql_maker), 'dfs' ),
+};
 
 my $rs2 = $s->resultset('Foo')->search({
   -op => [ '=', { -ident => 'outer.x' }, { -ident => 'me.y' } ]
