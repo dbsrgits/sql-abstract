@@ -17,11 +17,11 @@ my %META = (
     },
     test => {
       requires => {
-        "Test::More"      => '0.88',
-        "Test::Exception" => '0.31',
-        "Test::Warn"      => '0',
-        "Test::Deep"      => '0.101',
-        "Storable"        => '0', # for cloning in tests
+        'Test::More'      => '0.88',
+        'Test::Exception' => '0.31',
+        'Test::Warn'      => '0',
+        'Test::Deep'      => '0.101',
+        'Storable'        => '0', # for cloning in tests
       },
     },
     runtime => {
