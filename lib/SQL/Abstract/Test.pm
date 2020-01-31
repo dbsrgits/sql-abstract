@@ -2,7 +2,7 @@ package SQL::Abstract::Test; # see doc at end of file
 
 use strict;
 use warnings;
-use base qw(Test::Builder::Module Exporter);
+use base qw(Test::Builder::Module);
 use Test::Builder;
 use Test::Deep ();
 use SQL::Abstract::Tree;
