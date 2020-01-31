@@ -20,7 +20,6 @@ my %META = (
         'Test::More'      => '0.88',
         'Test::Exception' => '0.31',
         'Test::Warn'      => '0',
-        'Test::Deep'      => '0.101',
         'Storable'        => '0', # for cloning in tests
       },
     },
@@ -35,6 +34,9 @@ my %META = (
         'Hash::Merge'    => '0.12',
         'Text::Balanced' => '2.00',
         'perl'           => '5.006',
+        # Used by SQL::Abstract::Test
+        'Test::Deep'            => '0.101',
+        'Test::Builder::Module' => '0.84',
       },
     },
     develop   => {

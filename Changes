@@ -1,5 +1,8 @@
 Revision history for SQL::Abstract
 
+    - Add runtime dependency on Test::Deep and Test::Builder::Module for
+      SQL::Abstract::Test (RT#131623)
+
 1.86 - 2018-07-09
     - Remove obsolete documentation about arrayrefref as the $source
       argument for ->select (removed in version 1.74)
