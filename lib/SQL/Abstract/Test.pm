@@ -20,7 +20,7 @@ our $parenthesis_significant = 0;
 our $order_by_asc_significant = 0;
 
 our $sql_differ; # keeps track of differing portion between SQLs
-our $tb = __PACKAGE__->builder;
+our $tb; # not documented, but someone might be overriding it anyway
 
 sub _unpack_arrayrefref {
 
@@ -52,6 +52,7 @@ sub is_same_sql_bind {
   my $same_bind = eq_bind($bind_ref1, $bind_ref2);
 
   # call Test::Builder::ok
+  my $tb = $tb || __PACKAGE__->builder;
   my $ret = $tb->ok($same_sql && $same_bind, $msg);
 
   # add debugging info
@@ -73,6 +74,7 @@ sub is_same_sql {
   my $same_sql = eq_sql($sql1, $sql2);
 
   # call Test::Builder::ok
+  my $tb = $tb || __PACKAGE__->builder;
   my $ret = $tb->ok($same_sql, $msg);
 
   # add debugging info
@@ -91,6 +93,7 @@ sub is_same_bind {
   my $same_bind = eq_bind($bind_ref1, $bind_ref2);
 
   # call Test::Builder::ok
+  my $tb = $tb || __PACKAGE__->builder;
   my $ret = $tb->ok($same_bind, $msg);
 
   # add debugging info
@@ -112,6 +115,7 @@ sub dumper {
 }
 
 sub diag_where{
+  my $tb = $tb || __PACKAGE__->builder;
   $tb->diag("Search term:\n" . &dumper);
 }
 
@@ -119,6 +123,7 @@ sub _sql_differ_diag {
   my $sql1 = shift || '';
   my $sql2 = shift || '';
 
+  my $tb = $tb || __PACKAGE__->builder;
   $tb->${\($tb->in_todo ? 'note' : 'diag')} (
        "SQL expressions differ\n"
       ." got: $sql1\n"
@@ -130,6 +135,7 @@ sub _sql_differ_diag {
 sub _bind_differ_diag {
   my ($bind_ref1, $bind_ref2) = @_;
 
+  my $tb = __PACKAGE__->builder;
   $tb->${\($tb->in_todo ? 'note' : 'diag')} (
     "BIND values differ " . dumper({ got => $bind_ref1, want => $bind_ref2 })
   );
