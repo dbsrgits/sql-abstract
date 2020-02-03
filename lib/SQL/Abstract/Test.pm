@@ -135,7 +135,7 @@ sub _sql_differ_diag {
 sub _bind_differ_diag {
   my ($bind_ref1, $bind_ref2) = @_;
 
-  my $tb = __PACKAGE__->builder;
+  my $tb = $tb || __PACKAGE__->builder;
   $tb->${\($tb->in_todo ? 'note' : 'diag')} (
     "BIND values differ " . dumper({ got => $bind_ref1, want => $bind_ref2 })
   );
