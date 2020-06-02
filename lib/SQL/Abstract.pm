@@ -330,10 +330,7 @@ sub _insert_value {
       push @all_bind, @bind;
     },
 
-    # THINK: anything useful to do with a HASHREF ?
-    HASHREF => sub {       # (nothing, but old SQLA passed it through)
-      #TODO in SQLA >= 2.0 it will die instead
-      belch "HASH ref as bind value in insert is not supported";
+    HASHREF => sub {
       push @values, '?';
       push @all_bind, $self->_bindtype($column, $v);
     },
