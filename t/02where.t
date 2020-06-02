@@ -391,6 +391,11 @@ my @handle_tests = (
         stmt  => " WHERE ( 0 ) ",
         bind => [ ],
     },
+    {
+        where => { -and => [], -or => [ a => 1 ] },
+        stmt  => " WHERE ( a = ? ) ",
+        bind  => [ 1 ],
+    },
 );
 
 for my $case (@handle_tests) {
