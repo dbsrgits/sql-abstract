@@ -7,6 +7,42 @@ use Test::Builder;
 use Test::Deep ();
 use SQL::Abstract::Tree;
 
+{
+  my $class;
+  if ($class = $ENV{SQL_ABSTRACT_TEST_AGAINST}) {
+    my $mod = join('/', split '::', $class).".pm";
+    require $mod;
+    eval qq{sub SQL::Abstract () { "\Q${class}\E" }; 1}
+      or die "Failed to create const sub for ${class}: $@";
+  }
+  if ($ENV{SQL_ABSTRACT_TEST_EXPAND_STABILITY}) {
+    $class ||= do { require SQL::Abstract; 'SQL::Abstract' };
+    my $orig = $class->can('expand_expr');
+    require Data::Dumper::Concise;
+    my $wrapped = sub {
+      my ($self, @args) = @_;
+      my $e1 = $self->$orig(@args);
+      return $e1 if our $Stab_Check_Rec;
+      local $Stab_Check_Rec = 1;
+      my $e2 = $self->$orig($e1);
+      my ($d1, $d2) = map Data::Dumper::Concise::Dumper($_), $e1, $e2;
+      (our $tb)->is_eq(
+        $d2, $d1,
+        'expand_expr stability ok'
+      ) or do {
+        require Path::Tiny;
+        Path::Tiny->new('e1')->spew($d1);
+        Path::Tiny->new('e2')->spew($d2);
+        system('diff -u e1 e2 1>&2');
+        die "Differences between e1 and e2, bailing out";
+      };
+      return $e1;
+    };
+    no strict 'refs'; no warnings 'redefine';
+    *{"${class}::expand_expr"} = $wrapped;
+  }
+}
+
 our @EXPORT_OK = qw(
   is_same_sql_bind is_same_sql is_same_bind
   eq_sql_bind eq_sql eq_bind dumper diag_where
@@ -124,6 +160,12 @@ sub _sql_differ_diag {
   my $sql2 = shift || '';
 
   my $tb = $tb || __PACKAGE__->builder;
+
+  if (my $profile = $ENV{SQL_ABSTRACT_TEST_TREE_PROFILE}) {
+    my $sqlat = SQL::Abstract::Tree->new(profile => $profile);
+    $_ = $sqlat->format($_) for ($sql1, $sql2);
+  }
+
   $tb->${\($tb->in_todo ? 'note' : 'diag')} (
        "SQL expressions differ\n"
       ." got: $sql1\n"

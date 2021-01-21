@@ -58,6 +58,11 @@ my @cases =
     expects => '',
     expects_quoted => '',
    },
+   {
+    given => [ {} ],
+    expects => '',
+    expects_quoted => '',
+   },
 
    {
     given => [{-desc => [ qw/colA colB/ ] }],
@@ -129,6 +134,12 @@ for my $case (@cases) {
 
 throws_ok (
   sub { $sql->_order_by({-desc => 'colA', -asc => 'colB' }) },
+  qr/hash passed .+ must have exactly one key/,
+  'Undeterministic order exception',
+);
+
+throws_ok (
+  sub { $sql->_order_by([ {-desc => 'colA', -asc => 'colB' } ]) },
   qr/hash passed .+ must have exactly one key/,
   'Undeterministic order exception',
 );

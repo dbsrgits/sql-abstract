@@ -16,7 +16,6 @@ use SQL::Abstract;
 #
 #################
 
-
 my @tests = (
       {
               func   => 'select',
@@ -75,11 +74,26 @@ my @tests = (
               bind   => ['boom']
       },
       {
+              # this is maybe wrong but a single arg doesn't get quoted
+              func   => 'select',
+              args   => ['test', 'id', { a => { '!=', 'boom' } }],
+              stmt   => 'SELECT id FROM test WHERE ( a != ? )',
+              stmt_q => 'SELECT id FROM `test` WHERE ( `a` != ? )',
+              bind   => ['boom']
+      },
+      {
               func   => 'update',
               args   => ['test', {a => 'boom'}, {a => undef}],
               stmt   => 'UPDATE test SET a = ? WHERE ( a IS NULL )',
               stmt_q => 'UPDATE `test` SET `a` = ? WHERE ( `a` IS NULL )',
               bind   => ['boom']
+      },
+      {
+              func   => 'update',
+              args   => ['test', {a => undef }, {a => 'boom'}],
+              stmt   => 'UPDATE test SET a = ? WHERE ( a = ? )',
+              stmt_q => 'UPDATE `test` SET `a` = ? WHERE ( `a` = ? )',
+              bind   => [undef,'boom']
       },
       {
               func   => 'update',
@@ -440,6 +454,14 @@ my @tests = (
               func   => 'update',
               new    => {bindtype => 'columns'},
               args   => ['test', {a => 1, b => \["to_date(?, 'MM/DD/YY')", [{dummy => 1} => '02/02/02']], c => { -lower => 'foo' }}, {a => {'between', [1,2]}}],
+              stmt   => "UPDATE test SET a = ?, b = to_date(?, 'MM/DD/YY'), c = LOWER(?) WHERE ( a BETWEEN ? AND ? )",
+              stmt_q => "UPDATE `test` SET `a` = ?, `b` = to_date(?, 'MM/DD/YY'), `c` = LOWER(?) WHERE ( `a` BETWEEN ? AND ? )",
+              bind   => [[a => '1'], [{dummy => 1} => '02/02/02'], [c => 'foo'], [a => '1'], [a => '2']],
+      },
+      {
+              func   => 'update',
+              new    => {bindtype => 'columns',restore_old_unop_handling => 1},
+              args   => ['test', {a => 1, b => \["to_date(?, 'MM/DD/YY')", [{dummy => 1} => '02/02/02']], c => { -lower => 'foo' }}, {a => {'between', [1,2]}}],
               stmt   => "UPDATE test SET a = ?, b = to_date(?, 'MM/DD/YY'), c = LOWER ? WHERE ( a BETWEEN ? AND ? )",
               stmt_q => "UPDATE `test` SET `a` = ?, `b` = to_date(?, 'MM/DD/YY'), `c` = LOWER ? WHERE ( `a` BETWEEN ? AND ? )",
               bind   => [[a => '1'], [{dummy => 1} => '02/02/02'], [c => 'foo'], [a => '1'], [a => '2']],
@@ -522,6 +544,14 @@ my @tests = (
       {
               func   => 'select',
               new    => {bindtype => 'columns'},
+              args   => ['test', '*', [ Y => { '=' => { -max => { -LENGTH => { -min => 'x' } } } } ] ],
+              stmt   => 'SELECT * FROM test WHERE ( Y = ( MAX( LENGTH( MIN(?) ) ) ) )',
+              stmt_q => 'SELECT * FROM `test` WHERE ( `Y` = ( MAX( LENGTH( MIN(?) ) ) ) )',
+              bind   => [[Y => 'x']],
+      },
+      {
+              func   => 'select',
+              new    => {bindtype => 'columns',restore_old_unop_handling => 1},
               args   => ['test', '*', [ Y => { '=' => { -max => { -LENGTH => { -min => 'x' } } } } ] ],
               stmt   => 'SELECT * FROM test WHERE ( Y = ( MAX( LENGTH( MIN ? ) ) ) )',
               stmt_q => 'SELECT * FROM `test` WHERE ( `Y` = ( MAX( LENGTH( MIN ? ) ) ) )',
@@ -614,6 +644,13 @@ my @tests = (
               args   => ['test', {requestor => undef}, {returning => ['id', 'created_at']}],
               stmt   => 'DELETE FROM test WHERE ( requestor IS NULL ) RETURNING id, created_at',
               stmt_q => 'DELETE FROM `test` WHERE ( `requestor` IS NULL ) RETURNING `id`, `created_at`',
+              bind   => []
+      },
+      {
+              func   => 'delete',
+              args   => ['test', \[ undef ] ],
+              stmt   => 'DELETE FROM test',
+              stmt_q => 'DELETE FROM `test`',
               bind   => []
       },
 );
@@ -726,9 +763,6 @@ for my $lhs (undef, '') {
     [ foo => "bar", $lhs => \["baz"], bizz => "buzz" ],
     [ $lhs => \"baz" ],
     [ $lhs => \["baz"] ],
-
-    # except for this one, that is automagically arrayified
-    { foo => "bar", -or => { $lhs => \"baz" }, bizz => "buzz" },
   ) {
     push @tests, {
       func => 'where',
@@ -741,6 +775,7 @@ for my $lhs (undef, '') {
 ## deprecations - sorta worked, likely abused by folks
   for my $where_arg (
     # the arrayref forms of this never worked and throw above
+    { foo => "bar", -or => { $lhs => \"baz" }, bizz => "buzz" },
     { foo => "bar", -and => { $lhs => \"baz" }, bizz => "buzz" },
     { foo => "bar", $lhs => \"baz", bizz => "buzz" },
     { foo => "bar", $lhs => \["baz"], bizz => "buzz" },
@@ -850,17 +885,26 @@ for my $t (@tests) {
       ) || diag dumper({ args => $t->{args}, result => $stmt });
     }
     else {
-      warnings_like(
-        sub { $cref->() },
-        $t->{warns} || [],
-      ) || diag dumper({ args => $t->{args}, result => $stmt });
+      lives_ok(sub {
+        alarm(1); local $SIG{ALRM} = sub {
+          no warnings 'redefine';
+          my $orig = Carp->can('caller_info');
+          local *Carp::caller_info = sub { return if $_[0] > 20; &$orig };
+          print STDERR "ARGH ($SQL::Abstract::Default_Scalar_To): ".Carp::longmess();
+          die "timed out";
+        };
+        warnings_like(
+          sub { $cref->() },
+          $t->{warns} || [],
+        ) || diag dumper({ args => $t->{args}, result => $stmt });
+      }) || diag dumper({ args => $t->{args}, result => $stmt, threw => $@ });
 
       is_same_sql_bind(
         $stmt,
         \@bind,
         $quoted ? $t->{stmt_q}: $t->{stmt},
         $t->{bind}
-      );
+      ) || diag dumper({ args => $t->{args}, result => $stmt });;
     }
   }
 }

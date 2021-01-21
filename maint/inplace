@@ -1,0 +1,17 @@
+#!/usr/bin/env perl
+
+use strictures 2;
+use autodie;
+
+my ($cmd, $file, @args) = @ARGV;
+
+my $input = do { local (@ARGV, $/) = $file; <> };
+
+close STDOUT;
+open STDOUT, '>', $file;
+
+open $out, '|-', $cmd, @args;
+
+print $out $input;
+
+close $out;

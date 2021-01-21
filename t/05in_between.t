@@ -93,6 +93,26 @@ my @in_between_tests = (
       ] },
     },
     stmt => "WHERE (
+          ( start0 BETWEEN ? AND UPPER(?)         )
+      AND ( start1 BETWEEN ? AND ?                )
+      AND ( start2 BETWEEN lower(x) AND upper(y)  )
+      AND ( start3 BETWEEN lower(x) AND upper(?)  )
+    )",
+    bind => [1, 2, 1, 2, 'stuff'],
+    test => '-between POD test',
+  },
+  {
+    args => { restore_old_unop_handling => 1 },
+    where => {
+      start0 => { -between => [ 1, { -upper => 2 } ] },
+      start1 => { -between => \["? AND ?", 1, 2] },
+      start2 => { -between => \"lower(x) AND upper(y)" },
+      start3 => { -between => [
+        \"lower(x)",
+        \["upper(?)", 'stuff' ],
+      ] },
+    },
+    stmt => "WHERE (
           ( start0 BETWEEN ? AND UPPER ?          )
       AND ( start1 BETWEEN ? AND ?                )
       AND ( start2 BETWEEN lower(x) AND upper(y)  )
@@ -103,6 +123,32 @@ my @in_between_tests = (
   },
   {
     args => { bindtype => 'columns' },
+    where => {
+      start0 => { -between => [ 1, { -upper => 2 } ] },
+      start1 => { -between => \["? AND ?", [ start1 => 1], [start1 => 2] ] },
+      start2 => { -between => \"lower(x) AND upper(y)" },
+      start3 => { -between => [
+        \"lower(x)",
+        \["upper(?)", [ start3 => 'stuff'] ],
+      ] },
+    },
+    stmt => "WHERE (
+          ( start0 BETWEEN ? AND UPPER(?)         )
+      AND ( start1 BETWEEN ? AND ?                )
+      AND ( start2 BETWEEN lower(x) AND upper(y)  )
+      AND ( start3 BETWEEN lower(x) AND upper(?)  )
+    )",
+    bind => [
+      [ start0 => 1 ],
+      [ start0 => 2 ],
+      [ start1 => 1 ],
+      [ start1 => 2 ],
+      [ start3 => 'stuff' ],
+    ],
+    test => '-between POD test',
+  },
+  {
+    args => { restore_old_unop_handling => 1, bindtype => 'columns' },
     where => {
       start0 => { -between => [ 1, { -upper => 2 } ] },
       start1 => { -between => \["? AND ?", [ start1 => 1], [start1 => 2] ] },
@@ -204,6 +250,13 @@ my @in_between_tests = (
 
   {
     where => { x => { -in => [ \['LOWER(?)', 'A' ], \'LOWER(b)', { -lower => 'c' } ] } },
+    stmt => " WHERE ( x IN ( LOWER(?), LOWER(b), LOWER(?) ) )",
+    bind => [qw/A c/],
+    test => '-in with an array of function array refs with args',
+  },
+  {
+    args => { restore_old_unop_handling => 1 },
+    where => { x => { -in => [ \['LOWER(?)', 'A' ], \'LOWER(b)', { -lower => 'c' } ] } },
     stmt => " WHERE ( x IN ( LOWER(?), LOWER(b), LOWER ? ) )",
     bind => [qw/A c/],
     test => '-in with an array of function array refs with args',
@@ -279,15 +332,59 @@ my @in_between_tests = (
   },
 
   {
-    where => { -in => [42] },
-    throws => qr/Illegal use of top-level '-in'/,
+    where => { -in => [ 'bob', 4, 2 ] },
+    stmt => ' WHERE (bob IN (?, ?))',
+    bind => [ 4, 2 ],
     test => 'Top level -in',
   },
+# This works but then SQL::Abstract::Tree breaks - something for a later commit
+#  {
+#    where => { -in => [ { -list => [ qw(x y) ] }, { -list => [ 1, 3 ] }, { -list => [ 2, 4 ] } ] },
+#    stmt => ' WHERE ((x, y) IN ((?, ?), (?, ?))',
+#    bind => [ 1, 3, 2, 4 ],
+#    test => 'Top level -in with list args',
+#  },
   {
     where => { -between => [42, 69] },
-    throws => qr/Illegal use of top-level '-between'/,
-    test => 'Top level -between',
+    throws => qr/Fatal: Operator 'BETWEEN' requires/,
+    test => 'Top level -between with broken args',
   },
+  {
+    where => {
+      -between => [
+        { -op => [ '+', { -ident => 'foo' }, 2 ] },
+        3, 4
+      ],
+    },
+    stmt => ' WHERE (foo + ? BETWEEN ? AND ?)',
+    bind => [ 2, 3, 4 ],
+    test => 'Top level -between with useful LHS',
+  },
+  {
+    where => {
+      -in => [
+        { -row => [ 'x', 'y' ] },
+        { -row => [ 1, 2 ] },
+        { -row => [ 3, 4 ] },
+      ],
+    },
+    stmt => ' WHERE (x, y) IN ((?, ?), (?, ?))',
+    bind => [ 1..4 ],
+    test => 'Complex top-level -in',
+  },
+  {
+    where => { -is => [ 'bob', undef ] },
+    stmt => ' WHERE bob IS NULL',
+    bind => [],
+    test => 'Top level -is ok',
+  },
+  {
+    where => { -op => [ in => x => 1, 2, 3 ] },
+    stmt => ' WHERE x IN (?, ?, ?)',
+    bind => [ 1, 2, 3 ],
+    test => 'Raw -op passes through correctly'
+  },
+
 );
 
 for my $case (@in_between_tests) {
@@ -305,17 +402,19 @@ for my $case (@in_between_tests) {
     }
     else {
       my ($stmt, @bind);
-      warnings_are {
-        ($stmt, @bind) = $sql->where($case->{where});
-      } [], "$label gives no warnings";
+      lives_ok {
+        warnings_are {
+          ($stmt, @bind) = $sql->where($case->{where});
+        } [], "$label gives no warnings";
 
-      is_same_sql_bind(
-        $stmt,
-        \@bind,
-        $case->{stmt},
-        $case->{bind},
-        "$label generates correct SQL and bind",
-      ) || diag_where ( $case->{where} );
+        is_same_sql_bind(
+          $stmt,
+          \@bind,
+          $case->{stmt},
+          $case->{bind},
+          "$label generates correct SQL and bind",
+        ) || diag dumper ({ where => $case->{where}, exp => $sql->_expand_expr($case->{where}) });
+      } || diag dumper ({ where => $case->{where}, exp => $sql->_expand_expr($case->{where}) });
     }
   }
 }

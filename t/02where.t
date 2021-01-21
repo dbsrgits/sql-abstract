@@ -2,13 +2,20 @@ use strict;
 use warnings;
 use Test::More;
 use Test::Warn;
-use SQL::Abstract::Test import => [qw(is_same_sql_bind diag_where) ];
+use Test::Exception;
+use SQL::Abstract::Test import => [qw(is_same_sql_bind diag_where dumper) ];
 
 use SQL::Abstract;
 
 my $not_stringifiable = bless {}, 'SQLA::NotStringifiable';
 
 my @handle_tests = (
+    {
+        where => 'foo',
+        order => [],
+        stmt => ' WHERE foo',
+        bind => [],
+    },
     {
         where => {
             requestor => 'inna',
@@ -111,6 +118,14 @@ my @handle_tests = (
             requestor => { '!=', ['-and', undef, ''] },
         },
         stmt => " WHERE ( requestor IS NOT NULL AND requestor != ? )",
+        bind => [''],
+    },
+
+    {
+        where => {
+            requestor => [undef, ''],
+        },
+        stmt => " WHERE ( requestor IS NULL OR requestor = ? )",
         bind => [''],
     },
 
@@ -328,12 +343,12 @@ my @handle_tests = (
 # Op against random functions (these two are oracle-specific)
    {
        where => { timestamp => { '!=' => { -trunc => { -year => \'sysdate' } } } },
-       stmt => " WHERE ( timestamp != TRUNC (YEAR sysdate) )",
+       stmt => " WHERE ( timestamp != TRUNC(YEAR(sysdate)) )",
        bind => [],
    },
    {
        where => { timestamp => { '>=' => { -to_date => '2009-12-21 00:00:00' } } },
-       stmt => " WHERE ( timestamp >= TO_DATE ? )",
+       stmt => " WHERE ( timestamp >= TO_DATE(?) )",
        bind => ['2009-12-21 00:00:00'],
    },
 
@@ -391,17 +406,34 @@ my @handle_tests = (
         stmt  => " WHERE ( 0 ) ",
         bind => [ ],
     },
+    {
+        where => { artistid => {} },
+        stmt => '',
+        bind => [ ],
+    },
+    {
+        where => [ -and => [ {}, [] ], -or => [ {}, [] ] ],
+        stmt => '',
+        bind => [ ],
+    },
+    {
+        where => { '=' => \'bozz' },
+        stmt => 'WHERE = bozz',
+        bind => [ ],
+    },
 );
 
 for my $case (@handle_tests) {
     my $sql = SQL::Abstract->new;
     my ($stmt, @bind);
-    warnings_exist {
-      ($stmt, @bind) = $sql->where($case->{where}, $case->{order});
-    } $case->{warns} || [];
+    lives_ok {
+      warnings_like {
+        ($stmt, @bind) = $sql->where($case->{where}, $case->{order});
+      } $case->{warns} || [];
+    };
 
     is_same_sql_bind($stmt, \@bind, $case->{stmt}, $case->{bind})
-      || diag_where ( $case->{where} );
+      || do { diag_where ( $case->{where} ); diag dumper($sql->_expand_expr($case->{where})) };
 }
 
 done_testing;

@@ -1,0 +1,61 @@
+#!/usr/bin/env perl
+
+use lib 'lib';
+use strictures 2;
+use Data::Dumper::Compact;
+use Devel::DDCWarn;
+use SQL::Abstract::Formatter;
+use SQL::Abstract;
+
+my $ddc = Data::Dumper::Compact->new(max_width => 72);
+my $sqla = SQL::Abstract->new(
+  lazy_join_sql_parts => 1,
+)->plugin('+ExtraClauses');
+my $sqlaf = SQL::Abstract::Formatter->new(max_width => 72);
+
+while (1) {
+  my $line = <STDIN>;
+  exit 0 unless defined $line;
+  print $line;
+  last if $line =~ /\A__END__/;
+}
+
+my $slurp = do { local $/; <STDIN> };
+
+my ($expr_re, $aqt_re, $query_re) =
+  map qr/(?sm:(.*?)( +)(# ${_}\n)(?:\n|(.*?)\n\n))/, qw(expr aqt query);
+
+sub reformat {
+  my ($thing, $indent) = @_;
+  my $thing_ddc = $ddc->dump($thing);
+  $thing_ddc =~ s/^/$indent/mg;
+  return $thing_ddc;
+}
+
+sub seval { eval('+('.$_[0].')') or die "seval: $_[0]: $@" }
+
+while ($slurp =~ m/\G$expr_re/gc) {
+  my ($pre, $indent, $type, $expr_str) = ($1, $2, $3, $4);
+  print $pre.$indent.$type;
+  print reformat(my $expr = seval($expr_str), $indent);
+  print "\n";
+  die unless $slurp =~ m/\G$query_re/g;
+  my ($qpre, $qindent, $qtype) = ($1, $2, $3);
+  if ($qpre =~ s/\A$aqt_re//) {
+    my ($apre, $aindent, $atype) = ($1, $2, $3);
+    print $apre.$aindent.$atype;
+    print reformat($sqla->expand_expr($expr), $aindent);
+    print "\n";
+  }
+  print $qpre.$qindent.$qtype;
+  my ($sql, @bind) = $sqla->render_statement($expr);
+  my $fsql = (ref($sql) ? $sqlaf->format(@$sql) : $sql);
+  s/^/$indent/mg, s/\n+\Z// for $fsql;
+  print $fsql."\n";
+  print reformat(\@bind, $qindent);
+  print "\n";
+}
+
+$slurp =~ /\G(.*)$/sm;
+
+print $1;

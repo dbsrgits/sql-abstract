@@ -1,5 +1,18 @@
 Revision history for SQL::Abstract
 
+  - Collapse custom join conditions back to something DBIC might understand
+
+1.90_03 - 2019-10-13
+   - Add proof of concept DBIx::Class::SQLMaker::Role::SQLA2Passthrough
+   - _where_field_IN/BETWEEN are documented as subclassable; feature restored
+
+1.90_02 - 2019-10-12
+    - fix DBIC ident op expander compat wrapper to handle call as unop
+
+1.90_01 - 2019-10-09
+    - Complete overhaul of the internals, see the SQL::Abstract::Reference
+      docs to understand the new implementation's affordances.
+
 1.87 - 2020-06-02
     - Add runtime dependency on Test::Deep and Test::Builder::Module for
       SQL::Abstract::Test (RT#131623)

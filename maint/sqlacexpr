@@ -1,0 +1,22 @@
+#!/usr/bin/env perl
+
+use lib 'lib';
+use strictures 2;
+use SQL::Abstract;
+use Devel::DDCWarn;
+
+warn $ARGV[1]."\n";
+
+my $sqlac = SQL::Abstract->new(
+  unknown_unop_always_func => 1,
+  lazy_join_sql_parts => 1,
+)->plugin('+ExtraClauses');
+
+my @args = ($ARGV[1] =~ /^\.\// ? do $ARGV[1] : eval '+('.$ARGV[1].')');
+
+die $@ if $@;
+
+my ($q, @bind) = $sqlac->${\$ARGV[0]}(@args);
+
+print STDERR +(ref($q) ? $q->format : $q)."\n";
+Dwarn [ @bind ];

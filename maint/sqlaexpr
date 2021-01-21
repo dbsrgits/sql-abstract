@@ -1,0 +1,13 @@
+#!/usr/bin/env perl
+
+use lib 'lib';
+use SQL::Abstract;
+use Devel::Dwarn;
+
+warn $ARGV[1];
+
+my @args = eval '('.$ARGV[1].')';
+
+die $@ if $@;
+
+Dwarn([ SQL::Abstract->new->${\$ARGV[0]}(@args) ]);

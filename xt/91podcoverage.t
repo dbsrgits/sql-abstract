@@ -25,6 +25,8 @@ my $exceptions = {
     )]},
     'SQL::Abstract::Tree' => { ignore => [qw(BUILDARGS)] },
     'SQL::Abstract::Test' => { skip => 1 },
+    'SQL::Abstract::Formatter' => { skip => 1 },
+    'SQL::Abstract::Parts' => { skip => 1 },
     'DBIx::Class::Storage::Debug::PrettyPrint' => { skip => 1 },
 };
 

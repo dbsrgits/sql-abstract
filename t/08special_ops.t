@@ -33,6 +33,29 @@ my $sqlmaker = SQL::Abstract->new(special_ops => [
      }
    },
 
+  # PRIOR op from DBIx::Class::SQLMaker::Oracle
+
+  {
+    regex => qr/^prior$/i,
+    handler => sub {
+      my ($self, $lhs, $op, $rhs) = @_;
+      my ($sql, @bind) = $self->_recurse_where ($rhs);
+
+      $sql = sprintf ('%s = %s %s ',
+        $self->_convert($self->_quote($lhs)),
+        $self->_sqlcase ($op),
+        $sql
+      );
+
+      return ($sql, @bind);
+    },
+  },
+
+], unary_ops => [
+  # unary op from Mojo::Pg
+  {regex => qr/^json$/i,
+   handler => sub { '?', { json => $_[2] } }
+  },
 ]);
 
 my @tests = (
@@ -50,6 +73,28 @@ my @tests = (
     bind  => [],
   },
 
+  #3
+  { where => { foo => { -json => { bar => 'baz' } } },
+    stmt => "WHERE foo = ?",
+    bind => [ { json => { bar => 'baz' } } ],
+  },
+
+  #4
+  { where => { foo => { '@>' => { -json => { bar => 'baz' } } } },
+    stmt => "WHERE foo @> ?",
+    bind => [ { json => { bar => 'baz' } } ],
+  },
+
+  # Verify inconsistent behaviour from DBIx::Class:SQLMaker::Oracle works
+  # (unary use of special op is not equivalent to special op + =)
+  {
+    where => {
+      foo_id => { '=' => { '-prior' => { -ident => 'bar_id' } } },
+      baz_id => { '-prior' => { -ident => 'quux_id' } },
+    },
+    stmt        => ' WHERE ( baz_id = PRIOR quux_id AND foo_id = ( PRIOR bar_id ) )',
+    bind        => [],
+  },
 );
 
 for (@tests) {
