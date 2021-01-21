@@ -1,5 +1,6 @@
 Revision history for SQL::Abstract
 
+2.000000 - 2021-01-21
   - Collapse custom join conditions back to something DBIC might understand
 
 1.90_03 - 2019-10-13
