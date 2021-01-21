@@ -21,6 +21,7 @@ my %META = (
         'Test::Exception' => '0.31',
         'Test::Warn'      => '0',
         'Storable'        => '0', # for cloning in tests
+        'Data::Dumper::Concise' => '0',
       },
     },
     runtime => {
