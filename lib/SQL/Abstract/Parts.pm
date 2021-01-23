@@ -24,8 +24,8 @@ sub to_array { return @{$_[0]} }
 
 sub formatter {
   my ($self, %opts) = @_;
-  Module::Runtime::use_module('SQL::Abstract::Formatter')
-    ->new(%opts)
+  require SQL::Abstract::Formatter;
+  SQL::Abstract::Formatter->new(%opts)
 }
 
 sub format {

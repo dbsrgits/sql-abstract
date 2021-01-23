@@ -1,5 +1,7 @@
 Revision history for SQL::Abstract
 
+  - Remove Module::Runtime requirement
+
 2.000000 - 2021-01-21
   - Collapse custom join conditions back to something DBIC might understand
 
