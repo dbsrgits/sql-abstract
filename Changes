@@ -1,5 +1,6 @@
 Revision history for SQL::Abstract
 
+2.000001 - 2021-01-23
   - Remove Module::Runtime requirement
 
 2.000000 - 2021-01-21
