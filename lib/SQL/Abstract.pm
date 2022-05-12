@@ -2875,7 +2875,7 @@ into an C<AND> of its elements:
 
 To get an OR instead, you can combine it with the arrayref idea:
 
-    my %where => (
+    my %where = (
          user => 'nwiger',
          priority => [ { '=', 2 }, { '>', 5 } ]
     );
