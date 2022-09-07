@@ -419,4 +419,57 @@ for my $case (@in_between_tests) {
   }
 }
 
+package SubClass {
+  use parent 'SQL::Abstract';
+  use mro 'c3';
+}
+
+package SubClass::OverrideIn {
+  our @ISA = 'SubClass';
+  sub _where_field_IN { shift->next::method(@_) }
+}
+
+package SubClass::OverrideBetween {
+  our @ISA = 'SubClass';
+  sub _where_field_BETWEEN { shift->next::method(@_) }
+}
+
+for (
+  {
+    class => 'SubClass::OverrideIn',
+    where => { foo => { -in => [] } },
+    stmt  => 'WHERE 0=1',
+    label => 'Subclass overriding _where_field_IN with empty array ref for -in',
+  },
+  {
+    class => 'SubClass::OverrideIn',
+    where => { foo => { -not_in => [] } },
+    stmt  => 'WHERE 1=1',
+    label => 'Subclass overriding _where_field_IN with empty array ref for -not_in',
+  },
+  {
+    class  => 'SubClass::OverrideBetween',
+    where  => { foo => { -between => [] } },
+    throws => qr/Fatal: Arguments to between must be defined/,
+    label => 'Subclass overriding _where_field_BETWEEN with empty array ref for -between',
+  },
+  {
+    class  => 'SubClass::OverrideBetween',
+    where  => { foo => { -not_between => [] } },
+    throws => qr/Fatal: Arguments to between must be defined/,
+    label => 'Subclass overriding _where_field_BETWEEN with empty array ref for -not_between',
+  },
+) {
+  if (my $e = $_->{throws}) {
+    my $stmt;
+    throws_ok { ($stmt) = $_->{class}->new->select(table => ['*'], $_->{where}) } $e,
+      $_->{label} . ' throws correctly'
+      or diag dumper ({ where => $_->{where}, result => $stmt });
+  } else {
+    $_->{stmt} = 'SELECT * FROM table ' . $_->{stmt};
+    is +SubClass->new->select( table => ['*'], $_->{where}), $_->{stmt}, $_->{label} . ': parent';
+    is +$_->{class}->new->select( table => ['*'], $_->{where}), $_->{stmt}, $_->{label};
+  }
+}
+
 done_testing;
