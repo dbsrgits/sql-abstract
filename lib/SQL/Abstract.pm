@@ -1596,6 +1596,8 @@ sub _render_op_between {
         unless $low->{-literal};
       $low;
     } else {
+      puke "Arguments to between must be defined"
+        unless defined $low && defined $high;
       +($low, { -keyword => 'and' }, $high);
     }
   };
@@ -1609,13 +1611,17 @@ sub _render_op_in {
   my ($lhs, @rhs) = @$args;
 
   return $self->join_query_parts(' ',
-    $lhs,
-    { -keyword => $op },
-    $self->join_query_parts(' ',
-      '(',
-      $self->join_query_parts(', ', @rhs),
-      ')'
-    ),
+    @rhs
+      ? (
+          $lhs,
+          { -keyword => $op },
+          $self->join_query_parts(' ',
+            '(',
+            $self->join_query_parts(', ', @rhs),
+            ')'
+          )
+        )
+      : $self->${\($op =~ /^not/ ? 'sqltrue' : 'sqlfalse')}
   );
 }
 
