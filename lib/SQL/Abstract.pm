@@ -3083,7 +3083,7 @@ This data structure would create the following:
 
     $stmt = "WHERE ( user = ? AND ( status LIKE ? OR status LIKE ? ) )
                 OR ( user = ? AND status = ? ) )";
-    @bind = ('nwiger', 'pending', 'dispatched', 'robot', 'unassigned');
+    @bind = ('nwiger', 'pending%', 'dispatched', 'robot', 'unassigned');
 
 
 Clauses in hashrefs or arrayrefs can be prefixed with an C<-and> or C<-or>
