@@ -1,5 +1,7 @@
 Revision history for SQL::Abstract
 
+  - Syntax error fixes for 5.8 from ilmari
+
 2.000001 - 2021-01-23
   - Remove Module::Runtime requirement
 
