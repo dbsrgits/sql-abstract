@@ -55,11 +55,13 @@ sub _debug {
 }
 
 sub belch (@) {
+  Scalar::Util::blessed($_[0]) and $_[0]->isa(__PACKAGE__) and shift;
   my($func) = (caller(1))[3];
   Carp::carp "[$func] Warning: ", @_;
 }
 
 sub puke (@) {
+  Scalar::Util::blessed($_[0]) and $_[0]->isa(__PACKAGE__) and shift;
   my($func) = (caller(1))[3];
   Carp::croak "[$func] Fatal: ", @_;
 }
@@ -486,9 +488,9 @@ sub sqlfalse { +{ -literal => [ $_[0]->{sqlfalse} ] } }
 sub _assert_pass_injection_guard {
   if ($_[1] =~ $_[0]->{injection_guard}) {
     my $class = ref $_[0];
-    puke "Possible SQL injection attempt '$_[1]'. If this is indeed a part of the "
+    $_[0]->puke("Possible SQL injection attempt '$_[1]'. If this is indeed a part of the "
      . "desired SQL use literal SQL ( \'...' or \[ '...' ] ) or supply your own "
-     . "{injection_guard} attribute to ${class}->new()"
+     . "{injection_guard} attribute to ${class}->new()")
   }
 }
 
@@ -552,7 +554,7 @@ sub _expand_insert_values {
 
     # no names (arrayref) means can't generate bindtype
     !($fields) && $self->{bindtype} eq 'columns'
-      && belch "can't do 'columns' bindtype when called with arrayref";
+      && $self->belch("can't do 'columns' bindtype when called with arrayref");
 
     +(
       (@$fields
@@ -618,7 +620,7 @@ sub _expand_insert_value {
   }
   if (ref($v) eq 'HASH') {
     if (grep !/^-/, keys %$v) {
-      belch "HASH ref as bind value in insert is not supported";
+      $self->belch("HASH ref as bind value in insert is not supported");
       return +{ -bind => [ $k, $v ] };
     }
   }
@@ -643,7 +645,7 @@ sub update {
     } else {
       my %clauses;
       @clauses{qw(target set where)} = ($table, $set, $where);
-      puke "Unsupported data type specified to \$sql->update"
+      $self->puke("Unsupported data type specified to \$sql->update")
         unless ref($clauses{set}) eq 'HASH';
       @clauses{keys %$options} = values %$options;
       \%clauses;
@@ -976,8 +978,8 @@ sub _expand_expr {
     }
     my ($key, $value) = %$expr;
     if ($key =~ /^-/ and $key =~ s/ [_\s]? \d+ $//x ) {
-      belch 'Use of [and|or|nest]_N modifiers is deprecated and will be removed in SQLA v2.0. '
-          . "You probably wanted ...-and => [ $key => COND1, $key => COND2 ... ]";
+      $self->belch('Use of [and|or|nest]_N modifiers is deprecated and will be removed in SQLA v2.0. '
+          . "You probably wanted ...-and => [ $key => COND1, $key => COND2 ... ]");
     }
     return $self->_expand_hashpair($key, $value);
   }
@@ -997,10 +999,10 @@ sub _expand_hashpair {
   my ($self, $k, $v) = @_;
   unless (defined($k) and length($k)) {
     if (defined($k) and my $literal = is_literal_value($v)) {
-      belch 'Hash-pairs consisting of an empty string with a literal are deprecated, and will be removed in 2.0: use -and => [ $literal ] instead';
+      $self->belch('Hash-pairs consisting of an empty string with a literal are deprecated, and will be removed in 2.0: use -and => [ $literal ] instead');
       return { -literal => $literal };
     }
-    puke "Supplying an empty left hand side argument is not supported";
+    $self->puke("Supplying an empty left hand side argument is not supported");
   }
   if ($k =~ /^-./) {
     return $self->_expand_hashpair_op($k, $v);
@@ -1059,7 +1061,7 @@ sub _expand_hashpair_ident {
 
   if (my $literal = is_literal_value($v)) {
     unless (length $k) {
-      belch 'Hash-pairs consisting of an empty string with a literal are deprecated, and will be removed in 2.0: use -and => [ $literal ] instead';
+      $self->belch('Hash-pairs consisting of an empty string with a literal are deprecated, and will be removed in 2.0: use -and => [ $literal ] instead');
       return \$literal;
     }
     my ($sql, @bind) = @$literal;
@@ -1113,7 +1115,7 @@ sub _expand_hashpair_op {
         )
       )
     ) {
-      puke "Illegal use of top-level '-$wsop'"
+      $self->puke("Illegal use of top-level '-$wsop'")
     }
   }
 
@@ -1216,10 +1218,10 @@ sub _expand_hashtriple {
       or $op =~ $self->{not_like_op}
     ) {
       if (lc($logic) eq 'or' and @values > 1) {
-        belch "A multi-element arrayref as an argument to the inequality op '${\uc(join ' ', split '_', $op)}' "
+        $self->belch("A multi-element arrayref as an argument to the inequality op '${\uc(join ' ', split '_', $op)}' "
             . 'is technically equivalent to an always-true 1=1 (you probably wanted '
             . "to say ...{ \$inequality_op => [ -and => \@values ] }... instead)"
-        ;
+        );
       }
     }
     unless (@values) {
@@ -1259,17 +1261,17 @@ sub _dwim_op_to_is {
     return 1;
   }
   if ($op =~ $self->{like_op}) {
-    belch(sprintf $empty, uc(join ' ', split '_', $op));
+    $self->belch(sprintf $empty, uc(join ' ', split '_', $op));
     return 1;
   }
   if ($op =~ $self->{inequality_op}) {
     return 0;
   }
   if ($op =~ $self->{not_like_op}) {
-    belch(sprintf $empty, uc(join ' ', split '_', $op));
+    $self->belch(sprintf $empty, uc(join ' ', split '_', $op));
     return 0;
   }
-  puke(sprintf $fail, $op);
+  $self->puke(sprintf $fail, $op);
 }
 
 sub _expand_func {
@@ -1281,7 +1283,7 @@ sub _expand_func {
 sub _expand_ident {
   my ($self, undef, $body) = @_;
   unless (defined($body) or (ref($body) and ref($body) eq 'ARRAY')) {
-    puke "-ident requires a single plain scalar argument (a quotable identifier) or an arrayref of identifier parts";
+    $self->puke("-ident requires a single plain scalar argument (a quotable identifier) or an arrayref of identifier parts");
   }
   my ($sep) = map +(defined() ? $_ : '.') , $self->{name_sep};
   my @parts = map +($sep
@@ -1321,7 +1323,7 @@ sub _expand_bool {
   if (ref($v)) {
     return $self->_expand_expr($v);
   }
-  puke "-bool => undef not supported" unless defined($v);
+  $self->puke("-bool => undef not supported") unless defined($v);
   return $self->_expand_expr({ -ident => $v });
 }
 
@@ -1360,7 +1362,7 @@ sub _expand_op_andor {
     ] };
   }
   if (ref($v) eq 'ARRAY') {
-    $logop eq 'and' or $logop eq 'or' or puke "unknown logic: $logop";
+    $logop eq 'and' or $logop eq 'or' or $self->puke("unknown logic: $logop");
 
     my @expr = grep {
       (ref($_) eq 'ARRAY' and @$_)
@@ -1371,7 +1373,7 @@ sub _expand_op_andor {
     my @res;
 
     while (my ($el) = splice @expr, 0, 1) {
-      puke "Supplying an empty left hand side argument is not supported in array-pairs"
+      $self->puke("Supplying an empty left hand side argument is not supported in array-pairs")
         unless defined($el) and length($el);
       my $elref = ref($el);
       if (!$elref) {
@@ -1398,7 +1400,7 @@ sub _expand_op_andor {
 sub _expand_op_is {
   my ($self, $op, $vv, $k) = @_;
   ($k, $vv) = @$vv unless defined $k;
-  puke "$op can only take undef as argument"
+  $self->puke("$op can only take undef as argument")
     if defined($vv)
        and not (
          ref($vv) eq 'HASH'
@@ -1417,7 +1419,7 @@ sub _expand_between {
     or
     (@rhs == 2 and defined($rhs[0]) and defined($rhs[1]))
   ) {
-    puke "Operator '${\uc($op)}' requires either an arrayref with two defined values or expressions, or a single literal scalarref/arrayref-ref";
+    $self->puke("Operator '${\uc($op)}' requires either an arrayref with two defined values or expressions, or a single literal scalarref/arrayref-ref");
   }
   return +{ -op => [
     $op,
@@ -1442,10 +1444,10 @@ sub _expand_in {
   . 'AND DATA!!! (the upcoming Data::Query-based version of SQL::Abstract '
   . 'will emit the logically correct SQL instead of raising this exception)'
   ;
-  puke("Argument passed to the '${\uc($op)}' operator can not be undefined")
+  $self->puke("Argument passed to the '${\uc($op)}' operator can not be undefined")
     if !defined($vv);
   my @rhs = map $self->expand_expr($_, -value),
-              map { defined($_) ? $_: puke($undef_err) }
+              map { defined($_) ? $_: $self->puke($undef_err) }
                 (ref($vv) eq 'ARRAY' ? @$vv : $vv);
   return $self->${\($op =~ /^not/ ? 'sqltrue' : 'sqlfalse')} unless @rhs;
 
@@ -1462,7 +1464,7 @@ sub _expand_nest {
   # method it overrode to do so no longer exists
   if ($self->{warn_once_on_nest}) {
     unless (our $Nest_Warned) {
-      belch(
+      $self->belch(
         "-nest in search conditions is deprecated, you most probably wanted:\n"
         .q|{..., -and => [ \%cond0, \@cond1, \'cond2', \[ 'cond3', [ col => bind ] ], etc. ], ... }|
       );
@@ -1501,7 +1503,7 @@ sub _recurse_where {
     return ($sql, @bind);
   }
   else {
-    belch "Calling _recurse_where in scalar context is deprecated and will go away before 2.0";
+    $self->belch("Calling _recurse_where in scalar context is deprecated and will go away before 2.0");
     return $sql;
   }
 }
@@ -1565,7 +1567,7 @@ sub _render_op {
 
     my $ss = List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}};
     if ($ss and @args > 1) {
-      puke "Special op '${op}' requires first value to be identifier"
+      $self->puke("Special op '${op}' requires first value to be identifier")
         unless my ($ident) = map $_->{-ident}, grep ref($_) eq 'HASH', $args[0];
       my $k = join(($self->{name_sep}||'.'), @$ident);
       local our $Expand_Depth = 1;
@@ -1592,7 +1594,7 @@ sub _render_op_between {
   my ($left, $low, $high) = @$args;
   my @rh = do {
     if (@$args == 2) {
-      puke "Single arg to between must be a literal"
+      $self->puke("Single arg to between must be a literal")
         unless $low->{-literal};
       $low;
     } else {
@@ -1771,7 +1773,7 @@ sub _expand_order_by {
         and keys %$arg > 1
         and grep /^-(asc|desc)$/, keys %$arg
       ) {
-        puke "ordering direction hash passed to order by must have exactly one key (-asc or -desc)";
+        $self->puke("ordering direction hash passed to order by must have exactly one key (-asc or -desc)");
       }
     }
     my @exp = map +(
@@ -1855,7 +1857,7 @@ sub _quote {
 
   return '' unless defined $_[1];
   return ${$_[1]} if ref($_[1]) eq 'SCALAR';
-  puke 'Identifier cannot be hashref' if ref($_[1]) eq 'HASH';
+  $_[0]->puke('Identifier cannot be hashref') if ref($_[1]) eq 'HASH';
 
   unless ($_[0]->{quote_char}) {
     if (ref($_[1]) eq 'ARRAY') {
@@ -1870,7 +1872,7 @@ sub _quote {
   my ($l, $r) =
       !$qref             ? ($_[0]->{quote_char}, $_[0]->{quote_char})
     : ($qref eq 'ARRAY') ? @{$_[0]->{quote_char}}
-    : puke "Unsupported quote_char format: $_[0]->{quote_char}";
+    : $_[0]->puke("Unsupported quote_char format: $_[0]->{quote_char}");
 
   my $esc = $_[0]->{escape_char} || $r;
 
@@ -1924,7 +1926,7 @@ sub _assert_bindval_matches_bindtype {
   if ($self->{bindtype} eq 'columns') {
     for (@_) {
       if (!defined $_ || ref($_) ne 'ARRAY' || @$_ != 2) {
-        puke "bindtype 'columns' selected, you need to pass: [column_name => bind_value]"
+        $self->puke("bindtype 'columns' selected, you need to pass: [column_name => bind_value]")
       }
     }
   }
@@ -1978,7 +1980,7 @@ sub _METHOD_FOR_refkind {
       and last;
   }
 
-  return $method || puke "cannot dispatch on '$meth_prefix' for ".$self->_refkind($data);
+  return $method || $self->puke("cannot dispatch on '$meth_prefix' for ".$self->_refkind($data));
 }
 
 
@@ -1991,7 +1993,7 @@ sub _SWITCH_refkind {
       and last;
   }
 
-  puke "no dispatch entry for ".$self->_refkind($data)
+  $self->puke("no dispatch entry for ".$self->_refkind($data))
     unless $coderef;
 
   $coderef->();
@@ -2011,7 +2013,7 @@ sub _SWITCH_refkind {
 sub values {
     my $self = shift;
     my $data = shift || return;
-    puke "Argument to ", __PACKAGE__, "->values must be a \\%hash"
+    $self->puke("Argument to ", __PACKAGE__, "->values must be a \\%hash")
         unless ref $data eq 'HASH';
 
     my @all_bind;
@@ -2119,7 +2121,7 @@ sub AUTOLOAD {
     # This allows us to check for a local, then _form, attr
     my $self = shift;
     my($name) = $AUTOLOAD =~ /.*::(.+)/;
-    puke "AUTOLOAD invoked for method name ${name} and allow_autoload option not set" unless $self->{allow_autoload};
+    $self->puke("AUTOLOAD invoked for method name ${name} and allow_autoload option not set") unless $self->{allow_autoload};
     return $self->generate($name, @_);
 }
 
