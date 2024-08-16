@@ -36,13 +36,14 @@ our $AUTOLOAD;
 
 # special operators (-in, -between). May be extended/overridden by user.
 # See section WHERE: BUILTIN SPECIAL OPERATORS below for implementation
-my @BUILTIN_SPECIAL_OPS = (
-  {regex => qr/^ (?: not \s )? between $/ix, handler => sub { die "NOPE" }},
-  {regex => qr/^ is (?: \s+ not )?     $/ix, handler => sub { die "NOPE" }},
-  {regex => qr/^ (?: not \s )? in      $/ix, handler => sub { die "NOPE" }},
-  {regex => qr/^ ident                 $/ix, handler => sub { die "NOPE" }},
-  {regex => qr/^ value                 $/ix, handler => sub { die "NOPE" }},
-);
+my $BUILTIN_SPECIAL_OPS_re = qr/
+    ^ (?:
+        (?: (?: not \s )? (?: between | in ) ) |
+        (?: is (?: \s+ not )?                ) |
+        ident |
+        value
+    ) $
+/ix;
 
 #======================================================================
 # DEBUGGING AND ERROR REPORTING
@@ -1111,7 +1112,7 @@ sub _expand_hashpair_op {
         $is_special
         or (
           $self->{disable_old_special_ops}
-          and List::Util::first { $wsop =~ $_->{regex} } @BUILTIN_SPECIAL_OPS
+          and $wsop =~ $BUILTIN_SPECIAL_OPS_re
         )
       )
     ) {
