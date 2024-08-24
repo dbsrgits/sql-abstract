@@ -115,4 +115,18 @@ for my $record (@data) {
   ) || diag "Corresponding SQL statement: $stmt";
 }
 
+{
+  my $sqla = SQL::Abstract->new;
+
+  my @subq = $sqla->select(
+    "Bar", [qw/x y/], { x => { ">" => { -ident => "y"} } }
+  );
+  my ($sql, @bind) = $sqla->insert("Foo(a, b)", \ \@subq);
+  is_same_sql_bind ($sql, \@bind,
+    "INSERT INTO Foo(a, b) SELECT x, y FROM Bar where x > y",
+    [],
+    "insert-select",
+  );
+}
+
 done_testing;

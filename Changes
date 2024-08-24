@@ -1,5 +1,6 @@
 Revision history for SQL::Abstract
 
+  - Correctly handle literal passed to insert from/values key
   - Make puke() and belch() methods, ala the SQLA::Classic change
   - Syntax error fixes for 5.8 from ilmari
 

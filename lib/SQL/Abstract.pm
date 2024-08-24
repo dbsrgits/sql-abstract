@@ -530,6 +530,9 @@ sub _expand_insert_clause_from {
   if (ref($data) eq 'HASH' and (keys(%$data))[0] =~ /^-/) {
     return $self->expand_expr($data);
   }
+  if (my $literal = is_literal_value($data)) {
+    return (from => { -literal => $literal });
+  }
   my ($f_aqt, $v_aqt) = $self->_expand_insert_values($data);
   return (
     from => { -values => [ $v_aqt ] },
