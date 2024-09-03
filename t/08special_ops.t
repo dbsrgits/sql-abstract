@@ -51,6 +51,17 @@ my $sqlmaker = SQL::Abstract->new(special_ops => [
     },
   },
 
+  {regex => qr/^null_or_diff_from$/i,
+   handler => sub {
+     my ($self, $field, $op, $arg) = @_;
+     $arg = [$arg] if not ref $arg;
+     not grep {!defined $_} @$arg
+       or die "-null_or_diff_from : undef arg is not allowed";
+     return $self->_recurse_where({$field => [{-not_in => $arg}, undef]});
+    },
+  },
+
+
 ], unary_ops => [
   # unary op from Mojo::Pg
   {regex => qr/^json$/i,
@@ -95,6 +106,13 @@ my @tests = (
     stmt        => ' WHERE ( baz_id = PRIOR quux_id AND foo_id = ( PRIOR bar_id ) )',
     bind        => [],
   },
+
+  #6
+  { where => { foo => {-null_or_diff_from => 'bar'} },
+    stmt => "WHERE (foo NOT IN (?) OR foo IS NULL)",
+    bind => [ 'bar' ],
+  },
+
 );
 
 for (@tests) {

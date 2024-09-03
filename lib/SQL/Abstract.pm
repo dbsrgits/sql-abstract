@@ -1099,9 +1099,7 @@ sub _expand_hashpair_op {
 
   my $op = $self->_normalize_op($k);
 
-  my $wsop = join(' ', split '_', $op);
-
-  my $is_special = List::Util::first { $wsop =~ $_->{regex} }
+  my $is_special = List::Util::first { $op =~ $_->{regex} }
                      @{$self->{special_ops}};
 
   { # Old SQLA compat
@@ -1114,11 +1112,11 @@ sub _expand_hashpair_op {
         $is_special
         or (
           $self->{disable_old_special_ops}
-          and List::Util::first { $wsop =~ $_->{regex} } @BUILTIN_SPECIAL_OPS
+          and List::Util::first { $op =~ $_->{regex} } @BUILTIN_SPECIAL_OPS
         )
       )
     ) {
-      $self->puke("Illegal use of top-level '-$wsop'")
+      $self->puke("Illegal use of top-level '-$op'")
     }
   }
 
@@ -1198,7 +1196,7 @@ sub _expand_hashtriple {
   }
   { # Old SQLA compat
 
-    my $op = join(' ', split '_', $op);
+    #my $op = join(' ', split '_', $op);
 
     if (my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}}) {
       return { -op => [ $op, $ik, $vv ] };
@@ -1566,7 +1564,7 @@ sub _render_op {
 
   { # Old SQLA compat
 
-    my $op = join(' ', split '_', $op);
+    #my $op = join(' ', split '_', $op);
 
     my $ss = List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}};
     if ($ss and @args > 1) {

@@ -1,5 +1,6 @@
 Revision history for SQL::Abstract
 
+  - Remove vestigial possibly-special-op name conversion
   - Fixes for _where_field_IN/BETWEEN overrides (jjatria)
   - Correctly handle literal passed to insert from/values key
   - Make puke() and belch() methods, ala the SQLA::Classic change
