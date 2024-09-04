@@ -1766,7 +1766,7 @@ sub _where_field_BETWEEN {
 sub _expand_order_by {
   my ($self, $arg) = @_;
 
-  return unless defined($arg) and not (ref($arg) eq 'ARRAY' and !@$arg);
+  return undef unless defined($arg) and not (ref($arg) eq 'ARRAY' and !@$arg);
 
   return $self->expand_expr({ -list => $arg })
     if ref($arg) eq 'HASH' and ($arg->{-op}||[''])->[0] eq ',';

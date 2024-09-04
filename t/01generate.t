@@ -61,6 +61,20 @@ my @tests = (
       },
       {
               func   => 'select',
+              args   => ['test', '*', { a => 'boom' } , []],
+              stmt   => 'SELECT * FROM test WHERE ( a = ? )',
+              stmt_q => 'SELECT * FROM `test` WHERE ( `a` = ? )',
+              bind   => ['boom']
+      },
+      {
+              func   => 'select',
+              args   => ['test', '*', { a => 'boom' } , {}],
+              stmt   => 'SELECT * FROM test WHERE ( a = ? )',
+              stmt_q => 'SELECT * FROM `test` WHERE ( `a` = ? )',
+              bind   => ['boom']
+      },
+      {
+              func   => 'select',
               args   => ['test', '*', { a => ['boom', 'bang'] }],
               stmt   => 'SELECT * FROM test WHERE ( ( ( a = ? ) OR ( a = ? ) ) )',
               stmt_q => 'SELECT * FROM `test` WHERE ( ( ( `a` = ? ) OR ( `a` = ? ) ) )',
