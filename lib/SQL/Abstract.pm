@@ -208,7 +208,7 @@ foreach my $stmt (keys %{$Defaults{clauses_of}}) {
   my %render_returning = (
     map {
       my $method = "_${_}_returning";
-      ($_ => sub { $_[0]->$method($_[2]) });
+      ($_ => sub { [ $_[0]->$method($_[3]) ] });
     } qw(insert update delete)
   );
 
@@ -260,28 +260,30 @@ foreach my $stmt (keys %{$Defaults{clauses_of}}) {
 
     # we are a subclass, so check for overriden methods
 
+    my $subclassed = sub { __PACKAGE__->can($_[0]) != $class->can($_[0]) };
+
     foreach my $type (qw(insert update delete)) {
       my $method = "_${type}_returning";
-      if (__PACKAGE__->can($method) ne $class->can($method)) {
+      if ($subclassed->($method)) {
         my $clause = "${type}.returning";
         $opts->{expand_clause}{$clause} = $expand_ident;
         $opts->{render_clause}{$clause} = $render_returning{$type};
       }
     }
-    if (__PACKAGE__->can('_table') ne $class->can('_table')) {
+    if ($subclassed->('_table')) {
       $opts->{expand_clause}{'select.from'} = $expand_table;
     }
-    if (__PACKAGE__->can('_order_by') ne $class->can('_order_by')) {
+    if ($subclassed->('_order_by')) {
       $opts->{expand_clause}{'select.order_by'} = $expand_ident;
       $opts->{render_clause}{'select.order_by'} = $render_order_by;
     }
-    if (__PACKAGE__->can('_select_fields') ne $class->can('_select_fields')) {
+    if ($subclassed->('_select_fields')) {
       $opts->{expand_clause}{'select.select'} = $expand_ident;
       $opts->{render_clause}{'select.select'} = $render_select_select;
     }
     foreach my $type (qw(in between)) {
       my $meth = "_where_field_".uc($type);
-      if (__PACKAGE__->can($meth) ne $class->can($meth)) {
+      if ($subclassed->($meth)) {
         my $exp = $expand_field_type{$type};
         $opts->{expand_op}{$_} = $exp for $type, "not_${type}";
       }
