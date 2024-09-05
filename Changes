@@ -1,5 +1,6 @@
 Revision history for SQL::Abstract
 
+  - Remove old SQLA::More compat code (will restore a better set later)
   - Fix for empty 'order by' to ->select (dakkar)
   - Remove vestigial possibly-special-op name conversion
   - Fixes for _where_field_IN/BETWEEN overrides (jjatria)
