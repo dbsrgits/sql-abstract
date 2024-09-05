@@ -202,6 +202,99 @@ foreach my $stmt (keys %{$Defaults{clauses_of}}) {
   }
 }
 
+{
+  my $expand_ident = sub { $_[2] };
+
+  my %render_returning = (
+    map {
+      my $method = "_${_}_returning";
+      ($_ => sub { $_[0]->$method($_[2]) });
+    } qw(insert update delete)
+  );
+
+  my $expand_table = sub { +{ -literal => [ $_[0]->_table($_[2]) ] } };
+
+  my $render_order_by = sub { [ $_[0]->_order_by($_[2]) ] };
+
+  my $render_select_select = sub {
+    my @super = $_[0]->_select_fields($_[2]);
+    my $effort = [
+      ref($super[0]) eq 'HASH'
+        ? $_[0]->render_expr($super[0])
+        : @super
+    ];
+    return $_[0]->join_query_parts(
+      ' ', { -keyword => 'select' }, $effort
+    );
+  };
+
+  my %expand_field_type = map {
+    my $type = $_;
+    my $meth = "_where_field_".uc($type);
+    my $exp = sub {
+      my ($self, $op, $v, $k) = @_;
+      $op = join ' ', split '_', $op;
+      return +{ -literal => [
+        $self->$meth($k, $op, $v)
+      ] };
+    };
+    ($type => $exp)
+  } qw(in between);
+
+  my $dbic_select_where = sub {
+    my ($sql, @bind) = $_[0]->where($_[2]);
+    s/\A\s+//, s/\s+\Z// for $sql;
+    return [ $sql, @bind ];
+  };
+
+  my $dbic_expand_ident = __PACKAGE__->make_unop_expander(sub {
+    my ($self, undef, $body) = @_;
+    $body = $body->from if Scalar::Util::blessed($body);
+    $self->_expand_ident(ident => $body);
+  });
+
+  sub __maybe_setup_subclass_overrides {
+    my ($class, $opts) = @_;
+
+    return if $class eq __PACKAGE__;
+
+    # we are a subclass, so check for overriden methods
+
+    foreach my $type (qw(insert update delete)) {
+      my $method = "_${type}_returning";
+      if (__PACKAGE__->can($method) ne $class->can($method)) {
+        my $clause = "${type}.returning";
+        $opts->{expand_clause}{$clause} = $expand_ident;
+        $opts->{render_clause}{$clause} = $render_returning{$type};
+      }
+    }
+    if (__PACKAGE__->can('_table') ne $class->can('_table')) {
+      $opts->{expand_clause}{'select.from'} = $expand_table;
+    }
+    if (__PACKAGE__->can('_order_by') ne $class->can('_order_by')) {
+      $opts->{expand_clause}{'select.order_by'} = $expand_ident;
+      $opts->{render_clause}{'select.order_by'} = $render_order_by;
+    }
+    if (__PACKAGE__->can('_select_fields') ne $class->can('_select_fields')) {
+      $opts->{expand_clause}{'select.select'} = $expand_ident;
+      $opts->{render_clause}{'select.select'} = $render_select_select;
+    }
+    foreach my $type (qw(in between)) {
+      my $meth = "_where_field_".uc($type);
+      if (__PACKAGE__->can($meth) ne $class->can($meth)) {
+        my $exp = $expand_field_type{$type};
+        $opts->{expand_op}{$_} = $exp for $type, "not_${type}";
+      }
+    }
+    if ($class->isa('DBIx::Class::SQLMaker')) {
+      $opts->{warn_once_on_nest} = 1;
+      $opts->{disable_old_special_ops} = 1;
+      $opts->{render_clause}{'select.where'} = $dbic_select_where;
+      $opts->{expand_op}{ident} = $dbic_expand_ident;
+    }
+  }
+}
+
 sub new {
   my $self = shift;
   my $class = ref($self) || $self;
@@ -257,79 +350,14 @@ sub new {
     $opt{$name} = { %{$Defaults{$name}}, %{$opt{$name}||{}} };
   }
 
-  if ($class ne __PACKAGE__) {
-
-    # check for overriden methods
-
-    foreach my $type (qw(insert update delete)) {
-      my $method = "_${type}_returning";
-      if (__PACKAGE__->can($method) ne $class->can($method)) {
-        my $clause = "${type}.returning";
-        $opt{expand_clause}{$clause} = sub { $_[2] },
-        $opt{render_clause}{$clause}
-          = sub { [ $_[0]->$method($_[3]) ] };
-      }
-    }
-    if (__PACKAGE__->can('_table') ne $class->can('_table')) {
-      $opt{expand_clause}{'select.from'} = sub {
-        return +{ -literal => [ $_[0]->_table($_[2]) ] };
-      };
-    }
-    if (__PACKAGE__->can('_order_by') ne $class->can('_order_by')) {
-      $opt{expand_clause}{'select.order_by'} = sub { $_[2] };
-      $opt{render_clause}{'select.order_by'} = sub {
-        [ $_[0]->_order_by($_[2]) ];
-      };
-    }
-    if (__PACKAGE__->can('_select_fields') ne $class->can('_select_fields')) {
-      $opt{expand_clause}{'select.select'} = sub { $_[2] };
-      $opt{render_clause}{'select.select'} = sub {
-        my @super = $_[0]->_select_fields($_[2]);
-        my $effort = [
-          ref($super[0]) eq 'HASH'
-            ? $_[0]->render_expr($super[0])
-            : @super
-        ];
-        return $_[0]->join_query_parts(
-          ' ', { -keyword => 'select' }, $effort
-        );
-      };
-    }
-    foreach my $type (qw(in between)) {
-      my $meth = "_where_field_".uc($type);
-      if (__PACKAGE__->can($meth) ne $class->can($meth)) {
-        my $exp = sub {
-          my ($self, $op, $v, $k) = @_;
-          $op = join ' ', split '_', $op;
-          return +{ -literal => [
-            $self->$meth($k, $op, $v)
-          ] };
-        };
-        $opt{expand_op}{$_} = $exp for $type, "not_${type}";
-      }
-    }
-    if ($class->isa('DBIx::Class::SQLMaker')) {
-      $opt{warn_once_on_nest} = 1;
-      $opt{disable_old_special_ops} = 1;
-      $opt{render_clause}{'select.where'} = sub {
-        my ($sql, @bind) = $_[0]->where($_[2]);
-        s/\A\s+//, s/\s+\Z// for $sql;
-        return [ $sql, @bind ];
-      };
-      $opt{expand_op}{ident} = $class->make_unop_expander(sub {
-        my ($self, undef, $body) = @_;
-        $body = $body->from if Scalar::Util::blessed($body);
-        $self->_expand_ident(ident => $body);
-      });
-    }
-  }
+  $class->__maybe_setup_subclass_overrides(\%opt);
 
   if ($opt{lazy_join_sql_parts}) {
     require SQL::Abstract::Parts;
     $opt{join_sql_parts} ||= sub { SQL::Abstract::Parts->new(@_) };
   }
 
-  $opt{join_sql_parts} ||= sub { join $_[0], @_[1..$#_] };
+  $opt{join_sql_parts} ||= $class->can('default_join_sql_parts');
 
   return bless \%opt, $class;
 }
@@ -1635,6 +1663,8 @@ sub _render_values {
     (our $Render_Top_Level ? $inner : ('(', $inner, ')'))
   );
 }
+
+sub default_join_sql_parts { join $_[0], @_[1..$#_] }
 
 sub join_query_parts {
   my ($self, $join, @parts) = @_;

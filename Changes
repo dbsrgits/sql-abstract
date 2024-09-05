@@ -1,5 +1,6 @@
 Revision history for SQL::Abstract
 
+  - Refactor subclass method override grandfathering system
   - Remove old SQLA::More compat code (will restore a better set later)
   - Fix for empty 'order by' to ->select (dakkar)
   - Remove vestigial possibly-special-op name conversion
