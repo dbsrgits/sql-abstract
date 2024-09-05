@@ -1196,8 +1196,6 @@ sub _expand_hashtriple {
   }
   { # Old SQLA compat
 
-    #my $op = join(' ', split '_', $op);
-
     if (my $us = List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}}) {
       return { -op => [ $op, $ik, $vv ] };
     }
@@ -1563,8 +1561,6 @@ sub _render_op {
   }
 
   { # Old SQLA compat
-
-    #my $op = join(' ', split '_', $op);
 
     my $ss = List::Util::first { $op =~ $_->{regex} } @{$self->{special_ops}};
     if ($ss and @args > 1) {
