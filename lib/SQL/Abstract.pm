@@ -727,12 +727,17 @@ sub _update_returning { shift->_returning(@_) }
 
 sub select {
   my ($self, @args) = @_;
+
+  local $self->{bind_names};
+
   my $stmt = do {
     if (ref(my $sel = $args[0]) eq 'HASH') {
       $sel
     } else {
       my %clauses;
-      @clauses{qw(from select where order_by)} = @args;
+      @clauses{qw(from select where order_by bind_names)} = @args;
+
+      $self->{bind_names} = $clauses{bind_names} if $clauses{bind_names};
 
       # This oddity is to literalify since historically SQLA doesn't quote
       # a single identifier argument, so we convert it into a literal
@@ -856,12 +861,12 @@ sub _render_delete_clause_target {
 #======================================================================
 
 
-
 # Finally, a separate routine just to handle WHERE clauses
 sub where {
-  my ($self, $where, $order) = @_;
+  my ($self, $where, $order, $bind_names) = @_;
 
   local $self->{convert_where} = $self->{convert};
+  local $self->{bind_names} = $bind_names;
 
   # where ?
   my ($sql, @bind) = defined($where)
@@ -1539,6 +1544,7 @@ sub _render_func {
 
 sub _render_bind {
   my ($self, undef, $bind) = @_;
+  push @{$self->{bind_names}} => $bind->[0] if $self->{bind_names};
   return [ '?', $self->_bindtype(@$bind) ];
 }
 
@@ -2148,7 +2154,7 @@ SQL::Abstract - Generate SQL from Perl data structures
 
     my $sql = SQL::Abstract->new;
 
-    my($stmt, @bind) = $sql->select($source, \@fields, \%where, $order);
+    my($stmt, @bind) = $sql->select($source, \@fields, \%where, $order, \@bind_names);
 
     my($stmt, @bind) = $sql->insert($table, \%fieldvals || \@values);
 
@@ -2161,7 +2167,7 @@ SQL::Abstract - Generate SQL from Perl data structures
     $sth->execute(@bind);
 
     # Just generate the WHERE clause
-    my($stmt, @bind) = $sql->where(\%where, $order);
+    my($stmt, @bind) = $sql->where(\%where, $order, \@bind_names);
 
     # Return values in the same order, for hashed queries
     # See PERFORMANCE section for more details
@@ -2578,7 +2584,7 @@ L<insert|/insert($table, \@values || \%fieldvals, \%options)>.
 
 =back
 
-=head2 select($source, $fields, $where, $order)
+=head2 select($source, $fields, $where, $order, \@bind_names)
 
 This returns a SQL SELECT statement and associated list of bind values, as
 specified by the arguments:
@@ -2617,6 +2623,11 @@ The argument can be a scalar, a hashref or an arrayref
 -- see section L<ORDER BY clause|/"ORDER BY CLAUSES">
 for details.
 
+=item \@bind_names
+
+If an arrayref is provided, it will be populated with the column names
+associated with every element in the @bind array in the same order.
+
 =back
 
 
@@ -2638,7 +2649,7 @@ L<insert|/insert($table, \@values || \%fieldvals, \%options)>.
 
 =back
 
-=head2 where(\%where, $order)
+=head2 where(\%where, $order, \@bind_names)
 
 This is used to generate just the WHERE clause. For example,
 if you have an arbitrary data structure and know what the
@@ -2646,6 +2657,8 @@ rest of your SQL is going to look like, but want an easy way
 to produce a WHERE clause, use this. It returns an SQL WHERE
 clause and list of bind values.
 
+If a \@bind_names arrayref is provided, it will be populated with the column
+names associated with every element in the @bind array in the same order.
 
 =head2 values(\%data)
 
