@@ -1,5 +1,9 @@
 Revision history for SQL::Abstract
 
+  - Add regression coverage confirming an empty arrayref given to -and /
+    -or in a where clause emits no SQL and no trailing AND/OR (correct
+    since the v2 engine; locks it against regressions) (RT#126990, GH#15,
+    fabzzap)
   - Document that the bundled DBIx::Class::* helper modules require
     DBIx::Class at runtime (intentionally not a prereq, to avoid a
     dependency cycle)

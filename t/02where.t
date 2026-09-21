@@ -421,6 +421,30 @@ my @handle_tests = (
         stmt => 'WHERE = bozz',
         bind => [ ],
     },
+
+    # RT#126990 / GH#15: an empty arrayref given to -and / -or must
+    # contribute nothing and must not emit a trailing AND / OR next to a
+    # real term (this used to generate incorrect SQL before the v2 engine)
+    {
+        where => { a => 1, -and => [] },
+        stmt  => " WHERE ( a = ? )",
+        bind  => [ 1 ],
+    },
+    {
+        where => { a => 1, -or => [] },
+        stmt  => " WHERE ( a = ? )",
+        bind  => [ 1 ],
+    },
+    {
+        where => [ { a => 1 }, -and => [] ],
+        stmt  => " WHERE ( a = ? )",
+        bind  => [ 1 ],
+    },
+    {
+        where => { -and => [], -or => [] },
+        stmt  => '',
+        bind  => [ ],
+    },
 );
 
 for my $case (@handle_tests) {
