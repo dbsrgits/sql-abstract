@@ -1,5 +1,8 @@
 Revision history for SQL::Abstract
 
+  - generate() in scalar context now interpolates each placeholder
+    exactly once, so a bind value that contains a '?' no longer
+    swallows the following bind values
   - Reword the "removed in 2.0" deprecation warnings to "a future
     version", since those code paths still ship in the 2.x line
   - Do not warn when a plain hashref is passed as a bind value to

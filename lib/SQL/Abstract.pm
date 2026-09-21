@@ -2116,8 +2116,10 @@ sub generate {
     if (wantarray) {
         return ($sql, @sqlv);
     } else {
-        1 while $sql =~ s/\?/my $d = shift(@sqlv);
-                             ref $d ? $d->[1] : $d/e;
+        # single global pass: replace each original placeholder once, so a
+        # bind value that itself contains a '?' does not swallow later binds
+        $sql =~ s/\?/my $d = shift(@sqlv);
+                     ref $d ? $d->[1] : $d/ge;
         return $sql;
     }
 }
