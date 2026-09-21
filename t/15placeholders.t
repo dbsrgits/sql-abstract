@@ -37,4 +37,19 @@ use SQL::Abstract::Tree;
    q[SELECT 'frew' AS x, 'ribasushi' AS y FROM Foo WHERE t > '2008-12-12' AND z IN ( '1', '2', '3' )], 'Complex placeholders work';
 }
 
+{
+   # a legitimate 0 (or '0') bind value must not be dropped/blanked
+   my $sqlat = SQL::Abstract::Tree->new({
+      fill_in_placeholders => 1,
+      placeholder_surround => [qw(; -)],
+   });
+
+   is($sqlat->fill_in_placeholder([0]), q(;0-),
+      'a numeric 0 bind value is preserved, not blanked'
+   );
+   is($sqlat->fill_in_placeholder(['0']), q(;0-),
+      "a string '0' bind value is preserved, not blanked"
+   );
+}
+
 done_testing;
