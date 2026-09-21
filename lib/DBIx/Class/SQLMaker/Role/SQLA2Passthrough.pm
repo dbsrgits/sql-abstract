@@ -118,6 +118,15 @@ __END__
 
 DBIx::Class::SQLMaker::Role::SQLA2Passthrough - A test of future possibilities
 
+=head1 REQUIRES
+
+This module ships inside the SQL-Abstract distribution but requires
+L<DBIx::Class> at runtime. DBIx::Class is intentionally B<not> a
+prerequisite of SQL-Abstract - DBIx::Class depends on SQL::Abstract, so
+declaring the reverse would create a dependency cycle - therefore you must
+have DBIx::Class installed separately to use this module. It is an
+experimental proof of concept (see the NAME above).
+
 =head1 SYNOPSIS
 
 =over 4

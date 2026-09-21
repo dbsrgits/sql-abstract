@@ -98,6 +98,14 @@ sub query_end {
 
 DBIx::Class::Storage::Debug::PrettyPrint - Pretty Printing DebugObj
 
+=head1 REQUIRES
+
+This module ships inside the SQL-Abstract distribution but requires
+L<DBIx::Class> at runtime. DBIx::Class is intentionally B<not> a
+prerequisite of SQL-Abstract - DBIx::Class depends on SQL::Abstract, so
+declaring the reverse would create a dependency cycle - therefore you must
+have DBIx::Class installed separately to use this module.
+
 =head1 SYNOPSIS
 
  DBIC_TRACE_PROFILE=~/dbic.json perl -Ilib ./foo.pl

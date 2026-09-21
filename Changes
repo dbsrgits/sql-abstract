@@ -1,5 +1,8 @@
 Revision history for SQL::Abstract
 
+  - Document that the bundled DBIx::Class::* helper modules require
+    DBIx::Class at runtime (intentionally not a prereq, to avoid a
+    dependency cycle)
   - Document the limits of the default injection_guard and the safe
     handling of untrusted input (bind values, quote_char) (RT#117059)
   - generate() in scalar context now interpolates each placeholder
