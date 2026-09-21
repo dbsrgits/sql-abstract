@@ -459,8 +459,6 @@ BEGIN {
   }
 }
 
-#sub register_op { $_[0]->{is_op}{$_[1]} = 1; $_[0] }
-
 sub statement_list { sort keys %{$_[0]->{clauses_of}} }
 
 sub clauses_of {
@@ -1696,9 +1694,6 @@ sub _render_unop_paren {
 
 sub _render_unop_prefix {
   my ($self, $op, $v) = @_;
-  my $op_sql = $self->{restore_old_unop_handling}
-                 ? $self->_sqlcase($op)
-                 : { -keyword => $op };
   return $self->join_query_parts(' ',
     ($self->{restore_old_unop_handling}
       ? $self->_sqlcase($op)
