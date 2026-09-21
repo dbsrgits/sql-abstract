@@ -1009,7 +1009,7 @@ an order by direction:
   ORDER BY foo, bar DESC, MAX(baz)
   []
 
-=head2
+=head2 insert
 
 An insert node accepts an into/target clause, a fields clause, a values/from
 clause, and a returning clause.
