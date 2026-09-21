@@ -21,7 +21,8 @@ Revision history for SQL::Abstract
     regex instead of a List::Util::first scan (GH#21, larryl)
   - Fix ExtraClauses POD NAME/synopsis to the real package name and
     the documented plugin('+ExtraClauses') usage
-  - Correct the 'pending%' bind value in the -like POD example (GH#24)
+  - Correct the 'pending%' bind value in the -like POD example
+    (GH#24, lucas1)
   - SQL::Abstract::Tree: preserve a real 0 / '0' bind value in
     fill_in_placeholder() instead of blanking it (was `|| ''`)
     (RT#125760)
