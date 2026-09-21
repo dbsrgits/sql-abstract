@@ -628,7 +628,8 @@ sub _expand_insert_value {
   }
   if (ref($v) eq 'HASH') {
     if (grep !/^-/, keys %$v) {
-      $self->belch("HASH ref as bind value in insert is not supported");
+      # pass a plain hashref straight through as a bind value; this is how
+      # e.g. a Postgres json/jsonb column value is supplied (GH#18, RT#120676)
       return +{ -bind => [ $k, $v ] };
     }
   }

@@ -1,5 +1,8 @@
 Revision history for SQL::Abstract
 
+  - Do not warn when a plain hashref is passed as a bind value to
+    insert() - this is how Postgres json/jsonb columns are supplied
+    (GH#18, RT#120676, kraih)
   - Speed up the top-level special-op check with a single precompiled
     regex instead of a List::Util::first scan (GH#21, larryl)
   - Fix ExtraClauses POD NAME/synopsis to the real package name and

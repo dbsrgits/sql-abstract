@@ -345,13 +345,13 @@ my @tests = (
               stmt_q => 'SELECT * FROM `test` WHERE ( `a` < to_date(?, \'MM/DD/YY\') AND `b` = ? )',
               bind   => ['02/02/02', 8],
       },
-      { #TODO in SQLA >= 2.0 it will die instead (we kept this just because old SQLA passed it through)
+      { # a plain hashref bind value (e.g. a Pg json/jsonb column) is passed
+        # through as a bind value, without warning (GH#18, RT#120676)
               func   => 'insert',
               args   => ['test', {a => 1, b => 2, c => 3, d => 4, e => { answer => 42 }}],
               stmt   => 'INSERT INTO test (a, b, c, d, e) VALUES (?, ?, ?, ?, ?)',
               stmt_q => 'INSERT INTO `test` (`a`, `b`, `c`, `d`, `e`) VALUES (?, ?, ?, ?, ?)',
               bind   => [qw/1 2 3 4/, { answer => 42}],
-              warns  => qr/HASH ref as bind value in insert is not supported/i,
       },
       {
               func   => 'update',
