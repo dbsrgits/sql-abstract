@@ -1,5 +1,7 @@
 Revision history for SQL::Abstract
 
+  - Reword the "removed in 2.0" deprecation warnings to "a future
+    version", since those code paths still ship in the 2.x line
   - Do not warn when a plain hashref is passed as a bind value to
     insert() - this is how Postgres json/jsonb columns are supplied
     (GH#18, RT#120676, kraih)

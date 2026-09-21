@@ -987,7 +987,7 @@ sub _expand_expr {
     }
     my ($key, $value) = %$expr;
     if ($key =~ /^-/ and $key =~ s/ [_\s]? \d+ $//x ) {
-      $self->belch('Use of [and|or|nest]_N modifiers is deprecated and will be removed in SQLA v2.0. '
+      $self->belch('Use of [and|or|nest]_N modifiers is deprecated and will be removed in a future version. '
           . "You probably wanted ...-and => [ $key => COND1, $key => COND2 ... ]");
     }
     return $self->_expand_hashpair($key, $value);
@@ -1008,7 +1008,7 @@ sub _expand_hashpair {
   my ($self, $k, $v) = @_;
   unless (defined($k) and length($k)) {
     if (defined($k) and my $literal = is_literal_value($v)) {
-      $self->belch('Hash-pairs consisting of an empty string with a literal are deprecated, and will be removed in 2.0: use -and => [ $literal ] instead');
+      $self->belch('Hash-pairs consisting of an empty string with a literal are deprecated, and will be removed in a future version: use -and => [ $literal ] instead');
       return { -literal => $literal };
     }
     $self->puke("Supplying an empty left hand side argument is not supported");
@@ -1070,7 +1070,7 @@ sub _expand_hashpair_ident {
 
   if (my $literal = is_literal_value($v)) {
     unless (length $k) {
-      $self->belch('Hash-pairs consisting of an empty string with a literal are deprecated, and will be removed in 2.0: use -and => [ $literal ] instead');
+      $self->belch('Hash-pairs consisting of an empty string with a literal are deprecated, and will be removed in a future version: use -and => [ $literal ] instead');
       return \$literal;
     }
     my ($sql, @bind) = @$literal;
@@ -1508,7 +1508,7 @@ sub _recurse_where {
     return ($sql, @bind);
   }
   else {
-    $self->belch("Calling _recurse_where in scalar context is deprecated and will go away before 2.0");
+    $self->belch("Calling _recurse_where in scalar context is deprecated and will go away in a future version");
     return $sql;
   }
 }

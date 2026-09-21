@@ -444,7 +444,7 @@ for my $case (@numbered_mods) {
     };
 
     ok ( (grep
-      { $_ =~ qr/\QUse of [and|or|nest]_N modifiers is deprecated and will be removed in SQLA v2.0/ }
+      { $_ =~ qr/\QUse of [and|or|nest]_N modifiers is deprecated and will be removed in a future version/ }
       @w
     ), 'Warnings were emitted about a mod_N construct');
   }
