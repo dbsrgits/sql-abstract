@@ -1,5 +1,6 @@
 Revision history for SQL::Abstract
 
+  - Correct the 'pending%' bind value in the -like POD example (GH#24)
   - SQL::Abstract::Tree: preserve a real 0 / '0' bind value in
     fill_in_placeholder() instead of blanking it (was `|| ''`)
   - Add DBIx::Class::SQLMaker::Role::SQLA2Passthrough to Makefile.PL
