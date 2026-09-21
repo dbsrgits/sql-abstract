@@ -363,12 +363,11 @@ __END__
 
 =head1 NAME
 
-SQL::Abstract::ExtraClauses - new/experimental additions to L<SQL::Abstract>
+SQL::Abstract::Plugin::ExtraClauses - new/experimental additions to L<SQL::Abstract>
 
 =head1 SYNOPSIS
 
-  my $sqla = SQL::Abstract->new;
-  SQL::Abstract::ExtraClauses->apply_to($sqla);
+  my $sqla = SQL::Abstract->new->plugin('+ExtraClauses');
 
 =head1 WARNING
 
