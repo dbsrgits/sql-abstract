@@ -1,5 +1,7 @@
 Revision history for SQL::Abstract
 
+  - Document the limits of the default injection_guard and the safe
+    handling of untrusted input (bind values, quote_char) (RT#117059)
   - generate() in scalar context now interpolates each placeholder
     exactly once, so a bind value that contains a '?' no longer
     swallows the following bind values

@@ -2503,7 +2503,18 @@ injection attacks when mishandling user input e.g.:
 If the expression matches an exception is thrown. Note that literal SQL
 supplied via C<\'...'> or C<\['...']> is B<not> checked in any way.
 
-Defaults to checking for C<;> and the C<GO> keyword (TransactSQL)
+Defaults to checking for C<;> and the C<GO> keyword (TransactSQL).
+
+B<This default is deliberately minimal and is not a general-purpose SQL
+injection filter.> It does not catch parentheses, comment introducers
+(C<-->, C</*>) or most other injection payloads, and by design cannot see
+into literal SQL. Identifiers are B<not> quoted unless you set
+L</quote_char>. The only robust protection is therefore to pass untrusted
+input as B<bind values> (which become C<?> placeholders), never as hash
+B<keys> (column/operator names) or as literal SQL, and to set C<quote_char>
+when identifiers may originate from user input. If your application does
+route untrusted data through identifiers, supply a stricter C<injection_guard>
+of your own.
 
 =item array_datatypes
 
