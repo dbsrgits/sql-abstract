@@ -1,5 +1,8 @@
 Revision history for SQL::Abstract
 
+  - Add DBIx::Class::SQLMaker::Role::SQLA2Passthrough to Makefile.PL
+    no_index so the proof-of-concept role is not indexed under
+    SQL-Abstract on CPAN
   - Refactor subclass method override grandfathering system
   - Remove old SQLA::More compat code (will restore a better set later)
   - Fix for empty 'order by' to ->select (dakkar)

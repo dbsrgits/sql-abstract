@@ -64,7 +64,10 @@ my %META = (
     license => [ 'http://dev.perl.org/licenses/' ],
   },
   no_index => {
-    package => [ 'DBIx::Class::Storage::Debug::PrettyPrint' ],
+    package => [
+      'DBIx::Class::Storage::Debug::PrettyPrint',
+      'DBIx::Class::SQLMaker::Role::SQLA2Passthrough',
+    ],
     directory => [ 't', 'xt', 'examples' ],
   },
 );
