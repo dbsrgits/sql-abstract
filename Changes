@@ -1,5 +1,7 @@
 Revision history for SQL::Abstract
 
+  - Speed up the top-level special-op check with a single precompiled
+    regex instead of a List::Util::first scan (GH#21, larryl)
   - Fix ExtraClauses POD NAME/synopsis to the real package name and
     the documented plugin('+ExtraClauses') usage
   - Correct the 'pending%' bind value in the -like POD example (GH#24)
