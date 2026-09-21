@@ -27,6 +27,19 @@ for my $q ('', '"') {
     $sql_maker->where({'-or' => [{'-ident' => 'foo'},{'=' => \'bozz'}]})
   } qr/Illegal.*top-level/;
 
+  {
+    # RT#136984: an arrayref of -bool conditions (as produced by e.g.
+    # DBIC search([{ -bool => 'f1' }, { -bool => 'f2' }])) must not be
+    # rejected as an illegal top-level op under disable_old_special_ops
+    local $sql_maker->{disable_old_special_ops} = 1;
+    my ($sql, @bind) = $sql_maker->where([{ -bool => 'f1' }, { -bool => 'f2' }]);
+    is_same_sql_bind(
+      $sql, \@bind,
+      "WHERE ( ( ${q}f1${q} OR ${q}f2${q} ) )",
+      [],
+    );
+  }
+
   my ($sql, @bind) = $sql_maker->select('artist', '*', { 'artist.name' => { -ident => 'artist.pseudonym' } } );
   is_same_sql_bind (
     $sql,
