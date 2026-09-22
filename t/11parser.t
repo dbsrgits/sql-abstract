@@ -1372,4 +1372,45 @@ for my $kw (qw(EXCEPT MINUS)) {
   ], "$kw parsed as an expression start keyword");
 }
 
+# BETWEEN joins its two bounds with an AND, but the RHS parse stops at
+# that AND - the upper bound must be pulled back in and grouped under the
+# BETWEEN as AND[low, high], not left leaking out as a sibling of the
+# BETWEEN in the enclosing expression. (The previous re-parse guard here
+# compared an arrayref node to the string '-LITERAL' and so never fired.)
+is_deeply($sqlat->parse('x BETWEEN 1 AND 5'), [
+  [ BETWEEN => [
+    [ -LITERAL => [ 'x' ] ],
+    [ AND => [ [ -LITERAL => [ '1' ] ], [ -LITERAL => [ '5' ] ] ] ],
+  ] ],
+], 'BETWEEN groups both of its bounds under itself');
+
+is_deeply($sqlat->parse('x NOT BETWEEN ? AND ?'), [
+  [ 'NOT BETWEEN' => [
+    [ -LITERAL => [ 'x' ] ],
+    [ AND => [ [ -PLACEHOLDER => [ '?' ] ], [ -PLACEHOLDER => [ '?' ] ] ] ],
+  ] ],
+], 'NOT BETWEEN groups both of its bounds under itself');
+
+# a BETWEEN embedded in a longer AND chain must keep the following
+# conditions as siblings, not swallow them into the BETWEEN
+is_deeply($sqlat->parse('a = 1 AND x BETWEEN 1 AND 5 AND b = 2'), [
+  [ AND => [
+    [ '=' => [ [ -LITERAL => [ 'a' ] ], [ -LITERAL => [ '1' ] ] ] ],
+    [ BETWEEN => [
+      [ -LITERAL => [ 'x' ] ],
+      [ AND => [ [ -LITERAL => [ '1' ] ], [ -LITERAL => [ '5' ] ] ] ],
+    ] ],
+    [ '=' => [ [ -LITERAL => [ 'b' ] ], [ -LITERAL => [ '2' ] ] ] ],
+  ] ],
+], 'BETWEEN in an AND chain does not swallow the following conditions');
+
+# ... and all of the above still round-trip back to their original SQL
+for my $sql (
+  'x BETWEEN 1 AND 5',
+  'x NOT BETWEEN ? AND ?',
+  'a = 1 AND x BETWEEN 1 AND 5 AND b = 2',
+) {
+  is($sqlat->unparse($sqlat->parse($sql)), $sql, "BETWEEN roundtrip: $sql");
+}
+
 done_testing;

@@ -408,11 +408,16 @@ sub _recurse_parse {
 
       my @right = $self->_recurse_parse($tokens, PARSE_RHS);
 
-      # A between with a simple LITERAL for a 1st RHS argument needs a
-      # rerun of the search to (hopefully) find the proper AND construct
-      if ($op eq 'BETWEEN' and $right[0] eq '-LITERAL') {
-        unshift @$tokens, $right[1][0];
-        @right = $self->_recurse_parse($tokens, PARSE_IN_EXPR);
+      # BETWEEN's two bounds are joined by an AND, but PARSE_RHS stops at
+      # that AND, so only the lower bound has been parsed so far. Pull the
+      # upper bound in and group both under the BETWEEN as AND[low, high],
+      # otherwise the upper bound leaks out as a sibling of the BETWEEN in
+      # the enclosing expression. (The previous guard here compared an
+      # arrayref node to the string '-LITERAL' and so never fired.)
+      if (($op eq 'BETWEEN' or $op eq 'NOT BETWEEN')
+            and @$tokens and $tokens->[0] =~ /\AAND\z/i) {
+        my $and = uc shift @$tokens;
+        @right = ([ $and => [ @right, $self->_recurse_parse($tokens, PARSE_RHS) ] ]);
       }
 
       push @left, [$op => [ (@left ? pop @left : ''), @right ]];

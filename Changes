@@ -1,5 +1,12 @@
 Revision history for SQL::Abstract
 
+  - SQL::Abstract::Tree: a (NOT) BETWEEN now parses both of its bounds
+    into a single AND grouped under the BETWEEN node
+    (BETWEEN[val, AND[low, high]]) instead of letting the upper bound
+    leak out as a sibling in the enclosing expression. The re-parse that
+    was meant to do this never fired, because it compared an arrayref
+    node against the string '-LITERAL'. Emitted SQL text round-trips
+    unchanged; only the parsed tree (parse()) is affected.
   - select() now dies when given more than the four positional arguments
     (source, fields, where, order) instead of rendering garbage SQL from a
     flat clause list that was meant to be a hashref (RT#148271, Ovid)
