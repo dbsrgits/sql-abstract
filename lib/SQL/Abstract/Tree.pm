@@ -681,7 +681,7 @@ sub _parenthesis_unroll {
       my $child_op_argc = $single_child_op ? scalar @{$child->[1][0][1]} : undef;
 
       my $single_grandchild_op
-        = ( $child_op_argc||0 == 1 and ref $child->[1][0][1][0] eq 'ARRAY' )
+        = ( ($child_op_argc||0) == 1 and ref $child->[1][0][1][0] eq 'ARRAY' )
             ? $child->[1][0][1][0][0]
             : ''
       ;
