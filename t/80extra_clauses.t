@@ -120,6 +120,20 @@ is_same_sql_bind(
   [ 1..6 ],
 );
 
+# an undef in a row is a NULL value and must keep its placeholder and its
+# bind slot, otherwise SQL and bind list get out of step (RT#137357)
+($sql, @bind) = $sqlac->insert({
+  into => 'eh',
+  fields => [ qw(a b c) ],
+  rowvalues => [ [ 1, undef, \'now()' ], [ 3, undef, \'now()' ] ]
+});
+
+is_same_sql_bind(
+  $sql, \@bind,
+  q{INSERT INTO eh (a, b, c) VALUES (?, ?, now()), (?, ?, now())},
+  [ 1, undef, 3, undef ],
+);
+
 is_same_sql(
   $sqlac->select({
     select => '*',

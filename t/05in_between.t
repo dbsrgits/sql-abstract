@@ -373,6 +373,17 @@ my @in_between_tests = (
     test => 'Complex top-level -in',
   },
   {
+    where => {
+      -in => [
+        { -row => [ 'x', 'y' ] },
+        { -row => [ 1, undef ] },
+      ],
+    },
+    stmt => ' WHERE (x, y) IN ((?, ?))',
+    bind => [ 1, undef ],
+    test => 'undef inside -row is a NULL bind, not dropped (RT#137357)',
+  },
+  {
     where => { -is => [ 'bob', undef ] },
     stmt => ' WHERE bob IS NULL',
     bind => [],

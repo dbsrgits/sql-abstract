@@ -1308,7 +1308,16 @@ sub _expand_value {
 
 sub _expand_row {
   my ($self, undef, $args) = @_;
-  +{ -row => [ map $self->expand_expr($_), @$args ] };
+  +{ -row => [
+    map {
+      # a row is positional, so an undef element is a NULL value and must
+      # keep its placeholder and bind slot rather than being expanded to
+      # nothing and silently dropped by the renderer (RT#137357)
+      defined($_)
+        ? $self->expand_expr($_)
+        : +{ -bind => [ our $Cur_Col_Meta, undef ] }
+    } @$args
+  ] };
 }
 
 sub _expand_op {
@@ -1485,7 +1494,7 @@ sub _expand_values {
     map +(
       ref($_) eq 'HASH'
         ? $self->expand_expr($_)
-        : +{ -row => [ map $self->expand_expr($_), @$_ ] }
+        : $self->_expand_row(undef, $_)
     ), ref($values) eq 'ARRAY' ? @$values : $values
   ] };
 }

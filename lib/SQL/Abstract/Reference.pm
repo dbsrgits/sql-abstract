@@ -670,6 +670,19 @@ Expands the elements of the value arrayref:
   (?, foo, ?, ?)
   [ 1, 2, 3 ]
 
+An undef element is a NULL value, expanded to a bind of undef so that it
+keeps its placeholder and its bind slot:
+
+  # expr
+  { -row => [ 1, undef ] }
+
+  # aqt
+  { -row => [ { -bind => [ undef, 1 ] }, { -bind => [ undef, undef ] } ] }
+
+  # query
+  (?, ?)
+  [ 1, undef ]
+
 =head2 op
 
 If an expander is registered for the op name, delegates to the expander; if
