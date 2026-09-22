@@ -1,5 +1,9 @@
 Revision history for SQL::Abstract
 
+  - SQL::Abstract::Tree: anchor the unrollable-operator regex so that ON
+    no longer matches inside function names such as GROUP_CONCAT or
+    CONCAT_WS and strips their parenthesis on unparse/format
+    (RT#105563, RT#117234)
   - An undef element in a -row (and so in -values and the ExtraClauses
     insert rowvalues clause) is now a NULL bind instead of being silently
     dropped, which lost placeholders and bind values in bulk inserts

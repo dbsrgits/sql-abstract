@@ -28,6 +28,10 @@ my @sql = (
   "SELECT * FROM foo ORDER BY name + ?, [me].[id]",
   "SELECT foo AS bar FROM baz ORDER BY x + ? DESC, baz.g",
   "SELECT [me].[id], ROW_NUMBER() OVER (ORDER BY (SELECT 1)) AS [rno__row__index] FROM ( SELECT [me].[id] FROM [LogParents] [me]) [me]",
+  # function names containing an unrollable keyword (ON in GROUP_CONCAT /
+  # CONCAT_WS) must keep their parenthesis (RT#105563, RT#117234)
+  "SELECT GROUP_CONCAT(a) FROM foo",
+  "SELECT j.*, CONCAT_WS('_', j.CustomerID, j.CustomerDepartmentID) AS CombinedID FROM j",
   # deliberate batshit insanity
   "SELECT foo FROM bar WHERE > 12",
   'SELECT ilike_any_or FROM bar WHERE ( baz ILIKE ANY(?) OR bat ILIKE ANY(?) )',

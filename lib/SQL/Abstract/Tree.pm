@@ -637,7 +637,9 @@ my @unrollable_ops = (
   'I?LIKE',
 );
 my $unrollable_ops_re = join ' | ', @unrollable_ops;
-$unrollable_ops_re = qr/$unrollable_ops_re/xi;
+# anchored, so that ON does not match inside function names like
+# GROUP_CONCAT or CONCAT_WS and strip their parenthesis (RT#105563, RT#117234)
+$unrollable_ops_re = qr/ \A (?: $unrollable_ops_re ) \z /xi;
 
 sub _parenthesis_unroll {
   my $self = shift;
