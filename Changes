@@ -1,5 +1,9 @@
 Revision history for SQL::Abstract
 
+  - SQL::Abstract::Tree: pad_keyword() no longer emits "Use of
+    uninitialized value" warnings when a caller supplies an indentmap
+    without a newline (it now guards newline the way _unparse already
+    does)
   - SQL::Abstract::Tree: a (NOT) BETWEEN now parses both of its bounds
     into a single AND grouped under the BETWEEN node
     (BETWEEN[val, AND[low, high]]) instead of letting the upper bound

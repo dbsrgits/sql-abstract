@@ -529,7 +529,9 @@ sub pad_keyword {
 
    my $before = '';
    if (defined $self->indentmap->{lc $keyword}) {
-      $before = $self->newline . $self->indent($depth + $self->indentmap->{lc $keyword});
+      # guard newline like _unparse does - a caller may set an indentmap
+      # without a newline (outside the canned profiles)
+      $before = ($self->newline||'') . $self->indent($depth + $self->indentmap->{lc $keyword});
    }
    $before = '' if $depth == 0 and defined $starters{lc $keyword};
    return [$before, ''];

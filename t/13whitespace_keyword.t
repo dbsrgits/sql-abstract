@@ -2,6 +2,7 @@ use strict;
 use warnings;
 
 use Test::More;
+use Test::Warn;
 use SQL::Abstract::Tree;
 
 my $sqlat = SQL::Abstract::Tree->new({
@@ -26,5 +27,18 @@ for ( keys %{$sqlat->indentmap}) {
 }
 
 is($sqlat->pad_keyword('select', 0)->[0], '', 'Select gets no newline or indent for depth 0');
+
+# an indentmap without a newline must not warn (pad_keyword guards newline
+# the same way _unparse does)
+{
+  my $no_newline = SQL::Abstract::Tree->new({ indentmap => { where => 1 } });
+  warnings_are {
+    is(
+      $no_newline->unparse($no_newline->parse('SELECT a FROM foo WHERE x = 1')),
+      'SELECT a FROM foo WHERE x = 1',
+      'unparses correctly with an indentmap but no newline',
+    );
+  } [], 'no uninitialized-value warnings when newline is unset';
+}
 
 done_testing;
