@@ -1,6 +1,5 @@
 package SQL::Abstract::Parts;
 
-use Module::Runtime ();
 use Scalar::Util ();
 use strict;
 use warnings;

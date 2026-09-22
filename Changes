@@ -1,5 +1,10 @@
 Revision history for SQL::Abstract
 
+  - SQL::Abstract::Parts: drop the leftover `use Module::Runtime`. It was
+    never called, and Module::Runtime stopped being a prerequisite in
+    2.000001, so on a system without it installed loading Parts.pm (and
+    hence the whole render path that builds Parts objects) died at compile
+    time
   - SQL::Abstract::Tree: pad_keyword() no longer emits "Use of
     uninitialized value" warnings when a caller supplies an indentmap
     without a newline (it now guards newline the way _unparse already
