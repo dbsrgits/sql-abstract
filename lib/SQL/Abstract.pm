@@ -735,6 +735,13 @@ sub select {
     if (ref(my $sel = $args[0]) eq 'HASH') {
       $sel
     } else {
+      # a flat list of clause pairs (select => ..., from => ..., ...) would
+      # otherwise be taken as the positional form and produce garbage SQL
+      # (RT#148271)
+      $self->puke(
+        'select() takes a single hashref of clauses or up to four positional'
+        . ' arguments (source, fields, where, order), got ' . @args
+      ) if @args > 4;
       my %clauses;
       @clauses{qw(from select where order_by)} = @args;
 

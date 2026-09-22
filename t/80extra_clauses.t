@@ -1,6 +1,7 @@
 use strict;
 use warnings;
 use Test::More;
+use Test::Exception;
 use SQL::Abstract::Test import => [ qw(is_same_sql_bind is_same_sql) ];
 use SQL::Abstract;
 
@@ -485,5 +486,45 @@ is_same_sql_bind(
     15031
     )]
 );
+
+# RT#148271: the -join arrayref form accepted only bare 'as' / 'on' keys and
+# silently dropped the dashed spellings, even though the from_list it lives
+# in is written with -as / -join
+{
+  my $expect = q{SELECT email FROM users AS u JOIN user_roles AS roles ON roles.user_id = u.rowid};
+  for my $keys ([ 'as', 'on' ], [ '-as', '-on' ]) {
+    my ($as, $on) = @$keys;
+    is_same_sql(
+      scalar $sqlac->select({
+        select => 'email',
+        from => [
+          { users => { -as => 'u' } },
+          -join => [ user_roles => $as => 'roles' => $on => { 'roles.user_id' => 'u.rowid' } ],
+        ],
+      }),
+      $expect,
+      "-join accepts $as / $on",
+    );
+  }
+
+  throws_ok {
+    $sqlac->select({
+      select => 'email',
+      from => [ 'users', -join => [ 'user_roles', 'oops', 'roles' ] ],
+    })
+  } qr/Unknown key 'oops' in -join/, 'unknown -join key is an error, not silently ignored';
+}
+
+# RT#148271: passing the clauses as a flat list instead of a hashref used to
+# be taken as the (source, fields, where, order) positional form and produced
+# garbage SQL like "SELECT email FROM select WHERE ? ORDER BY users, -join, ..."
+throws_ok {
+  $sqlac->select(
+    select => [ qw(email user_id name) ],
+    from => [ 'users', -join => [ 'user_roles', on => { 'user_roles.user_id' => 'users.id' } ] ],
+    where => { name => { -like => 'Ovid%' } },
+    order_by => 'name',
+  )
+} qr/select\(\) takes a single hashref/, 'a flat clause list to select() is an error';
 
 done_testing;

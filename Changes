@@ -1,5 +1,11 @@
 Revision history for SQL::Abstract
 
+  - select() now dies when given more than the four positional arguments
+    (source, fields, where, order) instead of rendering garbage SQL from a
+    flat clause list that was meant to be a hashref (RT#148271, Ovid)
+  - ExtraClauses: -join accepts the dashed spellings -as / -on / -using /
+    -type / -to / -from like the surrounding from_list does, and dies on
+    an unknown key instead of silently dropping it (RT#148271, Ovid)
   - SQL::Abstract::Tree: recognise Oracle's MINUS as an expression start
     keyword, like EXCEPT (RT#134245, DAMI)
   - SQL::Abstract::Tree: anchor the unrollable-operator regex so that ON
