@@ -1,5 +1,7 @@
 Revision history for SQL::Abstract
 
+  - SQL::Abstract::Tree: recognise Oracle's MINUS as an expression start
+    keyword, like EXCEPT (RT#134245, DAMI)
   - SQL::Abstract::Tree: anchor the unrollable-operator regex so that ON
     no longer matches inside function names such as GROUP_CONCAT or
     CONCAT_WS and strips their parenthesis on unparse/format

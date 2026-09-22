@@ -48,6 +48,7 @@ my @expression_start_keywords = (
   'UNION',
   'INTERSECT',
   'EXCEPT',
+  'MINUS',
   'BEGIN \s+ WORK',
   'COMMIT',
   'ROLLBACK \s+ TO \s+ SAVEPOINT',

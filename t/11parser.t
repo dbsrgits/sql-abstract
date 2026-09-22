@@ -1360,4 +1360,16 @@ warnings_are {
   is( $sqlat->unparse($tree), $sql, 'roundtrip ok');
 } [], 'no recursion warnings on insane SQL';
 
+# Oracle spells the set difference operator MINUS rather than EXCEPT
+# (RT#134245)
+for my $kw (qw(EXCEPT MINUS)) {
+  is_deeply($sqlat->parse("SELECT a FROM x $kw SELECT a FROM y"), [
+    [ SELECT => [ [ -LITERAL => [ 'a' ] ] ] ],
+    [ FROM => [ [ -LITERAL => [ 'x' ] ] ] ],
+    [ $kw => [] ],
+    [ SELECT => [ [ -LITERAL => [ 'a' ] ] ] ],
+    [ FROM => [ [ -LITERAL => [ 'y' ] ] ] ],
+  ], "$kw parsed as an expression start keyword");
+}
+
 done_testing;
