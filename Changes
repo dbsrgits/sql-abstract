@@ -1,6 +1,5 @@
 Revision history for SQL::Abstract
 
-2.000001_01 - 2026-09-22
   - SQL::Abstract::Parts: drop the leftover `use Module::Runtime`. It was
     never called, and Module::Runtime stopped being a prerequisite in
     2.000001, so on a system without it installed loading Parts.pm (and
