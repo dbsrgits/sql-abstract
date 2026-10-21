@@ -1,5 +1,6 @@
 Revision history for SQL::Abstract
 
+2.000001_02 - 2026-10-21
   - t/05in_between.t: the subclass test packages no longer use the
     `package NAME { ... }` syntax (perl 5.14+) or `use mro`/`use parent`,
     so the test suite compiles and passes on perl 5.8 - 5.12 again
