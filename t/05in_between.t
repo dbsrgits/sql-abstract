@@ -430,17 +430,19 @@ for my $case (@in_between_tests) {
   }
 }
 
-package SubClass {
-  use parent 'SQL::Abstract';
-  use mro 'c3';
+{
+  package SubClass;
+  our @ISA = 'SQL::Abstract';
 }
 
-package SubClass::OverrideIn {
+{
+  package SubClass::OverrideIn;
   our @ISA = 'SubClass';
   sub _where_field_IN { shift->next::method(@_) }
 }
 
-package SubClass::OverrideBetween {
+{
+  package SubClass::OverrideBetween;
   our @ISA = 'SubClass';
   sub _where_field_BETWEEN { shift->next::method(@_) }
 }
