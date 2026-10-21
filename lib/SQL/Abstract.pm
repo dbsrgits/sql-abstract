@@ -3845,24 +3845,11 @@ apps in under 50 lines.
 Contributions are always welcome, in all usable forms (we especially
 welcome documentation improvements). The delivery methods include git-
 or unified-diff formatted patches, GitHub pull requests, or plain bug
-reports either via RT or the Mailing list. Contributors are generally
-granted full access to the official repository after their first several
-patches pass successful review.
+reports via RT. For discussion, find us on IRC in C<#dbio> on
+C<irc.perl.org>.
 
-This project is maintained in a git repository. The code and related tools are
-accessible at the following locations:
-
-=over
-
-=item * Official repo: L<git://git.shadowcat.co.uk/dbsrgits/SQL-Abstract.git>
-
-=item * Official gitweb: L<http://git.shadowcat.co.uk/gitweb/gitweb.cgi?p=dbsrgits/SQL-Abstract.git>
-
-=item * GitHub mirror: L<https://github.com/dbsrgits/sql-abstract>
-
-=item * Authorized committers: L<ssh://dbsrgits@git.shadowcat.co.uk/SQL-Abstract.git>
-
-=back
+This project is maintained in a git repository at
+L<https://github.com/dbsrgits/sql-abstract>.
 
 =head1 CHANGES
 
@@ -3952,14 +3939,17 @@ L<DBIx::Class>, L<DBIx::Abstract>, L<CGI::FormBuilder>, L<HTML::QuickTable>.
 
 =head1 AUTHOR
 
-Copyright (c) 2001-2007 Nathan Wiger <nwiger@cpan.org>. All Rights Reserved.
+Copyright (c) 2001-2007 Nathan Wiger <nwiger@gmail.com>. All Rights Reserved.
 
-This module is actively maintained by Matt Trout <mst@shadowcatsystems.co.uk>
+This module is currently maintained by Torsten Raudssus <torsten@raudssus.de>,
+and was previously maintained by Matt Trout <mst@shadowcatsystems.co.uk>.
 
-For support, your best bet is to try the C<DBIx::Class> users mailing list.
-While not an official support venue, C<DBIx::Class> makes heavy use of
-C<SQL::Abstract>, and as such list members there are very familiar with
-how to create queries.
+=head1 SUPPORT
+
+IRC: join C<#dbio> on C<irc.perl.org>
+(L<irc://irc.perl.org/#dbio>).
+
+Bugs: L<https://rt.cpan.org/Public/Dist/Display.html?Name=SQL-Abstract>
 
 =head1 LICENSE
 

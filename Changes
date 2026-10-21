@@ -1,5 +1,10 @@
 Revision history for SQL::Abstract
 
+  - Docs/metadata: now maintained by Torsten Raudssus; support moved from
+    the DBIx::Class mailing list to IRC #dbio on irc.perl.org (also in
+    META x_IRC); dropped the dead git.shadowcat.co.uk repository links in
+    favour of GitHub; updated Nathan Wiger's contact address
+
 2.000001_02 - 2026-10-21
   - t/05in_between.t: the subclass test packages no longer use the
     `package NAME { ... }` syntax (perl 5.14+) or `use mro`/`use parent`,
