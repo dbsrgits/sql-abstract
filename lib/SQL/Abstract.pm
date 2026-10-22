@@ -3918,7 +3918,7 @@ this module. Unfortunately, most of them submitted bugs via CPAN
 so I have no idea who they are! But the people I do know are:
 
     Ash Berlin (order_by hash term support)
-    Matt Trout (DBIx::Class support)
+    Matt S Trout (DBIx::Class support, long-time maintainer)
     Mark Stosberg (benchmarking)
     Chas Owens (initial "IN" operator support)
     Philip Collins (per-field SQL functions)
@@ -3939,17 +3939,21 @@ L<DBIx::Class>, L<DBIx::Abstract>, L<CGI::FormBuilder>, L<HTML::QuickTable>.
 
 =head1 AUTHOR
 
-Copyright (c) 2001-2007 Nathan Wiger <nwiger@gmail.com>. All Rights Reserved.
-
-This module is currently maintained by Torsten Raudssus <torsten@raudssus.de>,
-and was previously maintained by Matt Trout <mst@shadowcatsystems.co.uk>.
+Originally written by Nathan Wiger <nwiger@gmail.com> (2001-2007).
 
 =head1 SUPPORT
+
+Maintainer: Torsten Raudssus <torsten@raudssus.de>
 
 IRC: join C<#dbio> on C<irc.perl.org>
 (L<irc://irc.perl.org/#dbio>).
 
 Bugs: L<https://rt.cpan.org/Public/Dist/Display.html?Name=SQL-Abstract>
+
+=head1 COPYRIGHT
+
+Copyright (c) 2001-2026 Nathan Wiger and the SQL::Abstract contributors
+(see L</ACKNOWLEDGEMENTS> and the git history).
 
 =head1 LICENSE
 

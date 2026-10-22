@@ -4,7 +4,7 @@ use Distar 0.001;
 
 use ExtUtils::MakeMaker 6.57_10 ();
 
-author 'Nathan Wiger <nwiger@gmail.com>';
+author 'Torsten Raudssus <torsten@raudssus.de>';
 
 manifest_include examples => qr/sqla-format|.*\.pl/;
 1;
