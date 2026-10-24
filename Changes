@@ -1,5 +1,7 @@
 Revision history for SQL::Abstract
 
+  - New README.md (for the repository) and LICENSE file; the LICENSE is
+    now part of the repository and shipped as-is in the tarball
   - New SECURITY.md: how to report security issues privately, which
     versions get fixes and what counts as a security issue (RT#167662)
   - Docs: new "SQL::Abstract, DBIx::Class and DBIO" section - DBIx::Class
