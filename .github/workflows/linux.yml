@@ -8,6 +8,8 @@ on:
   pull_request:
 jobs:
   perl:
+    # no perl:5.x containers: the old images can no longer be pulled and
+    # their glibc is too old for the node runtime the actions need
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -30,10 +32,15 @@ jobs:
           - '5.36'
           - '5.38'
           - '5.40'
-    container:
-      image: perl:${{ matrix.perl-version }}
+          - '5.42'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+      - name: Set up Perl
+        uses: shogo82148/actions-setup-perl@v1
+        with:
+          perl-version: ${{ matrix.perl-version }}
+      - name: perl -V
+        run: perl -V
       - name: Install dependencies
         run: cpanm -n --installdeps --with-develop .
       - name: Set up
