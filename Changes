@@ -1,5 +1,8 @@
 Revision history for SQL::Abstract
 
+  - ORDER BY: { -asc => $col, -nulls => "first" } (or -desc, or "last")
+    renders $col ASC NULLS FIRST; the -nulls key applies to every column
+    of its -asc / -desc hash (idea and tests from ilmari)
   - SQL::Abstract::Tree: an operator followed by a parenthesised
     expression in a list (trunc(a - (b + c), 2)) no longer gets a comma
     inserted in front of it, and a backslash-escaped question mark

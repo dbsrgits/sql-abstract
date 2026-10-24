@@ -171,7 +171,7 @@ our %Defaults = (
     (map +($_ => '_render_op_between'), 'between', 'not_between'),
     (map +($_ => '_render_op_in'), 'in', 'not_in'),
     (map +($_ => '_render_unop_postfix'),
-      'is_null', 'is_not_null', 'asc', 'desc',
+      'is_null', 'is_not_null', 'asc', 'desc', 'nulls_first', 'nulls_last',
     ),
     (not => '_render_unop_paren'),
     (map +($_ => '_render_op_andor'), qw(and or)),
@@ -1821,17 +1821,33 @@ sub _expand_order_by {
     foreach my $arg (@to_expand) {
       if (
         ref($arg) eq 'HASH'
+        and !exists $arg->{-nulls}
         and keys %$arg > 1
         and grep /^-(asc|desc)$/, keys %$arg
       ) {
         $self->puke("ordering direction hash passed to order by must have exactly one key (-asc or -desc)");
       }
     }
-    my @exp = map +(
-                defined($dir) ? { -op => [ $dir =~ /^-?(.*)$/ ,=> $_ ] } : $_
-              ),
-                map $self->expand_expr($_, -ident),
-                map ref($_) eq 'ARRAY' ? @$_ : $_, @to_expand;
+    my @exp;
+    foreach my $arg (map ref($_) eq 'ARRAY' ? @$_ : $_, @to_expand) {
+      if (ref($arg) eq 'HASH' and exists $arg->{-nulls}) {
+        # { -asc => $col, -nulls => 'first' } => col ASC NULLS FIRST
+        my %by = %$arg;
+        my $nulls = delete $by{-nulls};
+        $self->puke("invalid value for -nulls in order by: must be 'first' or 'last'")
+          unless defined($nulls) and !ref($nulls) and $nulls =~ /\A(?:first|last)\z/i;
+        my ($by_dir) = keys %by;
+        $self->puke("-nulls in an order by hash needs exactly one of -asc or -desc")
+          unless keys %by == 1 and $by_dir =~ /\A-(?:asc|desc)\z/;
+        # goes through the -asc / -desc expander installed below
+        my $sorted = $self->expand_expr({ $by_dir => $by{$by_dir} }) or next;
+        my (undef, @cols) = @{$sorted->{-op}};
+        push @exp, map +{ -op => [ 'nulls_'.lc($nulls), $_ ] }, @cols;
+        next;
+      }
+      my $e = $self->expand_expr($arg, -ident);
+      push @exp, defined($dir) ? { -op => [ $dir =~ /^-?(.*)$/ ,=> $e ] } : $e;
+    }
     return undef unless @exp;
     return undef if @exp == 1 and not defined($exp[0]);
     return +{ -op => [ ',', @exp ] };
@@ -3565,7 +3581,18 @@ forms. Examples:
       \'colE DESC',               |     colE DESC,
       \[ 'FUNC(colF, ?)', $x ],   |     FUNC(colF, ?)
     ]                             |   /* ...with $x bound to ? */
+                                  |
+    { -asc => 'colA',             | ORDER BY colA ASC NULLS FIRST
+      -nulls => 'first' }         |
+                                  |
+    { -desc => [qw/colA colB/],   | ORDER BY colA DESC NULLS LAST,
+      -nulls => 'last' }          |          colB DESC NULLS LAST
     ===============================================================
+
+The C<-nulls> key (C<first> or C<last>) adds C<NULLS FIRST> or
+C<NULLS LAST> to every column of its C<-asc> / C<-desc> hash, and needs
+exactly one of the two next to it. Not every database knows this syntax
+(PostgreSQL, Oracle and SQLite 3.30+ do, MySQL does not).
 
 =head2 CAVEAT: untrusted input in ORDER BY
 

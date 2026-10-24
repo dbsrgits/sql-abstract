@@ -107,6 +107,28 @@ my @cases =
     expects_quoted => ' ORDER BY colA ASC, colB LIKE ? DESC, colC LIKE ? ASC',
     bind => [qw/test tost/],
    },
+   # NULLS FIRST / NULLS LAST (tests from ilmari's order-by-nulls branch)
+   {
+    given => [ { -asc => 'colA', -nulls => 'first' }, { -desc => 'colB', -nulls => 'last' } ],
+    expects => ' ORDER BY colA ASC NULLS FIRST, colB DESC NULLS LAST',
+    expects_quoted => ' ORDER BY `colA` ASC NULLS FIRST, `colB` DESC NULLS LAST',
+   },
+   {
+    given => { -asc => [qw/colA colB/], -nulls => 'first' },
+    expects => ' ORDER BY colA ASC NULLS FIRST, colB ASC NULLS FIRST',
+    expects_quoted => ' ORDER BY `colA` ASC NULLS FIRST, `colB` ASC NULLS FIRST',
+   },
+   {
+    given => [ 'colA', { -desc => 'colB', -nulls => 'LAST' }, { -asc => 'colC' } ],
+    expects => ' ORDER BY colA, colB DESC NULLS LAST, colC ASC',
+    expects_quoted => ' ORDER BY `colA`, `colB` DESC NULLS LAST, `colC` ASC',
+   },
+   {
+    given => { -desc => \['colA LIKE ?', 'test'], -nulls => 'first' },
+    expects => ' ORDER BY colA LIKE ? DESC NULLS FIRST',
+    expects_quoted => ' ORDER BY colA LIKE ? DESC NULLS FIRST',
+    bind => ['test'],
+   },
   );
 
 my $sql  = SQL::Abstract->new;
@@ -149,5 +171,30 @@ throws_ok (
   qr/hash passed .+ must have exactly one key/,
   'Undeterministic order exception',
 );
+
+throws_ok (
+  sub { $sql->_order_by({ -asc => 'colA', -nulls => 'fleem' }) },
+  qr/invalid value for -nulls/,
+  'Invalid nulls exception',
+);
+
+throws_ok (
+  sub { $sql->_order_by({ -nulls => 'first' }) },
+  qr/-nulls .+ needs exactly one of -asc or -desc/,
+  '-nulls without a direction',
+);
+
+throws_ok (
+  sub { $sql->_order_by({ -asc => 'colA', -desc => 'colB', -nulls => 'first' }) },
+  qr/-nulls .+ needs exactly one of -asc or -desc/,
+  '-nulls with two directions',
+);
+
+{
+  my ($stmt, @bind) = $sql->select('t', '*', { a => 1 }, { -desc => 'b', -nulls => 'last' });
+  is_same_sql_bind($stmt, \@bind,
+    'SELECT * FROM t WHERE a = ? ORDER BY b DESC NULLS LAST', [1],
+    '-nulls through select()');
+}
 
 done_testing;
