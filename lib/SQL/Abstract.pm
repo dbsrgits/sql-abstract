@@ -1070,6 +1070,9 @@ sub _expand_hashpair_ident {
         ? (shift(@{$v = [ @$v ]}), $1)
         : lc($self->{logic} || 'OR')
     );
+    if ($logic eq 'or' and my $in = $self->_array_as_in($k, $v)) {
+      return $in;
+    }
     return $self->_expand_logop(
       $logic => $v, $k
     );
@@ -1089,6 +1092,24 @@ sub _expand_hashpair_ident {
     return +{ -literal => [ $self->_quote($k).' '.$sql, @bind ] };
   }
   die "notreached";
+}
+
+# array_as_in: turn col => [ 1, 2, undef ] into col IN (1, 2) OR col IS NULL,
+# but only when that means exactly the same as the OR-of-equalities
+# expansion: equality cmp, every element a bind value or undef, and at
+# least two values for the IN. Returns nothing when it does not apply.
+sub _array_as_in {
+  my ($self, $k, $v) = @_;
+  return unless $self->{array_as_in} and $self->{cmp} eq '=';
+  my (@values, $has_undef);
+  for my $el (@$v) {
+    if (!defined $el) { $has_undef = 1; next }
+    return if ref($el) and !Scalar::Util::blessed($el);
+    push @values, $el;
+  }
+  return unless @values > 1;
+  my $in = { $k => { -in => \@values } };
+  return $self->_expand_expr($has_undef ? { -or => [ $in, { $k => undef } ] } : $in);
 }
 
 sub _expand_scalar {
@@ -2355,6 +2376,32 @@ C<cmp> to C<like> you would get SQL such as:
 
 You can also override the comparison on an individual basis - see
 the huge section on L</"WHERE CLAUSES"> at the bottom.
+
+=item array_as_in
+
+Off by default. When set to a true value, an arrayref of plain values
+given for a column is rendered with C<IN> instead of a chain of
+equalities joined by C<OR>:
+
+    my $sql = SQL::Abstract->new(array_as_in => 1);
+
+    $sql->where({ id => [1, 2, 3] });
+    # WHERE id IN ( ?, ?, ? )             instead of
+    # WHERE ( id = ? OR id = ? OR id = ? )
+
+    $sql->where({ id => [1, 2, undef] });
+    # WHERE ( id IN ( ?, ? ) OR id IS NULL )
+
+Both forms select the same rows, but some databases (MySQL in
+particular) plan a long C<OR> chain much worse than the equivalent
+C<IN> list.
+
+The rewrite only happens when the result means exactly the same as the
+default expansion, so everything else is left as it is: a single value
+(C<id = ?>), an empty arrayref, an arrayref starting with C<-and>,
+elements that are hashrefs, literal SQL or other unblessed references,
+a L</cmp> other than C<=>, and C<< logic => 'and' >>. An explicit
+C<< { '=' => [ ... ] } >> is not rewritten either.
 
 =item sqltrue, sqlfalse
 

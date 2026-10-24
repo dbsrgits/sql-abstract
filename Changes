@@ -1,5 +1,10 @@
 Revision history for SQL::Abstract
 
+  - New constructor option array_as_in: renders col => [ 1, 2, 3 ] as
+    col IN ( ?, ?, ? ) instead of a chain of OR-ed equalities (much
+    faster on MySQL for long lists); undef elements become an extra
+    OR col IS NULL. Off by default, and only applied where the meaning
+    is identical (RT#156818)
   - Docs/metadata: now maintained by Torsten Raudssus; support moved from
     the DBIx::Class mailing list to IRC #dbio on irc.perl.org (also in
     META x_IRC); dropped the dead git.shadowcat.co.uk repository links in
