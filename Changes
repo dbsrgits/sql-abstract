@@ -1,5 +1,11 @@
 Revision history for SQL::Abstract
 
+  - Docs: new "SQL::Abstract, DBIx::Class and DBIO" section - DBIx::Class
+    uses SQL::Abstract::Classic since 0.082842 and no longer this module,
+    DBIO (a DBIx::Class fork) builds on SQL::Abstract 2.x and
+    SQL::Abstract::Tree; the "SQL::Abstract developers" link now points
+    at our own SUPPORT section instead of DBIx::Class, and SEE ALSO
+    lists DBIO and SQL::Abstract::Classic
   - Docs: new "CAVEAT: untrusted input in ORDER BY" section - order by
     columns are identifiers, not bind values, so map user input onto an
     allow-list (and set quote_char) instead of passing it through
