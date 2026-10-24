@@ -1,5 +1,7 @@
 Revision history for SQL::Abstract
 
+  - New SECURITY.md: how to report security issues privately, which
+    versions get fixes and what counts as a security issue (RT#167662)
   - Docs: new "SQL::Abstract, DBIx::Class and DBIO" section - DBIx::Class
     uses SQL::Abstract::Classic since 0.082842 and no longer this module,
     DBIO (a DBIx::Class fork) builds on SQL::Abstract 2.x and

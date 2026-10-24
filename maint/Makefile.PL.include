@@ -7,4 +7,5 @@ use ExtUtils::MakeMaker 6.57_10 ();
 author 'Torsten Raudssus <torsten@raudssus.de>';
 
 manifest_include examples => qr/sqla-format|.*\.pl/;
+manifest_include '' => qr{SECURITY\.md};
 1;
