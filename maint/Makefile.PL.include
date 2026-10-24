@@ -8,4 +8,11 @@ author 'Torsten Raudssus <torsten@raudssus.de>';
 
 manifest_include examples => qr/sqla-format|.*\.pl/;
 manifest_include '' => qr{SECURITY\.md};
+
+# releases are cut from main, not Distar's default master
+{
+  no warnings 'redefine';
+  my $dist_test = \&Distar::MM::dist_test;
+  *Distar::MM::dist_test = sub { $_[0]{BRANCH} ||= 'main'; goto &$dist_test };
+}
 1;
