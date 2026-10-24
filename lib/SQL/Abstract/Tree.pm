@@ -106,6 +106,9 @@ my $tokenizer_re = join("\n\t|\n",
   $and_or_re,
   $op_look_behind . ' \* ' . $op_look_ahead,
   (map { quotemeta $_ } qw/, ( )/),
+  # a backslash-escaped question mark is not a placeholder but (part of)
+  # an operator, e.g. PostgreSQL's ?| or ?-| written as \?| for DBD::Pg
+  ' \\\\ \? [\-\+\*\/<>=~!\@\#%\^&\|\?]* ',
   $placeholder_re,
 );
 
@@ -414,6 +417,12 @@ sub _recurse_parse {
         ;
       }
       else {
+        # several nodes before the comma (e.g. "x - ( y )") are one list
+        # element, not one element each
+        @left = [ -MISC => [
+          map { $_->[0] eq '-MISC' ? @{$_->[1]} : $_ } @left
+        ] ] if @left > 1;
+
         @left = [ -LIST => [ @left, @right ] ];
       }
     }

@@ -1,5 +1,10 @@
 Revision history for SQL::Abstract
 
+  - SQL::Abstract::Tree: an operator followed by a parenthesised
+    expression in a list (trunc(a - (b + c), 2)) no longer gets a comma
+    inserted in front of it, and a backslash-escaped question mark
+    operator for DBD::Pg (\?, \?|, \?&, \?-| ...) is kept as one operator
+    instead of being split up as a placeholder (tests by ilmari)
   - New README.md (for the repository) and LICENSE file; the LICENSE is
     now part of the repository and shipped as-is in the tarball
   - New SECURITY.md: how to report security issues privately, which

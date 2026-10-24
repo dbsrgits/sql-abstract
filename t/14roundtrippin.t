@@ -32,6 +32,23 @@ my @sql = (
   # CONCAT_WS) must keep their parenthesis (RT#105563, RT#117234)
   "SELECT GROUP_CONCAT(a) FROM foo",
   "SELECT j.*, CONCAT_WS('_', j.CustomerID, j.CustomerDepartmentID) AS CombinedID FROM j",
+  # a minus followed by a parenthesised expression is a binary minus,
+  # not a function call (no comma may appear in front of it)
+  q<SELECT "me"."id", "me"."balance" FROM ( select o.id, trunc(l.line_total - ( coalesce(finance_amount,0) + coalesce(px.px_total,0)),2) as balance from sale_order o inner join ( select order_id, sum(price_unit * product_uom_qty) as line_total from sale_order_line group by order_id) as l on o.id = l.order_id left outer join ( select d.id, sum(amount_total) as px_total from sales_order_details d inner join sales_order_p p on p.sales_order_id = d.id inner join account_invoice i on i.id = p.invoice_id group by d.id) as px on px.id = o.x_dbic_link_id) "me" WHERE ( "id" = ? )>,
+  # PostgreSQL operators containing a question mark, escaped for DBD::Pg
+  'SELECT me.id, me.jsonbcol FROM jsonbtest WHERE jsonbtest \? ?',
+  'SELECT me.id, me.jsonbcol FROM jsonbtest WHERE jsonbtest \?| ?',
+  'SELECT me.id, me.jsonbcol FROM jsonbtest WHERE jsonbtest \?& ?',
+  'SELECT me.id, me.lsegcol FROM geomtest WHERE \?- lsegcol',
+  'SELECT me.id, me.lsegcol FROM geomtest WHERE lsegcol \?- ?',
+  'SELECT me.id, me.lsegcol FROM geomtest WHERE \?| lsegcol',
+  'SELECT me.id, me.lsegcol FROM geomtest WHERE lsegcol \?| ?',
+  'SELECT me.id, me.lsegcol FROM geomtest WHERE lsegcol \?-| ?',
+  'SELECT me.id, me.lsegcol FROM geomtest WHERE lsegcol \?|| ?',
+  'SELECT me.id, me.lsegcol FROM geomtest WHERE lsegcol \?# ?',
+  # PostgreSQL text search operator next to AND / OR
+  'SELECT textsearch FROM textsearchtest WHERE foo = ? AND textsearch @@ plainto_tsquery(?)',
+  'SELECT textsearch FROM textsearchtest WHERE foo = ? OR textsearch @@ plainto_tsquery(?)',
   # deliberate batshit insanity
   "SELECT foo FROM bar WHERE > 12",
   'SELECT ilike_any_or FROM bar WHERE ( baz ILIKE ANY(?) OR bat ILIKE ANY(?) )',
@@ -63,8 +80,8 @@ for my $orig (@sql) {
     $sqlat->unparse($ast);
   };
 
-  # deal with whitespace around parenthesis readjustment
-  $_ =~ s/ \s* ( [ \(\) ] ) \s* /$1/gx
+  # deal with whitespace around parenthesis and comma readjustment
+  $_ =~ s/ \s* ( [ \(\)\, ] ) \s* /$1/gx
     for ($orig, $reassembled);
 
   is (
