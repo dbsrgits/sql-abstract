@@ -41,6 +41,10 @@ jobs:
           perl-version: ${{ matrix.perl-version }}
       - name: perl -V
         run: perl -V
+      - name: Update toolchain
+        # the MakeMaker shipped with perl < 5.16 writes no MYMETA files,
+        # so cpanm can not see the prereqs
+        run: cpanm -n ExtUtils::MakeMaker CPAN::Meta
       - name: Install dependencies
         run: cpanm -n --installdeps --with-develop .
       - name: Set up
