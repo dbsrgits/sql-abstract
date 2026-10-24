@@ -2423,10 +2423,11 @@ statements in arrays or hashes. If absent, the default logic is "or"
 for arrays, and "and" for hashes. This means that a WHERE
 array of the form:
 
-    @where = (
+    my @where = (
         event_date => {'>=', '2/13/99'},
         event_date => {'<=', '4/24/03'},
     );
+    my ($stmt, @bind) = $sql->where(\@where);
 
 will generate SQL like this:
 
@@ -2444,8 +2445,8 @@ Which will change the above C<WHERE> to:
 The logic can also be changed locally by inserting
 a modifier in front of an arrayref:
 
-    @where = (-and => [event_date => {'>=', '2/13/99'},
-                       event_date => {'<=', '4/24/03'} ]);
+    my @where = (-and => [event_date => {'>=', '2/13/99'},
+                          event_date => {'<=', '4/24/03'} ]);
 
 See the L</"WHERE CLAUSES"> section for explanations.
 
@@ -2721,13 +2722,32 @@ L<insert|/insert($table, \@values || \%fieldvals, \%options)>.
 
 =back
 
-=head2 where(\%where, $order)
+=head2 where($where, $order)
 
 This is used to generate just the WHERE clause. For example,
 if you have an arbitrary data structure and know what the
 rest of your SQL is going to look like, but want an easy way
 to produce a WHERE clause, use this. It returns an SQL WHERE
 clause and list of bind values.
+
+    my ($stmt, @bind) = $sql->where(\%where);           # conditions ANDed
+    my ($stmt, @bind) = $sql->where(\@where);           # conditions ORed
+    my ($stmt, @bind) = $sql->where(\%where, \@order);  # plus ORDER BY
+
+=over
+
+=item $where
+
+The WHERE part, most often a hashref, but can also be an arrayref or
+a plain scalar -- see section L<WHERE clause|/"WHERE CLAUSES"> for
+details.
+
+=item $order
+
+Optional ORDER BY part, a scalar, a hashref or an arrayref -- see
+section L<ORDER BY clause|/"ORDER BY CLAUSES"> for details.
+
+=back
 
 
 =head2 values(\%data)
@@ -2868,8 +2888,12 @@ each C<%where> hash shown, it is assumed you used:
 
     my($stmt, @bind) = $sql->where(\%where);
 
-However, note that the C<%where> hash can be used directly in any
-of the other functions as well, as described above.
+and after each C<@where> array, likewise:
+
+    my($stmt, @bind) = $sql->where(\@where);
+
+However, note that the C<%where> hash or C<@where> array can be used
+directly in any of the other functions as well, as described above.
 
 =head2 Key-value pairs
 
@@ -3185,9 +3209,9 @@ hashes and then putting those hashes in an array. For example:
 
 This data structure would create the following:
 
-    $stmt = "WHERE ( user = ? AND ( status LIKE ? OR status LIKE ? ) )
-                OR ( user = ? AND status = ? ) )";
-    @bind = ('nwiger', 'pending%', 'dispatched', 'robot', 'unassigned');
+    $stmt = "WHERE ( ( status LIKE ? OR status LIKE ? ) AND user = ? )
+                OR ( status = ? AND user = ? )";
+    @bind = ('pending%', 'dispatched', 'nwiger', 'unassigned', 'robot');
 
 
 Clauses in hashrefs or arrayrefs can be prefixed with an C<-and> or C<-or>
@@ -3344,7 +3368,7 @@ This would create:
     @bind = ('10');
 
 Note that you must pass the bind values in the same format as they are returned
-by L<where|/where(\%where, $order)>. This means that if you set L</bindtype>
+by L<where|/where($where, $order)>. This means that if you set L</bindtype>
 to C<columns>, you must provide the bind values in the
 C<< [ column_meta => value ] >> format, where C<column_meta> is an opaque
 scalar value; most commonly the column name, but you can use any scalar value

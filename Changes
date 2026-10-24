@@ -1,5 +1,10 @@
 Revision history for SQL::Abstract
 
+  - Docs: where() is documented as where($where, $order) like select(), with
+    hashref and arrayref examples; the WHERE CLAUSES introduction and the
+    logic option say how the @where array examples are passed (\@where),
+    and the "pending%" OR example has balanced parenthesis and the real
+    bind order (RT#127117, KES)
   - An undef element in an -in / -not_in list no longer dies with the
     "!!!AUDIT YOUR CODE AND DATA!!!" exception; it now renders the
     logically correct SQL that exception promised:
