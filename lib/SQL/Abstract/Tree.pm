@@ -320,16 +320,24 @@ sub parse {
 
   return [] unless defined $s;
 
+  # Swap the contents of quoted strings and identifiers for a NUL-delimited
+  # index before tokenizing, so the separators inside them (whitespace,
+  # commas, parenthesis, keywords) can not split them up. The quotes stay in
+  # place, so whatever is glued to them (N'..', '..'::date) still tokenizes
+  # as before. Doubled quotes are the SQL escape; backslashes are literal.
+  my @quoted;
+  $s =~ s{ ( ' (?: [^'] | '' )* ' | " (?: [^"] | "" )* " | ` (?: [^`] | `` )* ` ) }{
+    push @quoted, $1;
+    my $q = substr($1, 0, 1);
+    "$q\x00$#quoted\x00$q";
+  }gex;
+
   # tokenize string, and remove all optional whitespace
   my $tokens = [];
   foreach my $token (split $tokenizer_re, $s) {
-    push @$tokens, $token if (
-      defined $token
-        and
-      length $token
-        and
-      $token =~ /\S/
-    );
+    next unless defined $token and length $token and $token =~ /\S/;
+    $token =~ s{ (['"`]) \x00 (\d+) \x00 \1 }{$quoted[$2]}gx if @quoted;
+    push @$tokens, $token;
   }
 
   return [ $self->_recurse_parse($tokens, PARSE_TOP_LEVEL) ];
@@ -370,6 +378,14 @@ sub _recurse_parse {
       my $op = uc $token;
 
       my @right = $self->_recurse_parse($tokens, PARSE_IN_EXPR);
+
+      # several nodes on one side (e.g. "x <@" followed by a function call)
+      # are a single operand, not one operand each
+      for my $side (\@left, \@right) {
+        @$side = [ -MISC => [
+          map { $_->[0] eq '-MISC' ? @{$_->[1]} : $_ } @$side
+        ] ] if @$side > 1;
+      }
 
       # Merge chunks if "logic" matches
       @left = [ $op => [ @left, (@right and $op eq $right[0][0])
