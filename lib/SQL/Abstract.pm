@@ -3359,7 +3359,7 @@ not so common, but perfectly legal Perl). For example, to find a date
 in Postgres you can use something like this:
 
     my %where = (
-       date_column => \[ "= date '2008-09-30' - ?::integer", 10 ]
+       date_column => { '=' => \[ "date '2008-09-30' - ?::integer", 10 ] }
     )
 
 This would create:
@@ -3377,8 +3377,13 @@ pass it through intact. So if C<bindtype> is set to C<columns> the above
 example will look like:
 
     my %where = (
-       date_column => \[ "= date '2008-09-30' - ?::integer", [ {} => 10 ] ]
+       date_column => { '=' => \[ "date '2008-09-30' - ?::integer", [ {} => 10 ] ] }
     )
+
+You may also see the operator written inside the literal, as in
+C<< date_column => \[ "= date '2008-09-30' - ?::integer", 10 ] >>. That
+still works and produces the same SQL, but keeping the operator outside
+makes it clear what the literal is compared with.
 
 Literal SQL is especially useful for nesting parenthesized clauses in the
 main SQL query. Here is a first example:
@@ -3387,26 +3392,27 @@ main SQL query. Here is a first example:
                                100, "foo%");
   my %where = (
     foo => 1234,
-    bar => \["IN ($sub_stmt)" => @sub_bind],
+    bar => { -in => \[ $sub_stmt, @sub_bind ] },
   );
 
 This yields:
 
-  $stmt = "WHERE (foo = ? AND bar IN (SELECT c1 FROM t1
-                                             WHERE c2 < ? AND c3 LIKE ?))";
-  @bind = (1234, 100, "foo%");
+  $stmt = "WHERE (bar IN (SELECT c1 FROM t1 WHERE c2 < ? AND c3 LIKE ?)
+                  AND foo = ?)";
+  @bind = (100, "foo%", 1234);
 
-Other subquery operators, like for example C<"E<gt> ALL"> or C<"NOT IN">,
-are expressed in the same way. Of course the C<$sub_stmt> and
-its associated bind values can be generated through a former call
-to C<select()> :
+Other subquery operators are expressed in the same way, for example
+C<< bar => { -not_in => \[ $sub_stmt, @sub_bind ] } >>, or
+C<< bar => { '>' => \[ "ALL ($sub_stmt)", @sub_bind ] } >> for
+C<"E<gt> ALL">. Of course the C<$sub_stmt> and its associated bind
+values can be generated through a former call to C<select()> :
 
   my ($sub_stmt, @sub_bind)
      = $sql->select("t1", "c1", {c2 => {"<" => 100},
                                  c3 => {-like => "foo%"}});
   my %where = (
     foo => 1234,
-    bar => \["> ALL ($sub_stmt)" => @sub_bind],
+    bar => { '>' => \[ "ALL ($sub_stmt)", @sub_bind ] },
   );
 
 In the examples above, the subquery was used as an operator on a column;
@@ -3414,7 +3420,7 @@ but the same principle also applies for a clause within the main C<%where>
 hash, like an EXISTS subquery:
 
   my ($sub_stmt, @sub_bind)
-     = $sql->select("t1", "*", {c1 => 1, c2 => \"> t0.c0"});
+     = $sql->select("t1", "*", {c1 => 1, c2 => { '>' => { -ident => 't0.c0' } }});
   my %where = ( -and => [
     foo   => 1234,
     \["EXISTS ($sub_stmt)" => @sub_bind],
@@ -3429,7 +3435,7 @@ which yields
 
 Observe that the condition on C<c2> in the subquery refers to
 column C<t0.c0> of the main query: this is I<not> a bind
-value, so we have to express it through a scalar ref.
+value, so we have to mark it as an identifier with L</-ident>.
 Writing C<< c2 => {">" => "t0.c0"} >> would have generated
 C<< c2 > ? >> with bind value C<"t0.c0"> ... not exactly
 what we wanted here.
@@ -3631,6 +3637,15 @@ of the MATCH .. AGAINST syntax for MySQL
 
   ]);
 
+which is then used like any other operator:
+
+  my ($stmt, @bind) = $sqlmaker->where({
+    field => { match => [ 'word1', 'word2', 'word3' ] },
+  });
+
+  # $stmt = "WHERE MATCH (field) AGAINST (?, ?, ?)"
+  # @bind = ('word1', 'word2', 'word3')
+
 
 =head2 UNARY OPERATORS
 
@@ -3665,7 +3680,7 @@ the regular expression to match the operator
 =item handler
 
 Either a coderef or a plain scalar method name. In both cases
-the expected return is C<< $sql >>.
+the expected return is C<< ($sql, @bind) >>.
 
 When supplied with a method name, it is simply called on the
 L<SQL::Abstract> object as:
@@ -3683,6 +3698,24 @@ When supplied with a coderef, it is called as:
 
 
 =back
+
+For example, a C<SOUNDEX> operator:
+
+  my $sqlmaker = SQL::Abstract->new(unary_ops => [
+    {regex => qr/^soundex$/i,
+     handler => sub {
+       my ($self, $op, $arg) = @_;
+       my ($placeholder) = $self->_convert('?');
+       return ($self->_sqlcase('soundex') . "($placeholder)",
+               $self->_bindtype($op, $arg));
+     }
+    },
+  ]);
+
+  my ($stmt, @bind) = $sqlmaker->where({ name => { soundex => 'Robert' } });
+
+  # $stmt = "WHERE name = SOUNDEX(?)"
+  # @bind = ('Robert')
 
 =head1 NEW METHODS (EXPERIMENTAL)
 

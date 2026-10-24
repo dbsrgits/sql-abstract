@@ -1,5 +1,12 @@
 Revision history for SQL::Abstract
 
+  - Docs: the literal SQL examples no longer use the deprecated
+    operator-inside-the-literal style: -ident for column comparisons,
+    { "=" => \[ ... ] }, { -in => \[ $sub_stmt, @sub_bind ] } and
+    { ">" => \[ "ALL (...)", ... ] } for subqueries (with the real bind
+    order); the special_ops and unary_ops sections show how the defined
+    operator is used, and unary_ops handlers are documented to return
+    ($sql, @bind) (RT#127116, KES)
   - Docs: where() is documented as where($where, $order) like select(), with
     hashref and arrayref examples; the WHERE CLAUSES introduction and the
     logic option say how the @where array examples are passed (\@where),
