@@ -564,11 +564,26 @@ sub pad_keyword {
 
 sub indent { ($_[0]->indent_string||'') x ( ( $_[0]->indent_amount || 0 ) * $_[1] ) }
 
+# indentmap entries that put things on lines of their own but are not
+# clause keywords
+my %line_break_keys = map { $_ => 1 } ('and', 'or', ',');
+
+# the indent level of the clause keyword currently being unparsed
+our $Clause_Indent = 0;
+
+# the indent for a line break entry ('and', 'or', ','), or undef when the
+# entry is not set or there is no newline to break with
+sub _line_break_indent {
+   my ($self, $key) = @_;
+   return undef unless length( $self->newline || '' );
+   return $self->indentmap->{$key};
+}
+
 sub _is_key {
    my ($self, $tree) = @_;
    $tree = $tree->[0] while ref $tree;
 
-   defined $tree && defined $self->indentmap->{lc $tree};
+   defined $tree && !$line_break_keys{lc $tree} && defined $self->indentmap->{lc $tree};
 }
 
 sub fill_in_placeholder {
@@ -631,7 +646,19 @@ sub _unparse {
       )
     );
   }
-  elsif ($op eq 'AND' or $op eq 'OR' or $op =~ $binary_op_re ) {
+  elsif ($op eq 'AND' or $op eq 'OR') {
+    my @parts = map $self->_unparse($_, $bindargs, $depth), @{$args};
+
+    # every further condition on a line of its own, indented below the
+    # clause it belongs to (or below the parenthesis it is in)
+    if (defined (my $indent = $self->_line_break_indent(lc $op))) {
+      my $base = $depth > $Clause_Indent ? $depth : $Clause_Indent;
+      return join ($self->newline . $self->indent($base + $indent) . "$op ", @parts);
+    }
+
+    return join (" $op ", @parts);
+  }
+  elsif ($op =~ $binary_op_re) {
     return join (" $op ", map $self->_unparse($_, $bindargs, $depth), @{$args});
   }
   elsif ($op eq '-LIST' ) {
@@ -647,11 +674,40 @@ sub _unparse {
   else {
     my ($l, $r) = @{$self->pad_keyword($op, $depth)};
 
-    my $rhs = $self->_unparse($args, $bindargs, $depth);
+    my $clause_indent = $self->indentmap->{lc $op};
+    local $Clause_Indent = defined $clause_indent
+      ? $depth + $clause_indent
+      : $Clause_Indent;
+
+    my $rhs;
+    my $item_indent;
+    if (
+      defined $clause_indent
+        and
+      defined ($item_indent = $self->_line_break_indent(','))
+        and
+      ref $args eq 'ARRAY' and @$args == 1
+        and
+      ref $args->[0] eq 'ARRAY' and ($args->[0][0]||'') eq '-LIST'
+    ) {
+      # the comma list right below a clause (select list, order by, set
+      # ...): every item on a line of its own. Lists further down (function
+      # arguments, IN lists) stay as they are.
+      $self->_parenthesis_unroll($args->[0]);
+      my $break = $self->newline . $self->indent($Clause_Indent + $item_indent);
+      $rhs = join ',', map { $break . $self->_unparse($_, $bindargs, $depth) } @{$args->[0][1]};
+    }
+    else {
+      $rhs = $self->_unparse($args, $bindargs, $depth);
+    }
 
     return sprintf "$l%s$r", join(
-      ( ref $args eq 'ARRAY' and @{$args} == 1 and $args->[0][0] eq '-PAREN' )
-        ? ''    # mysql--
+      (
+        ( ref $args eq 'ARRAY' and @{$args} == 1 and $args->[0][0] eq '-PAREN' )  # mysql--
+          or
+        defined $item_indent and substr($rhs, 0, length $self->newline) eq $self->newline
+      )
+        ? ''
         : ' '
       ,
       $self->format_keyword($op),
@@ -893,10 +949,58 @@ SQL::Abstract::Tree - Represent SQL as an AST
      from          => 1,     # Any other positive integer means that after
      on            => 2,     # said newline it will get that many indents
      # ...
+     and           => 1,     # optional, see "Lines of their own" below
+     or            => 1,
+     ','           => 1,
    },
  }
 
 Returns a new SQL::Abstract::Tree object.  All arguments are optional.
+
+=head3 Lines of their own
+
+Besides clause keywords, the C<indentmap> understands three more entries,
+none of which is set by the predefined profiles:
+
+=over
+
+=item C<and>, C<or>
+
+Every further condition joined with C<AND> (or C<OR>) starts a new line,
+indented by that many levels below its clause (or below the parenthesis it
+is in).
+
+=item C<,>
+
+The items of a comma list right below a clause (the select list, C<ORDER BY>,
+C<GROUP BY>, C<SET> ...) each get a line of their own, indented by that many
+levels below the clause. Lists further down, like function arguments or an
+C<IN> list, stay on one line.
+
+=back
+
+Merge them into a profile like any other override:
+
+ my $sqlat = SQL::Abstract::Tree->new({
+   profile   => 'console',
+   indentmap => { and => 1, or => 1, ',' => 1 },
+ });
+
+ print $sqlat->format(
+   'SELECT a, b FROM t WHERE x = ? AND y = ? ORDER BY a, b', [1, 2]
+ );
+
+ # SELECT
+ #   a,
+ #   b
+ #   FROM t
+ # WHERE x = 1
+ #   AND y = 2
+ # ORDER BY
+ #   a,
+ #   b
+
+They only have an effect when a L</newline> is set.
 
 =head3 profiles
 

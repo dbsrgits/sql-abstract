@@ -1,5 +1,9 @@
 Revision history for SQL::Abstract
 
+  - SQL::Abstract::Tree: the indentmap understands "and", "or" and ","
+    to put AND / OR conditions and the items of a clause list (select
+    list, ORDER BY, GROUP BY, SET ...) on lines of their own; off in all
+    profiles unless asked for (idea from Ryan P. Kelly's format-sql branch)
   - ORDER BY: { -asc => $col, -nulls => "first" } (or -desc, or "last")
     renders $col ASC NULLS FIRST; the -nulls key applies to every column
     of its -asc / -desc hash (idea and tests from ilmari)
