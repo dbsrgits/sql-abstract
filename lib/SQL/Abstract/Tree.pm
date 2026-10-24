@@ -569,7 +569,7 @@ sub fill_in_placeholder {
       my $val = shift @{$bindargs};
       $val = '' unless defined $val; # preserve a real 0/'0' bind value (5.6-safe defined-or)
       my $quoted = $val =~ s/^(['"])(.*)\1$/$2/;
-      my ($left, $right) = @{$self->placeholder_surround};
+      my ($left, $right) = map { defined $_ ? $_ : '' } @{$self->placeholder_surround || []}[0, 1];
       $val =~ s/\\/\\\\/g;
       $val =~ s/'/\\'/g;
       $val = qq('$val') if $quoted;

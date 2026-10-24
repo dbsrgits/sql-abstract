@@ -52,4 +52,21 @@ use SQL::Abstract::Tree;
    );
 }
 
+{
+   # an empty placeholder_surround means "no surround" and must not warn
+   # (RT#117234)
+   my $sqlat = SQL::Abstract::Tree->new({
+      fill_in_placeholders => 1,
+      placeholder_surround => [],
+   });
+
+   my @warnings;
+   local $SIG{__WARN__} = sub { push @warnings, @_ };
+   is($sqlat->format('SELECT x FROM t WHERE a = ?', [42]),
+      'SELECT x FROM t WHERE a = 42',
+      'empty placeholder_surround fills in the bare value'
+   );
+   is_deeply(\@warnings, [], 'empty placeholder_surround does not warn');
+}
+
 done_testing;

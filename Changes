@@ -1,5 +1,8 @@
 Revision history for SQL::Abstract
 
+  - SQL::Abstract::Tree: an empty placeholder_surround (or one with only
+    a left part) fills in placeholders without "Use of uninitialized
+    value $left / $right" warnings (RT#117234)
   - Docs: the literal SQL examples no longer use the deprecated
     operator-inside-the-literal style: -ident for column comparisons,
     { "=" => \[ ... ] }, { -in => \[ $sub_stmt, @sub_bind ] } and
