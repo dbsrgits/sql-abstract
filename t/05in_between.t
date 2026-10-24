@@ -262,26 +262,12 @@ my @in_between_tests = (
     test => '-in with an array of function array refs with args',
   },
   {
-    throws => qr/
-      \QSQL::Abstract before v1.75 used to generate incorrect SQL \E
-      \Qwhen the -IN operator was given an undef-containing list: \E
-      \Q!!!AUDIT YOUR CODE AND DATA!!! (the upcoming Data::Query-based \E
-      \Qversion of SQL::Abstract will emit the logically correct SQL \E
-      \Qinstead of raising this exception)\E
-    /x,
     where => { x => { -in => [ 1, undef ] } },
     stmt => " WHERE ( x IN ( ? ) OR x IS NULL )",
     bind => [ 1 ],
     test => '-in with undef as an element',
   },
   {
-    throws => qr/
-      \QSQL::Abstract before v1.75 used to generate incorrect SQL \E
-      \Qwhen the -IN operator was given an undef-containing list: \E
-      \Q!!!AUDIT YOUR CODE AND DATA!!! (the upcoming Data::Query-based \E
-      \Qversion of SQL::Abstract will emit the logically correct SQL \E
-      \Qinstead of raising this exception)\E
-    /x,
     where => { x => { -in => [ 1, undef, 2, 3, undef ] } },
     stmt => " WHERE ( x IN ( ?, ?, ? ) OR x IS NULL )",
     bind => [ 1, 2, 3 ],
@@ -300,26 +286,18 @@ my @in_between_tests = (
     test => '-in, -not_in with empty arrays',
   },
   {
-    throws => qr/
-      \QSQL::Abstract before v1.75 used to generate incorrect SQL \E
-      \Qwhen the -IN operator was given an undef-containing list: \E
-      \Q!!!AUDIT YOUR CODE AND DATA!!! (the upcoming Data::Query-based \E
-      \Qversion of SQL::Abstract will emit the logically correct SQL \E
-      \Qinstead of raising this exception)\E
-    /x,
     where => { a => { -in => [42, undef] }, b => { -not_in => [42, undef] } },
     stmt => ' WHERE ( ( a IN ( ? ) OR a IS NULL ) AND b NOT IN ( ? ) AND b IS NOT NULL )',
     bind => [ 42, 42 ],
     test => '-in, -not_in with undef among elements',
   },
   {
-    throws => qr/
-      \QSQL::Abstract before v1.75 used to generate incorrect SQL \E
-      \Qwhen the -IN operator was given an undef-containing list: \E
-      \Q!!!AUDIT YOUR CODE AND DATA!!! (the upcoming Data::Query-based \E
-      \Qversion of SQL::Abstract will emit the logically correct SQL \E
-      \Qinstead of raising this exception)\E
-    /x,
+    where => { b => { -not_in => [1, undef, 2, undef] } },
+    stmt => ' WHERE ( b NOT IN ( ?, ? ) AND b IS NOT NULL )',
+    bind => [ 1, 2 ],
+    test => '-not_in with several values and undefs (RT#127356)',
+  },
+  {
     where => { a => { -in => [undef] }, b => { -not_in => [undef] } },
     stmt => ' WHERE ( a IS NULL AND b IS NOT NULL )',
     bind => [],

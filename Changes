@@ -1,5 +1,10 @@
 Revision history for SQL::Abstract
 
+  - An undef element in an -in / -not_in list no longer dies with the
+    "!!!AUDIT YOUR CODE AND DATA!!!" exception; it now renders the
+    logically correct SQL that exception promised:
+    ( col IN (...) OR col IS NULL ) and
+    ( col NOT IN (...) AND col IS NOT NULL ) (RT#127356)
   - SQL::Abstract::Tree: quoted strings and identifiers ('...', "...",
     `...`) are no longer split up at the commas, parenthesis, whitespace
     or keywords inside them. A Postgres range literal such as '(]' no

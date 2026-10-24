@@ -1101,15 +1101,15 @@ sub _expand_hashpair_ident {
 sub _array_as_in {
   my ($self, $k, $v) = @_;
   return unless $self->{array_as_in} and $self->{cmp} eq '=';
-  my (@values, $has_undef);
+  my $values = 0;
   for my $el (@$v) {
-    if (!defined $el) { $has_undef = 1; next }
+    next unless defined $el;
     return if ref($el) and !Scalar::Util::blessed($el);
-    push @values, $el;
+    $values++;
   }
-  return unless @values > 1;
-  my $in = { $k => { -in => \@values } };
-  return $self->_expand_expr($has_undef ? { -or => [ $in, { $k => undef } ] } : $in);
+  return unless $values > 1;
+  # -in turns undef elements into an extra OR col IS NULL
+  return $self->_expand_expr({ $k => { -in => $v } });
 }
 
 sub _expand_scalar {
@@ -1480,24 +1480,30 @@ sub _expand_in {
       { -literal => [ $opened_sql, @bind ] }
     ] };
   }
-  my $undef_err =
-    'SQL::Abstract before v1.75 used to generate incorrect SQL when the '
-  . "-${\uc($op)} operator was given an undef-containing list: !!!AUDIT YOUR CODE "
-  . 'AND DATA!!! (the upcoming Data::Query-based version of SQL::Abstract '
-  . 'will emit the logically correct SQL instead of raising this exception)'
-  ;
   $self->puke("Argument passed to the '${\uc($op)}' operator can not be undefined")
     if !defined($vv);
-  my @rhs = map $self->expand_expr($_, -value),
-              map { defined($_) ? $_: $self->puke($undef_err) }
-                (ref($vv) eq 'ARRAY' ? @$vv : $vv);
-  return $self->${\($op =~ /^not/ ? 'sqltrue' : 'sqlfalse')} unless @rhs;
+  my $not = $op =~ /^not/;
+  my @values = ref($vv) eq 'ARRAY' ? @$vv : $vv;
 
-  return +{ -op => [
+  # undef elements mean NULL, which IN never matches: turn them into
+  # col IN (...) OR col IS NULL, and col NOT IN (...) AND col IS NOT NULL
+  my $has_undef = grep !defined, @values;
+  my @rhs = map $self->expand_expr($_, -value), grep defined, @values;
+
+  my $null = $has_undef && { -op => [
+    ($not ? 'is_not_null' : 'is_null'), $self->expand_expr($k, -ident)
+  ] };
+  unless (@rhs) {
+    return $null || $self->${\($not ? 'sqltrue' : 'sqlfalse')};
+  }
+
+  my $in = { -op => [
     $op,
     $self->expand_expr($k, -ident),
     @rhs
   ] };
+  return $in unless $null;
+  return { -op => [ ($not ? 'and' : 'or'), $in, $null ] };
 }
 
 sub _expand_nest {
@@ -3047,6 +3053,18 @@ the same way.
 If the argument to C<-in> is an empty array, 'sqlfalse' is generated
 (by default: C<1=0>). Similarly, C<< -not_in => [] >> generates
 'sqltrue' (by default: C<1=1>).
+
+An C<undef> element stands for C<NULL>, which C<IN> can never match, so
+it is turned into a separate C<IS NULL> test:
+
+    status => { -in     => [ 'a', 'b', undef ] }
+    # ( status IN ( ?, ? ) OR status IS NULL )
+
+    status => { -not_in => [ 'a', 'b', undef ] }
+    # ( status NOT IN ( ?, ? ) AND status IS NOT NULL )
+
+(Older versions died on such a list with an
+C<!!!AUDIT YOUR CODE AND DATA!!!> exception.)
 
 In addition to the array you can supply a chunk of literal sql or
 literal sql with bind:
