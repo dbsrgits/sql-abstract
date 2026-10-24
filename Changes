@@ -1,5 +1,9 @@
 Revision history for SQL::Abstract
 
+  - Docs: new "CAVEAT: untrusted input in ORDER BY" section - order by
+    columns are identifiers, not bind values, so map user input onto an
+    allow-list (and set quote_char) instead of passing it through
+    (RT#117059)
   - SQL::Abstract::Tree: an empty placeholder_surround (or one with only
     a left part) fills in placeholders without "Use of uninitialized
     value $left / $right" warnings (RT#117234)

@@ -3549,6 +3549,33 @@ forms. Examples:
     ]                             |   /* ...with $x bound to ? */
     ===============================================================
 
+=head2 CAVEAT: untrusted input in ORDER BY
+
+Everything in an order by clause is an identifier or literal SQL, never a
+bind value - a placeholder can only stand for a value, not for a column to
+sort by. Without L</quote_char> the column names go into the statement
+exactly as given, so passing a user-supplied sort column straight through is
+an SQL injection:
+
+    $sql->select('users', '*', { id => 1 }, [ $cgi->param('sort') ]);
+    # sort = "1, (SELECT password FROM users LIMIT 1)"
+    # ... ORDER BY 1, (SELECT password FROM users LIMIT 1)
+
+The safe way is to map the request onto a fixed list of columns you allow:
+
+    my %sortable = (name => 'name', created => 'created_at');
+    my $col = $sortable{ $cgi->param('sort') } || 'name';
+    my $dir = $cgi->param('desc') ? '-desc' : '-asc';
+    $sql->select('users', '*', { id => 1 }, { $dir => $col });
+
+Setting L</quote_char> also helps: every name is then quoted (with
+embedded quote characters doubled), so the input above becomes one odd,
+non-existent column name instead of a subquery. It does not stop a user
+from sorting by any existing column, though, so keep the allow-list for
+anything that comes from outside. The default L</injection_guard> does
+check unquoted order by columns, but it only rejects C<;> and C<GO>, so it
+lets the example above through.
+
 
 
 =head1 OLD EXTENSION SYSTEM
