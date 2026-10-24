@@ -44,7 +44,11 @@ jobs:
       - name: Update toolchain
         # the MakeMaker shipped with perl < 5.16 writes no MYMETA files,
         # so cpanm can not see the prereqs
-        run: cpanm -n ExtUtils::MakeMaker CPAN::Meta
+        run: cpanm -n ExtUtils::MakeMaker
+      - name: Pin prereqs for old perls
+        # current Test::Deep needs perl 5.12
+        if: ${{ contains(fromJSON('["5.8","5.10"]'), matrix.perl-version) }}
+        run: cpanm -n Test::Deep@1.130
       - name: Install dependencies
         run: cpanm -n --installdeps --with-develop .
       - name: Set up
