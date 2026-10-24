@@ -1,5 +1,6 @@
 Revision history for SQL::Abstract
 
+2.000001_03 - 2026-10-24
   - SQL::Abstract::Tree: the indentmap understands "and", "or" and ","
     to put AND / OR conditions and the items of a clause list (select
     list, ORDER BY, GROUP BY, SET ...) on lines of their own; off in all
