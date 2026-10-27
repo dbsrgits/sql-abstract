@@ -37,12 +37,16 @@ is_same_sql_bind(
   [ [ 'Rock' ], 3 ]
 );
 
-($sql) = $sqlac->select({
+($sql, @bind) = $sqlac->select({
   select => [ 'a' ],
   from => [ { -values => [ [ 1, 2 ], [ 3, 4 ] ] }, -as => [ qw(t a b) ] ],
 });
 
-is_same_sql($sql, q{SELECT a FROM (VALUES (1, 2), (3, 4)) AS t(a,b)});
+is_same_sql_bind(
+  $sql, \@bind,
+  q{SELECT a FROM (VALUES (?, ?), (?, ?)) AS t(a,b)},
+  [ 1, 2, 3, 4 ],
+);
 
 ($sql) = $sqlac->update({
   update => 'employees',

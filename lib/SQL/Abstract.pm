@@ -926,6 +926,9 @@ sub render_statement {
 
 sub _expand_statement {
   my ($self, $type, $args) = @_;
+  # a statement can sit where plain scalars are identifiers (select list,
+  # order by, from ...), but its own where/set/values scalars are values
+  local our $Default_Scalar_To = -value;
   my $ec = $self->{expand_clause};
   if ($args->{_}) {
     $args = { %$args };
@@ -1524,6 +1527,8 @@ sub _expand_nest {
 
 sub _expand_values {
   my ($self, undef, $values) = @_;
+  # VALUES rows hold values, even in an identifier context like from
+  local our $Default_Scalar_To = -value;
   return { -values => [
     map +(
       ref($_) eq 'HASH'
