@@ -10,6 +10,9 @@ Revision history for SQL::Abstract
   - Security: the html profile of SQL::Abstract::Tree HTML-escapes the
     SQL text and the filled in bind values (new html_escape option);
     before, a bind value like <script> went into the page as-is
+  - injection_guard also checks the name of an explicit
+    { -func => [ $name, ... ] }, as documented; it only checked the
+    { -name => ... } shorthand before
 
 2.000001_03 - 2026-10-24
   - SQL::Abstract::Tree: the indentmap understands "and", "or" and ","

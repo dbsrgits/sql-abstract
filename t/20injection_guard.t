@@ -47,6 +47,21 @@ for ($sqla, $sqla_q) {
       { x => { '<' => { "-go\ndo some harm" => 'y' } } },
     );
   }, qr/Possible SQL injection attempt/, 'Injection thwarted on chained functions');
+
+  throws_ok( sub {
+    $_->select(
+      'foo',
+      [ 'bar' ],
+      { x => { '<' => { -func => [ 'bobby; tables', 'y' ] } } },
+    );
+  }, qr/Possible SQL injection attempt/, 'Injection thwarted on explicit -func name');
+
+  throws_ok( sub {
+    $_->select(
+      'foo',
+      [ { -func => [ "count\ngo drop", 'bar' ] } ],
+    );
+  }, qr/Possible SQL injection attempt/, 'Injection thwarted on -func name in select list');
 }
 
 done_testing;

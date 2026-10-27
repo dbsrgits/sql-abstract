@@ -1313,6 +1313,7 @@ sub _dwim_op_to_is {
 sub _expand_func {
   my ($self, undef, $args) = @_;
   my ($func, @args) = @$args;
+  $self->_assert_pass_injection_guard($func);
   return +{ -func => [ $func, map $self->expand_expr($_), @args ] };
 }
 
