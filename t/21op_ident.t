@@ -78,4 +78,33 @@ for my $q ('', '"') {
   );
 }
 
+{
+  # quote_char without name_sep: dotted names are split on '.', so each
+  # part gets its own quotes (not "a""b", which is the identifier a"b)
+  my $sql_maker = SQL::Abstract->new(quote_char => '"');
+
+  my ($sql, @bind) = $sql_maker->select(
+    't.x', [ 'a.b', { -ident => [ 'c', 'd' ] } ], { 'e.f' => 1 },
+  );
+  is_same_sql_bind(
+    $sql, \@bind,
+    'SELECT "a"."b", "c"."d" FROM "t"."x" WHERE "e"."f" = ?', [ 1 ],
+    'quote_char without name_sep quotes each part',
+  );
+
+  is(
+    $sql_maker->_quote('a.b'), '"a"."b"',
+    '_quote on a plain string splits it the same way',
+  );
+
+  # an empty name_sep keeps dotted names as one identifier
+  $sql_maker = SQL::Abstract->new(quote_char => '"', name_sep => '');
+  ($sql) = $sql_maker->select('t.x', [ 'a.b', { -ident => [ 'c', 'd' ] } ]);
+  is_same_sql_bind(
+    $sql, undef,
+    'SELECT "a.b", "c"."d" FROM "t.x"', undef,
+    'empty name_sep: plain names stay whole, explicit parts are joined with .',
+  );
+}
+
 done_testing;

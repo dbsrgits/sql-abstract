@@ -13,6 +13,10 @@ Revision history for SQL::Abstract
   - injection_guard also checks the name of an explicit
     { -func => [ $name, ... ] }, as documented; it only checked the
     { -name => ... } shorthand before
+  - quote_char without name_sep: a dotted name like a.b renders as
+    "a"."b" (name_sep defaults to "."); before it came out as "a""b",
+    which is the single identifier a"b. An empty name_sep keeps a.b
+    as the single identifier "a.b".
 
 2.000001_03 - 2026-10-24
   - SQL::Abstract::Tree: the indentmap understands "and", "or" and ","

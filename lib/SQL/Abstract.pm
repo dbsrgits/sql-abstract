@@ -1949,9 +1949,13 @@ sub _quote {
 
   my $esc = $_[0]->{escape_char} || $r;
 
+  # an unset name_sep means '.' (as in _expand_ident); an empty one only
+  # keeps plain names from being split
+  my $sep = defined $_[0]->{name_sep} ? $_[0]->{name_sep} : '.';
+
   # parts containing * are naturally unquoted
   return join(
-    $_[0]->{name_sep}||'',
+    (length $sep ? $sep : '.'),
     map +(
       $_ eq '*'
         ? $_
@@ -1960,8 +1964,8 @@ sub _quote {
     (ref($_[1]) eq 'ARRAY'
       ? @{$_[1]}
       : (
-          $_[0]->{name_sep}
-            ? split (/\Q$_[0]->{name_sep}\E/, $_[1] )
+          length $sep
+            ? split (/\Q$sep\E/, $_[1] )
             : $_[1]
         )
     )
@@ -2595,11 +2599,13 @@ explicitly.
 
 =item name_sep
 
-This is the character that separates a table and column name.  It is
-necessary to specify this when the C<quote_char> option is selected,
-so that tables and column names can be individually quoted like this:
+This is the character that separates a table and column name. With
+C<quote_char> set, each part gets its own quotes:
 
   SELECT `table`.`one_field` FROM `table` WHERE `table`.`other_field` = 1
+
+Defaults to C<.>. Set it to an empty string to quote a dotted name like
+C<table.one_field> as a single identifier.
 
 =item injection_guard
 
