@@ -175,6 +175,7 @@ my %indents = (
 
 has [qw(
   newline indent_string indent_amount fill_in_placeholders placeholder_surround
+  html_escape
 )] => (is => 'ro');
 
 has [qw( indentmap colormap )] => ( is => 'ro', default => quote_sub('{}') );
@@ -258,6 +259,7 @@ sub BUILDARGS {
     }
     elsif ($p eq 'html') {
       %extra_args = (
+        html_escape => 1,
         fill_in_placeholders => 1,
         placeholder_surround => ['<span class="placeholder">', '</span>'],
         indent_string => '&nbsp;',
@@ -535,11 +537,23 @@ sub _recurse_parse {
 sub format_keyword {
   my ($self, $keyword) = @_;
 
-  if (my $around = $self->colormap->{lc $keyword}) {
-     $keyword = "$around->[0]$keyword$around->[1]";
-  }
+  my $around = $self->colormap->{lc $keyword};
+  $keyword = $self->_escape($keyword);
+  $keyword = "$around->[0]$keyword$around->[1]" if $around;
 
   return $keyword
+}
+
+# SQL text and bind values only - never the markup from the profile
+sub _escape {
+  my ($self, $text) = @_;
+  return $text unless $self->html_escape;
+  $text =~ s/&/&amp;/g;
+  $text =~ s/</&lt;/g;
+  $text =~ s/>/&gt;/g;
+  $text =~ s/"/&quot;/g;
+  $text =~ s/'/&#39;/g;
+  return $text;
 }
 
 my %starters = (
@@ -597,6 +611,7 @@ sub fill_in_placeholder {
       $val =~ s/\\/\\\\/g;
       $val =~ s/'/\\'/g;
       $val = qq('$val') if $quoted;
+      $val = $self->_escape($val);
       return qq($left$val$right)
    }
    return '?'
@@ -631,7 +646,7 @@ sub _unparse {
     return join (' ', map $self->_unparse($_, $bindargs, $depth), @$tree);
   }
   elsif ($op eq '-LITERAL') { # literal has different sig
-    return $args->[0];
+    return $self->_escape($args->[0]);
   }
   elsif ($op eq '-PLACEHOLDER') {
     return $self->fill_in_placeholder($bindargs);
@@ -659,7 +674,8 @@ sub _unparse {
     return join (" $op ", @parts);
   }
   elsif ($op =~ $binary_op_re) {
-    return join (" $op ", map $self->_unparse($_, $bindargs, $depth), @{$args});
+    my $sep = ' ' . $self->_escape($op) . ' ';
+    return join ($sep, map $self->_unparse($_, $bindargs, $depth), @{$args});
   }
   elsif ($op eq '-LIST' ) {
     return join (', ', map $self->_unparse($_, $bindargs, $depth), @{$args});
@@ -938,6 +954,8 @@ SQL::Abstract::Tree - Represent SQL as an AST
    indent_amount => 2,        # how many of above string to use for a single
                               # indent level
    newline       => "\n",     # string for newline
+   html_escape   => 0,        # HTML-escape the SQL text and the filled in
+                              # placeholders (but not the strings above)
    colormap      => {
      select => [RED, RESET], # a pair of strings defining what to surround
                              # the keyword with for colorization
@@ -1009,6 +1027,10 @@ and C<html>.  Typically a user will probably just use C<console> or
 C<console_monochrome>, but if something about a profile bothers you, merely
 use the profile and override the parts that you don't like.
 
+The C<html> profile sets L</html_escape>, so its output can go straight
+into an HTML page: bind values and SQL text are escaped, the profile's own
+C<< <span> >> and C<< <br /> >> markup is not.
+
 =head2 format
 
  $sqlat->format('SELECT * FROM bar WHERE x = ?', [1])
@@ -1063,6 +1085,10 @@ See L</new>
 =head2 fill_in_placeholders
 
 See L</new>
+
+=head2 html_escape
+
+See L</new> and L</profiles>
 
 =head2 indent_amount
 
