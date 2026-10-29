@@ -899,18 +899,30 @@ for my $t (@tests) {
       ) || diag dumper({ args => $t->{args}, result => $stmt });
     }
     else {
+      # Watchdog against infinite recursion. The alarm is generous so slow
+      # smokers don't trip it, and it is always disarmed before the local
+      # handler goes away: a leftover alarm would hit the default handler
+      # and kill the whole test (on Win32 the alarm is only delivered when
+      # perl polls its message queue, so it often lands outside the scope).
       lives_ok(sub {
-        alarm(1); local $SIG{ALRM} = sub {
+        local $SIG{ALRM} = sub {
           no warnings 'redefine';
           my $orig = Carp->can('caller_info');
           local *Carp::caller_info = sub { return if $_[0] > 20; &$orig };
           print STDERR "ARGH ($SQL::Abstract::Default_Scalar_To): ".Carp::longmess();
           die "timed out";
         };
-        warnings_like(
-          sub { $cref->() },
-          $t->{warns} || [],
-        ) || diag dumper({ args => $t->{args}, result => $stmt });
+        alarm(30);
+        my $ok = eval {
+          warnings_like(
+            sub { $cref->() },
+            $t->{warns} || [],
+          ) || diag dumper({ args => $t->{args}, result => $stmt });
+          1;
+        };
+        my $err = $@;
+        alarm(0);
+        die $err unless $ok;
       }) || diag dumper({ args => $t->{args}, result => $stmt, threw => $@ });
 
       is_same_sql_bind(

@@ -17,6 +17,10 @@ Revision history for SQL::Abstract
     "a"."b" (name_sep defaults to "."); before it came out as "a""b",
     which is the single identifier a"b. An empty name_sep keeps a.b
     as the single identifier "a.b".
+  - t/01generate.t: the infinite recursion watchdog gives each case 30
+    seconds instead of 1 and always switches its alarm off again; on
+    slow smokers a leftover alarm killed the whole test with
+    "Terminating on signal SIGALRM(14)" (seen on Win32)
 
 2.000001_03 - 2026-10-24
   - SQL::Abstract::Tree: the indentmap understands "and", "or" and ","
