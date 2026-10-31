@@ -1,0 +1,35 @@
+name: windows
+on:
+  push:
+    branches:
+      - '*'
+    tags-ignore:
+      - '*'
+  pull_request:
+jobs:
+  perl:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        perl-version:
+          - '5.26'   # what the Strawberry CPAN Testers smokers run
+          - '5.42'
+    steps:
+      - name: Keep LF line endings
+        # the runner converts to CRLF on checkout, the CPAN tarball has LF
+        run: git config --global core.autocrlf false
+      - uses: actions/checkout@v5
+      - name: Set up Perl
+        uses: shogo82148/actions-setup-perl@v1
+        with:
+          perl-version: ${{ matrix.perl-version }}
+          distribution: strawberry
+      - name: perl -V
+        run: perl -V
+      - name: Install dependencies
+        run: cpanm -n --installdeps --with-develop .
+      - name: Set up
+        run: perl Makefile.PL
+      - name: Run Tests
+        run: prove -l t
