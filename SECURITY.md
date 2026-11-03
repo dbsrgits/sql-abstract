@@ -54,6 +54,8 @@ in the SQL text. It is a security issue if:
 - an identifier quoted with `quote_char` can break out of its quotes
 - `injection_guard` lets through something its documentation says it
   rejects
+- the `html` profile of SQL::Abstract::Tree puts SQL text or bind values
+  into its output without HTML-escaping them
 
 These are **not** security issues, because they are documented
 behaviour and the calling code is responsible for them:
