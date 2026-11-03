@@ -57,7 +57,6 @@ sub _fold_sql {
       my $folded = $self->_fold_sql($innerdent, $innerdent,
         (@inner == 1 and ref($inner[0])) ? @{$inner[0]} : ($p->[0], @inner)
       );
-      $folded =~ s/\n\z//;
       push @res, $folded."\n";
       $line = $lead.')';
       $fresh = 0;
@@ -70,8 +69,7 @@ sub _fold_sql {
     $fresh = 0;
     next PART if !ref($p) or length($line) <= $w;
     my $folded = $self->_fold_sql($start, $innerdent, @$p);
-    $folded =~ s/\n\z//;
-    push @res, $folded.($last ? '' : $nl_pre)."\n";
+    push @res, $folded.($last ? '' : $nl_pre."\n");
     $line = $last ? '' : $line_proto;
     $fresh = 1;
   }

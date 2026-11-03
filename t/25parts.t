@@ -78,18 +78,21 @@ is_deeply(
   for my $st (@statements) {
     my ($method, @args) = @$st;
     my ($sql) = $sqla->$method(@args);
+    my %folded = map +($_ => eval { $sql->format(max_width => $_) }), 5 .. 100;
     my @bad = grep {
-      my $w = $_;
-      my $folded = eval { $sql->format(max_width => $w) };
-      !defined($folded) or $squash->($folded) ne $squash->("$sql");
-    } 5 .. 100;
+      !defined($folded{$_}) or $squash->($folded{$_}) ne $squash->("$sql")
+    } sort { $a <=> $b } keys %folded;
     ok(!@bad, "format keeps every token of: $sql")
       or diag "differs at max_width @bad";
+    my @nl = grep { defined($folded{$_}) and $folded{$_} =~ /\n\z/ }
+      sort { $a <=> $b } keys %folded;
+    ok(!@nl, "format ends without a newline: $sql")
+      or diag "ends with a newline at max_width @nl";
   }
 
   my ($sql) = $sqla->select('people', '*',
     { -or => [ a => 1, b => 2 ], age => { '>' => 18 }, status => 'x' });
-  (my $folded = $sql->format(max_width => 20)) =~ s/\n\z//;
+  my $folded = $sql->format(max_width => 20);
   is($folded, join("\n",
     'SELECT * FROM people',
     'WHERE (',
@@ -100,7 +103,7 @@ is_deeply(
   ), 'a folded AND list starts each continuation line with AND');
 
   my ($list) = $sqla->select('people', [qw(alpha beta gamma delta)], { name => 1 });
-  (my $cols = $list->format(max_width => 21)) =~ s/\n\z//;
+  my $cols = $list->format(max_width => 21);
   is($cols, join("\n",
     'SELECT',
     '  alpha, beta, gamma,',
