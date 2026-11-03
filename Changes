@@ -1,5 +1,6 @@
 Revision history for SQL::Abstract
 
+2.000001_04 - 2026-11-03
   - SECURITY, CVE-2026-121007: the where / having / set values of a
     nested statement ({ -select => ... }, { -update => ... } ...) in a
     select list, ORDER BY, GROUP BY, RETURNING, FROM (-as) or JOIN (to)
