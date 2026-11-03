@@ -38,9 +38,9 @@ __END__
 
 =head1 NAME
 
-SQL::Abstract::Plugin::BangOverrides
+SQL::Abstract::Plugin::BangOverrides - replace a clause of a statement with a !clause key
 
-=head2 SYNOPSIS
+=head1 SYNOPSIS
 
   $sqla->plugin('+BangOverrides');
   ...
@@ -56,7 +56,7 @@ original value of the 'name' clause and expected to return a replacement, and
 if not, it's simply used as a direct replacement.
 
 This allows for passing data through existing systems that attempt to have
-their own handling for thing but whose capabilities are now superceded by
+their own handling for things but whose capabilities are now superseded by
 L<SQL::Abstract>, and is primarily useful to provide access to experimental
 feature bundles such as L<SQL::Abstract::Plugin::ExtraClauses>.
 
