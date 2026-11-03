@@ -31,45 +31,49 @@ sub _fold_sql {
   my $w = $self->max_width;
   my $join_len = 0;
   (s/, \z/,\n/ and $join_len = 1)
-    or s/\a /\n/
+    or s/\A /\n/
     or $_ = "\n"
       for my $line_join = $join;
-  my ($nl_pre, $nl_post) = split "\n", $line_join;
-  my $line_orig = my $line = $indent0;
-  my $next_indent = $indent.$self->indent_by;
+  my ($nl_pre, $nl_post) = split "\n", $line_join, -1;
+  my $line = $indent0;
+  my ($lead0) = $indent0 =~ /\A(\s*)/;
+  my $fresh = 1; # $line holds no part of this level yet
   my $line_proto = $indent.$nl_post;
   PART: foreach my $idx (0..$#parts) {
     my $p = $parts[$idx];
-    my $pre = ($line ne $line_orig ? $join : '');
+    my $last = $idx == $#parts;
+    my $pre = $fresh ? '' : $join;
     my $j_part = $pre.(my $j = ref($p) ? $self->_join(@$p) : $p);
     if (length($j_part) + length($line) + $join_len <= $w) {
       $line .= $j_part;
+      $fresh = 0;
       next PART;
     }
-    my $innerdent = @res
-                      ? $next_indent
-                      : $indent0.$self->indent_by;
     if (ref($p) and $p->[1] eq '(' and $p->[-1] eq ')') {
-      my $already = !($line eq $indent0 or $line eq $line_orig);
-      push @res, $line.($already ? $join : '').'('."\n";
-      my (undef, undef, $inner) = @$p;
-      my $folded = $self->_fold_sql($innerdent, $innerdent, @$inner);
+      my ($lead) = $line =~ /\A(\s*)/;
+      my $innerdent = $lead.$self->indent_by;
+      push @res, $line.$pre.'('."\n";
+      my @inner = @{$p}[2 .. $#$p - 1];
+      my $folded = $self->_fold_sql($innerdent, $innerdent,
+        (@inner == 1 and ref($inner[0])) ? @{$inner[0]} : ($p->[0], @inner)
+      );
       $folded =~ s/\n\z//;
       push @res, $folded."\n";
-      $line_orig = $line
-         = $indent0.')'.($idx == $#parts ? '' : $join);
+      $line = $lead.')';
+      $fresh = 0;
       next PART;
     }
-    if ($line ne $line_orig) {
-      push @res, $line.($idx == $#parts ? '' : $nl_pre)."\n";
-    }
-    if (length($line = $line_proto.$j) <= $w) {
-      next PART;
-    }
-    my $folded = $self->_fold_sql($line_proto, $innerdent, @$p);
+    my $innerdent = (@res ? $indent : $lead0).$self->indent_by;
+    my $start = $fresh ? $line : $line_proto;
+    push @res, $line.$nl_pre."\n" unless $fresh;
+    $line = $start.$j;
+    $fresh = 0;
+    next PART if !ref($p) or length($line) <= $w;
+    my $folded = $self->_fold_sql($start, $innerdent, @$p);
     $folded =~ s/\n\z//;
-    push @res, $folded.($idx == $#parts ? '' : $nl_pre)."\n";
-    $line_orig = $line = $idx == $#parts ? '' : $line_proto;
+    push @res, $folded.($last ? '' : $nl_pre)."\n";
+    $line = $last ? '' : $line_proto;
+    $fresh = 1;
   }
   return join '', @res, $line;
 }

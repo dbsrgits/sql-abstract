@@ -17,6 +17,11 @@ Revision history for SQL::Abstract
     "a"."b" (name_sep defaults to "."); before it came out as "a""b",
     which is the single identifier a"b. An empty name_sep keeps a.b
     as the single identifier "a.b".
+  - SQL::Abstract::Parts->format keeps every part of the statement when
+    it folds it across lines: a folded AND / OR list starts each
+    continuation line with its operator, a folded comma list keeps the
+    comma before its last item, a folded group keeps its closing
+    bracket, and a part longer than max_width gets a line of its own
   - t/01generate.t: the infinite recursion watchdog gives each case 30
     seconds instead of 1 and always switches its alarm off again; on
     slow smokers a leftover alarm killed the whole test with

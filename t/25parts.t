@@ -40,4 +40,74 @@ is_deeply(
   'to_array returns the join string followed by the parts',
 );
 
+# format() folds a statement across lines and changes only whitespace:
+# with whitespace taken out, the folded text reads like the stringified SQL
+{
+  require SQL::Abstract;
+  my $sqla = SQL::Abstract->new(lazy_join_sql_parts => 1);
+  my @statements = (
+    [ select => 'people', '*',
+      { -or => [ a => 1, b => 2 ], age => { '>' => 18 }, status => 'x' } ],
+    [ select => 'people', [qw(alpha beta gamma delta epsilon)],
+      { -or => [ { a => 1, b => 2 }, { c => 3, d => [ 4, 5 ] } ] },
+      [qw(alpha beta)] ],
+    [ update => 'people', { name => 'x', age => 3 },
+      { -or => [ id => 1, id => { '>' => 100 } ], status => 'x' } ],
+    [ delete => 'people',
+      { -or => [ id => 1, name => { -like => 'x%' } ],
+        status => { -in => [ 1, 2, 3 ] } } ],
+    [ insert => 'people', { name => 'x', age => 3, status => 'y' } ],
+    [ select => 'people',
+      [ \'coalesce(some_rather_long_column_name, another_rather_long_column_name, 0) AS x' ],
+      { id => 1 } ],
+    [ select => 'a_table_with_an_exceptionally_long_name_that_runs_past_the_width', '*' ],
+    [ select => [ 'people', 'pets' ],
+      [ 'people.name', \'count(pets.id) AS pet_count', 'people.city' ],
+      { 'people.id' => \'= pets.owner_id',
+        -or => [ 'pets.kind' => [qw(cat dog bird)],
+                 'people.age' => { -between => [ 18, 65 ] } ],
+        'people.status' => { '!=' => 'gone' } },
+      [ 'people.name', { -desc => 'people.city' } ] ],
+    [ select => 'people', '*',
+      { -not => \'a_really_quite_long_literal_condition_that_does_not_fit_in_narrow_widths' } ],
+    [ select => 'people', '*',
+      { -and => [ { -or => [ a => 1, b => 2 ] }, { -or => [ c => 3, d => 4 ] },
+                  { -or => [ e => 5, f => 6 ] } ] } ],
+  );
+  my $squash = sub { (my $t = shift) =~ s/\s+//g; $t };
+  for my $st (@statements) {
+    my ($method, @args) = @$st;
+    my ($sql) = $sqla->$method(@args);
+    my @bad = grep {
+      my $w = $_;
+      my $folded = eval { $sql->format(max_width => $w) };
+      !defined($folded) or $squash->($folded) ne $squash->("$sql");
+    } 5 .. 100;
+    ok(!@bad, "format keeps every token of: $sql")
+      or diag "differs at max_width @bad";
+  }
+
+  my ($sql) = $sqla->select('people', '*',
+    { -or => [ a => 1, b => 2 ], age => { '>' => 18 }, status => 'x' });
+  (my $folded = $sql->format(max_width => 20)) =~ s/\n\z//;
+  is($folded, join("\n",
+    'SELECT * FROM people',
+    'WHERE (',
+    '  ( a = ? OR b = ? )',
+    '  AND age > ?',
+    '  AND status = ?',
+    ')',
+  ), 'a folded AND list starts each continuation line with AND');
+
+  my ($list) = $sqla->select('people', [qw(alpha beta gamma delta)], { name => 1 });
+  (my $cols = $list->format(max_width => 21)) =~ s/\n\z//;
+  is($cols, join("\n",
+    'SELECT',
+    '  alpha, beta, gamma,',
+    '  delta',
+    'FROM people',
+    'WHERE name = ?',
+  ), 'a folded comma list keeps the comma before its last item');
+}
+
 done_testing;
