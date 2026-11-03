@@ -313,6 +313,10 @@ sub new {
   # default logic for interpreting arrayrefs
   $opt{logic} = $opt{logic} ? uc $opt{logic} : 'OR';
 
+  # an arrayref as a column value in insert / update is one bind value;
+  # literal SQL is \[ $sql, @bind ] (array_datatypes => 0 for the old way)
+  $opt{array_datatypes} = 1 unless defined $opt{array_datatypes};
+
   # how to return bind vars
   $opt{bindtype} ||= 'normal';
 
@@ -2286,12 +2290,10 @@ These are then used directly in your DBI code:
 
 =head2 Inserting and Updating Arrays
 
-If your database has array types (like for example Postgres),
-activate the special option C<< array_datatypes => 1 >>
-when creating the C<SQL::Abstract> object.
-Then you may use an arrayref to insert and update database array types:
+An arrayref as a column value in C<insert> or C<update> is one bind
+value, for databases with array types (like for example Postgres):
 
-    my $sql = SQL::Abstract->new(array_datatypes => 1);
+    my $sql = SQL::Abstract->new;
     my %data = (
         planets => [qw/Mercury Venus Earth Mars/]
     );
@@ -2634,14 +2636,15 @@ of your own.
 
 =item array_datatypes
 
-When this option is true, arrayrefs in INSERT or UPDATE are
-interpreted as array datatypes and are passed directly
-to the DBI layer.
-When this option is false, arrayrefs are interpreted
-as literal SQL, just like refs to arrayrefs
-(but this behavior is for backwards compatibility; when writing
-new queries, use the "reference to arrayref" syntax
-for literal SQL).
+On by default: an arrayref as a column value in INSERT or UPDATE
+(and in C<values>) is one bind value, an array datatype passed
+directly to the DBI layer. Literal SQL is C<\[ $sql, @bind ]>.
+
+C<< array_datatypes => 0 >> restores the behaviour from before
+2.000002: the arrayref is literal SQL, its first element goes into the
+SQL text and the rest become bind values. Do not use it with data that
+can come from outside - a JSON array or a repeated form field turns
+into an arrayref, and its first element ends up in the SQL as-is.
 
 
 =item special_ops
