@@ -1,6 +1,5 @@
 Revision history for SQL::Abstract
 
-2.000001_05 - 2026-11-03
   - SECURITY, CVE-2026-121265: array_datatypes is on by default, so an
     arrayref as a column value in insert() or update() (and values())
     is one bind value. Before, it was literal SQL and its first element
@@ -9,8 +8,6 @@ Revision history for SQL::Abstract
     UPDATE t SET name = x, is_admin = 1. Literal SQL is
     \[ $sql, @bind ]; array_datatypes => 0 restores the old behaviour.
     Incompatible for code that used a plain arrayref as literal SQL.
-
-2.000001_04 - 2026-11-03
   - SECURITY, CVE-2026-121007: the where / having / set values of a
     nested statement ({ -select => ... }, { -update => ... } ...) in a
     select list, ORDER BY, GROUP BY, RETURNING, FROM (-as) or JOIN (to)
@@ -42,8 +39,6 @@ Revision history for SQL::Abstract
     "Terminating on signal SIGALRM(14)" (seen on Win32)
   - Docs: SQL::Abstract::Plugin::BangOverrides has an abstract and a
     SYNOPSIS section
-
-2.000001_03 - 2026-10-24
   - SQL::Abstract::Tree: the indentmap understands "and", "or" and ","
     to put AND / OR conditions and the items of a clause list (select
     list, ORDER BY, GROUP BY, SET ...) on lines of their own; off in all
@@ -108,13 +103,9 @@ Revision history for SQL::Abstract
     META x_IRC); dropped the dead git.shadowcat.co.uk repository links in
     favour of GitHub; updated Nathan Wiger's contact address; META author
     is now the maintainer; added a COPYRIGHT section
-
-2.000001_02 - 2026-10-21
   - t/05in_between.t: the subclass test packages no longer use the
     `package NAME { ... }` syntax (perl 5.14+) or `use mro`/`use parent`,
     so the test suite compiles and passes on perl 5.8 - 5.12 again
-
-2.000001_01 - 2026-09-27
   - SQL::Abstract::Parts: drop the leftover `use Module::Runtime`. It was
     never called, and Module::Runtime stopped being a prerequisite in
     2.000001, so on a system without it installed loading Parts.pm (and
