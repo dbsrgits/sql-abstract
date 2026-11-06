@@ -1,5 +1,8 @@
 package DBIx::Class::Storage::Debug::PrettyPrint;
 
+our $VERSION = '2.000002';
+$VERSION = eval $VERSION if $VERSION =~ /_/; # numify for warning-free dev releases
+
 use strict;
 use warnings;
 

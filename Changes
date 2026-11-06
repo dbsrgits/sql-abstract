@@ -1,5 +1,7 @@
 Revision history for SQL::Abstract
 
+  - every module has a $VERSION, the same as SQL::Abstract
+
 2.000002 - 2026-11-05
   - SECURITY, CVE-2026-121265: array_datatypes is on by default, so an
     arrayref as a column value in insert() or update() (and values())

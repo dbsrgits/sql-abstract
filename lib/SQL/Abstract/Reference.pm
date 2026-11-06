@@ -1,5 +1,8 @@
 package SQL::Abstract::Reference;
 
+our $VERSION = '2.000002';
+$VERSION = eval $VERSION if $VERSION =~ /_/; # numify for warning-free dev releases
+
 1;
 
 __END__

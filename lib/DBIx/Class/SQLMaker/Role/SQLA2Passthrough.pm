@@ -1,5 +1,8 @@
 package DBIx::Class::SQLMaker::Role::SQLA2Passthrough;
 
+our $VERSION = '2.000002';
+$VERSION = eval $VERSION if $VERSION =~ /_/; # numify for warning-free dev releases
+
 use strict;
 use warnings;
 use Exporter 'import';

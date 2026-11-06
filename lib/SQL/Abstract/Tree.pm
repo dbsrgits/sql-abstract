@@ -1,5 +1,8 @@
 package SQL::Abstract::Tree;
 
+our $VERSION = '2.000002';
+$VERSION = eval $VERSION if $VERSION =~ /_/; # numify for warning-free dev releases
+
 use Moo;
 no warnings 'qw';
 

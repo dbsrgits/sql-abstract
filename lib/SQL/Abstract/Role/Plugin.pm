@@ -1,5 +1,8 @@
 package SQL::Abstract::Role::Plugin;
 
+our $VERSION = '2.000002';
+$VERSION = eval $VERSION if $VERSION =~ /_/; # numify for warning-free dev releases
+
 use Moo::Role;
 
 has sqla => (

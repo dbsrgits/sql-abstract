@@ -1,5 +1,8 @@
 package SQL::Abstract::Parts;
 
+our $VERSION = '2.000002';
+$VERSION = eval $VERSION if $VERSION =~ /_/; # numify for warning-free dev releases
+
 use Scalar::Util ();
 use strict;
 use warnings;
