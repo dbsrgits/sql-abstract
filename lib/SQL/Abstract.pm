@@ -2139,9 +2139,13 @@ sub generate {
                 my $v = $_->{$k};
                 my $r = ref $v;
                 my $label = $self->_quote($k);
-                if ($r eq 'ARRAY') {
+                if ($r eq 'ARRAY' && $self->{array_datatypes}) {
+                    # array datatype: one bind value, like insert / update
+                    push @sqlq, "$label = ?";
+                    push @sqlv, $self->_bindtype($k, $v);
+                } elsif ($r eq 'ARRAY' || $r eq 'REF' && ref $$v eq 'ARRAY') {
                     # literal SQL with bind
-                    my ($sql, @bind) = @$v;
+                    my ($sql, @bind) = $r eq 'REF' ? @$$v : @$v;
                     $self->_assert_bindval_matches_bindtype(@bind);
                     push @sqlq, "$label = $sql";
                     push @sqlv, @bind;
@@ -2158,8 +2162,13 @@ sub generate {
             # unlike insert(), assume these are ONLY the column names, i.e. for SQL
             for my $v (@$_) {
                 my $r = ref $v;
-                if ($r eq 'ARRAY') {   # literal SQL with bind
-                    my ($sql, @bind) = @$v;
+                if ($r eq 'ARRAY' && $self->{array_datatypes}) {
+                    # array datatype: one bind value, like insert
+                    push @sqlq, '?';
+                    push @sqlv, $v;
+                } elsif ($r eq 'ARRAY' || $r eq 'REF' && ref $$v eq 'ARRAY') {
+                    # literal SQL with bind
+                    my ($sql, @bind) = $r eq 'REF' ? @$$v : @$v;
                     $self->_assert_bindval_matches_bindtype(@bind);
                     push @sqlq, $sql;
                     push @sqlv, @bind;
@@ -2637,8 +2646,9 @@ of your own.
 =item array_datatypes
 
 On by default: an arrayref as a column value in INSERT or UPDATE
-(and in C<values>) is one bind value, an array datatype passed
-directly to the DBI layer. Literal SQL is C<\[ $sql, @bind ]>.
+(and in C<values> and C<generate>) is one bind value, an array
+datatype passed directly to the DBI layer. Literal SQL is
+C<\[ $sql, @bind ]>.
 
 C<< array_datatypes => 0 >> restores the behaviour from before
 2.000002: the arrayref is literal SQL, its first element goes into the
@@ -2838,6 +2848,11 @@ Might give you:
 
 You get the idea. Strings get their case twiddled, but everything
 else remains verbatim.
+
+In a hashref or an arrayref, an arrayref is one bind value, as in
+C<insert> and C<update> (see L</array_datatypes>). Literal SQL is
+C<\$sql> or C<\[ $sql, @bind ]>. The second calling form puts every
+value into the SQL text as-is, so use it only with values you trust.
 
 =head1 EXPORTABLE FUNCTIONS
 

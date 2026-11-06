@@ -1,5 +1,12 @@
 Revision history for SQL::Abstract
 
+  - SECURITY, CVE-2026-121265: generate() (and so AUTOLOAD with
+    allow_autoload) also treats an arrayref in its hashref or arrayref
+    as one bind value. 2.000002 fixed only insert(), update() and
+    values(): generate('update t', { name => [ "(SELECT ...)" ] })
+    still gave UPDATE T SET name = (SELECT ...). \[ $sql, @bind ] is
+    literal SQL in generate() too; array_datatypes => 0 restores the
+    old behaviour.
   - every module has a $VERSION, the same as SQL::Abstract
 
 2.000002 - 2026-11-05

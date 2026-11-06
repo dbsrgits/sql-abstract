@@ -68,6 +68,9 @@ behaviour and the calling code is responsible for them:
   `quote_char`.
 - **Literal SQL is passed through as-is.** `\"..."` and `\["...", @bind]`
   are inserted verbatim by design.
+- **`generate()` in scalar context** puts every value into the SQL text
+  (that is its documented second calling form). Call it in list context
+  to get bind values.
 - **Operator names** (`-op` keys, `special_ops`, `unary_ops`) are code,
   not data. Do not build them from untrusted input.
 - `injection_guard` is a last-resort check for a few obvious patterns,

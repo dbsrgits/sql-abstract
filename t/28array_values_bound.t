@@ -76,4 +76,55 @@ is_deeply(
   'array_datatypes => 0: values() returns the binds of the literal',
 );
 
+# generate() and AUTOLOAD (allow_autoload) follow the same rule
+
+is_deeply(
+  [ $sqla->generate('update t', { name => [ $evil ] }) ],
+  [ 'UPDATE T SET name = ?', [ $evil ] ],
+  'generate: arrayref in a hash is one bind value by default',
+);
+
+is_deeply(
+  [ $sqla->generate('insert into t', [ 1, [ $evil ] ]) ],
+  [ 'INSERT INTO T (?, ?)', 1, [ $evil ] ],
+  'generate: arrayref in a list of values is one bind value by default',
+);
+
+is_deeply(
+  [ SQL::Abstract->new(bindtype => 'columns')
+      ->generate('update t', { name => [ $evil ] }) ],
+  [ 'UPDATE T SET name = ?', [ name => [ $evil ] ] ],
+  'generate: arrayref bind value follows bindtype columns',
+);
+
+is_deeply(
+  [ SQL::Abstract->new(allow_autoload => 1)->update_t({ name => [ $evil ] }) ],
+  [ 'UPDATE_T SET name = ?', [ $evil ] ],
+  'AUTOLOAD: arrayref column value is one bind value by default',
+);
+
+is_deeply(
+  [ $sqla->generate('update t', { a => \[ 'a + ?', 1 ] }) ],
+  [ 'UPDATE T SET a = a + ?', 1 ],
+  'generate: \[ $sql, @bind ] in a hash is literal SQL',
+);
+
+is_deeply(
+  [ $sqla->generate('insert into t', [ \[ 'lower(?)', 'X' ] ]) ],
+  [ 'INSERT INTO T (lower(?))', 'X' ],
+  'generate: \[ $sql, @bind ] in a list of values is literal SQL',
+);
+
+is_deeply(
+  [ $legacy->generate('update t', { a => [ 'a + ?', 1 ] }) ],
+  [ 'UPDATE T SET a = a + ?', 1 ],
+  'array_datatypes => 0: generate keeps the arrayref in a hash as literal SQL',
+);
+
+is_deeply(
+  [ $legacy->generate('insert into t', [ [ 'lower(?)', 'X' ] ]) ],
+  [ 'INSERT INTO T (lower(?))', 'X' ],
+  'array_datatypes => 0: generate keeps the arrayref in a list as literal SQL',
+);
+
 done_testing;
