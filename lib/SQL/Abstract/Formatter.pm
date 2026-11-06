@@ -1,6 +1,6 @@
 package SQL::Abstract::Formatter;
 
-our $VERSION = '2.000002';
+our $VERSION = '2.000003';
 $VERSION = eval $VERSION if $VERSION =~ /_/; # numify for warning-free dev releases
 
 require SQL::Abstract::Parts; # it loads us too, don't cross the streams

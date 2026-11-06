@@ -1,6 +1,6 @@
 package SQL::Abstract::Test; # see doc at end of file
 
-our $VERSION = '2.000002';
+our $VERSION = '2.000003';
 $VERSION = eval $VERSION if $VERSION =~ /_/; # numify for warning-free dev releases
 
 use strict;
