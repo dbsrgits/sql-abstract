@@ -1,5 +1,6 @@
 Revision history for SQL::Abstract
 
+2.000003 - 2026-11-06
   - SECURITY, CVE-2026-121265: generate() (and so AUTOLOAD with
     allow_autoload) also treats an arrayref in its hashref or arrayref
     as one bind value. 2.000002 fixed only insert(), update() and
